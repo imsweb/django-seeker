@@ -14,6 +14,7 @@ Contents:
    settings
    mapping
    views
+   tests
 
 
 Indices and tables

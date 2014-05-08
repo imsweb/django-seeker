@@ -148,7 +148,8 @@ class Mapping (object):
 
     overrides = None
     """
-    A dict mapping field names you want to override to MappingType instances.
+    A dict mapping field names you want to override to MappingType instances. Field names listed here do
+    not need to be actual model field names.
     """
 
     batch_size = 1000
