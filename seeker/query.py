@@ -142,9 +142,9 @@ class ResultSet (object):
     def response(self):
         if self._response is None:
             query = self.to_elastic()
-            import pprint
-            print '----- request -----'
-            pprint.pprint(query)
+            # import pprint
+            # print '----- request -----'
+            # pprint.pprint(query)
             self._response = self.mapping.es.search(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query, size=self.limit, from_=self.offset)
             # print '----- response -----'
             # pprint.pprint(self._response)

@@ -1,0 +1,60 @@
+[
+{
+    "fields": {
+        "bio": "The author of this library.",
+        "first_name": "Dan",
+        "last_name": "Watson"
+    },
+    "model": "core.author",
+    "pk": 1
+},
+{
+    "fields": {
+        "bio": "My better half.",
+        "first_name": "Alexa",
+        "last_name": "Watson"
+    },
+    "model": "core.author",
+    "pk": 2
+},
+{
+    "fields": {
+        "date_published": "2007-06-25",
+        "in_print": true,
+        "authors": [
+            1,
+            2
+        ],
+        "pages": 313,
+        "title": "Herding Cats"
+    },
+    "model": "core.book",
+    "pk": 1
+},
+{
+    "fields": {
+        "date_published": "2014-05-08",
+        "in_print": true,
+        "authors": [
+            1
+        ],
+        "pages": 200,
+        "title": "Searching in Django"
+    },
+    "model": "core.book",
+    "pk": 2
+},
+{
+    "fields": {
+        "date_published": "2004-12-25",
+        "in_print": false,
+        "authors": [
+            2
+        ],
+        "pages": 123,
+        "title": "Law School Sucks"
+    },
+    "model": "core.book",
+    "pk": 3
+}
+]

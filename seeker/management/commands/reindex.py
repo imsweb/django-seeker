@@ -2,11 +2,30 @@ from django.core.management.base import BaseCommand
 from django.apps import apps
 from seeker.utils import get_app_mappings
 from elasticsearch.helpers import bulk
-import tqdm
+from optparse import make_option
+import StringIO
+import sys
+
+def silent_iter(iterable, **kwargs):
+    for obj in iterable:
+        yield obj
+
+try:
+    from tqdm import tqdm as progress_iter
+except ImportError:
+    progress_iter = silent_iter
 
 class Command (BaseCommand):
     args = '<app1 app2 ...>'
     help = 'Re-indexes the specified applications'
+    option_list = BaseCommand.option_list + (
+        make_option('--quiet',
+            action='store_true',
+            dest='quiet',
+            default=False,
+            help='Suppress all output to stdout'
+        ),
+    )
 
     def handle(self, *args, **options):
         app_labels = args or [a.label for a in apps.get_app_configs()]
@@ -35,6 +54,12 @@ class Command (BaseCommand):
                     total = mapping.queryset().count()
                 except:
                     total = None
-                print '%s.%s:' % (app_label, mapping.__class__.__name__)
-                bulk(mapping.es, tqdm.tqdm(get_actions(), total=total, leave=True))
-                print
+                output = StringIO.StringIO() if options['quiet'] else sys.stderr
+                iterator = silent_iter if options['quiet'] else progress_iter
+                output.write('Indexing %s.%s\n' % (app_label, mapping.__class__.__name__))
+                output.flush()
+                bulk(mapping.es, iterator(get_actions(), total=total, leave=True))
+                output.write('\n')
+                output.flush()
+                # Refresh the index, so documents are available for searching when this command completes.
+                mapping.es.indices.refresh(index=mapping.index_name)
