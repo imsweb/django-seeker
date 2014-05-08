@@ -1,0 +1,23 @@
+{% load seeker %}
+
+<form action="" method="get">
+    <div class="form-group">
+        <input type="text" class="form-control" placeholder="Keywords" name="q" value="{{ keywords }}" autofocus="autofocus" />
+    </div>
+    {% for facet, values in results.facet_values %}
+        {% if values %}
+            <h4>{{ facet.label|capfirst }}</h4>
+            <div class="choices">
+                {% for value in values %}
+                    <div class="checkbox">
+                        {% facet_checkbox facet value filters %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endfor %}
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{{ request_path }}" class="btn btn-default">Clear</a>
+    </div>
+</form>
