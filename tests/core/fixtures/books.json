@@ -19,8 +19,23 @@
 },
 {
     "fields": {
+        "name": "Fiction"
+    },
+    "model": "core.category",
+    "pk": 1
+},
+{
+    "fields": {
+        "name": "Non-Fiction"
+    },
+    "model": "core.category",
+    "pk": 2
+},
+{
+    "fields": {
         "date_published": "2007-06-25",
         "in_print": true,
+        "category": 1,
         "authors": [
             1,
             2
@@ -35,6 +50,7 @@
     "fields": {
         "date_published": "2014-05-08",
         "in_print": true,
+        "category": 2,
         "authors": [
             1
         ],
@@ -48,6 +64,7 @@
     "fields": {
         "date_published": "2004-12-25",
         "in_print": false,
+        "category": 2,
         "authors": [
             2
         ],
@@ -56,5 +73,21 @@
     },
     "model": "core.book",
     "pk": 3
+},
+{
+    "fields": {
+        "name": "Django Gypsy Jazz",
+        "issue_date": "2014-01-01"
+    },
+    "model": "core.magazine",
+    "pk": 1
+},
+{
+    "fields": {
+        "name": "Django Gypsy Jazz",
+        "issue_date": "2014-02-01"
+    },
+    "model": "core.magazine",
+    "pk": 2
 }
 ]

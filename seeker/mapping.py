@@ -113,8 +113,14 @@ class DateTimeType (MappingType):
 class BooleanType (MappingType):
     data_type = 'boolean'
 
+    def to_elastic(self, value):
+        return bool(value)
+
 class IntegerType (MappingType):
     data_type = 'integer'
+
+    def to_elastic(self, value):
+        return int(value)
 
 class ObjectType (MappingType):
 

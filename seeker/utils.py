@@ -1,4 +1,5 @@
 from django.apps import apps
+from django.conf import settings
 
 def get_app_mappings(app_label):
     seeker_app = apps.get_app_config('seeker')
@@ -17,3 +18,32 @@ def get_facet_filters(request_data, facets):
             filters[facet.field] = set(terms)
             facet_filters.append(facet.filter(terms))
     return filters, facet_filters
+
+def index(obj):
+    """ Shortcut to index an object based on it's model class. """
+    # TODO: should this use ContentType, to deal with proxy models?
+    for mapping in get_model_mappings(obj.__class__):
+        mapping.index(obj)
+
+def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
+    from elasticsearch import Elasticsearch
+    from .query import Result
+    seeker_app = apps.get_app_config('seeker')
+    es = Elasticsearch(hosts or getattr(settings, 'SEEKER_HOSTS', None))
+    query = query or {}
+    if isinstance(query, basestring):
+        query = {
+            'query': {
+                'query_string': {
+                    'query': query,
+                    'auto_generate_phrase_queries': True,
+                    'analyze_wildcard': True,
+                    'default_operator': getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'OR'),
+                }
+            }
+        }
+    response = es.search(index='_all', body=query)
+    max_score = response['hits']['max_score']
+    for hit in response['hits']['hits']:
+        mapping = seeker_app.doc_types[hit['_type']]
+        yield Result(mapping, hit, max_score)

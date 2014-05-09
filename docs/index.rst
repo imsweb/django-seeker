@@ -11,8 +11,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   settings
+   configuration
    mapping
+   querying
    views
    tests
 

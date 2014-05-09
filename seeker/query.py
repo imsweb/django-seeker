@@ -1,7 +1,10 @@
 from django.conf import settings
 import collections
 import operator
+import logging
 import copy
+
+logger = logging.getLogger(__name__)
 
 class Result (object):
 
@@ -38,6 +41,10 @@ class Result (object):
         return self.hit['_id']
 
     @property
+    def type(self):
+        return self.hit['_type']
+
+    @property
     def score(self):
         return float(self.hit['_score']) if self.hit['_score'] is not None else 0.0
 
@@ -68,7 +75,11 @@ class ResultSet (object):
         self.filters = filters or []
         if isinstance(self.filters, dict):
             self.filters = [F(**{name: values}) for name, values in self.filters.items()]
+        elif isinstance(self.filters, F):
+            self.filters = [self.filters]
         self.facets = facets or []
+        if isinstance(self.facets, Aggregate):
+            self.facets = [self.facets]
         self.highlight = highlight or {}
         if isinstance(self.highlight, (list, tuple)):
             self.highlight = {'fields': {f: {'number_of_fragments': 0} for f in self.highlight}}
@@ -101,28 +112,29 @@ class ResultSet (object):
         self._instances = {}
         self._response = None
 
-    def to_elastic(self):
-        if self.filters and not self.query and not self.facets:
-            # Fast case for filter-only searches.
+    def to_elastic(self, for_count=False):
+        if self.filters and not self.query and not self.facets and not for_count:
+            # Fast case for filter-only searches. Can't be used for the count API, which expects a "query" key.
             f = reduce(operator.and_, self.filters)
-            return {'filter': f.to_elastic()}
-        q = {}
-        if self.filters:
-            # If we have filters and either facets or a query, we need to use the filtered query.
-            f = reduce(operator.and_, self.filters)
-            q = {'query': {'filtered': {'filter': f.to_elastic()}}}
-            if self.query:
-                q['query']['filtered']['query'] = self.query
-        elif self.query:
-            # Otherwise we can just use a straight query.
-            q['query'] = self.query
+            q = {'filter': f.to_elastic()}
+        else:
+            q = {}
+            if self.filters:
+                # If we have filters and either facets or a query, we need to use the filtered query.
+                f = reduce(operator.and_, self.filters)
+                q = {'query': {'filtered': {'filter': f.to_elastic()}}}
+                if self.query:
+                    q['query']['filtered']['query'] = self.query
+            elif self.query:
+                # Otherwise we can just use a straight query.
+                q['query'] = self.query
+            # Add any facets as aggregations.
+            if self.facets:
+                q['aggregations'] = {}
+                for facet in self.facets:
+                    q['aggregations'][facet.name] = facet.to_elastic()
         if self.highlight:
             q['highlight'] = self.highlight
-        # Add any facets as aggregations.
-        if self.facets:
-            q['aggregations'] = {}
-            for facet in self.facets:
-                q['aggregations'][facet.name] = facet.to_elastic()
         if self.suggest:
             q['suggest'] = self.suggest
         if self.sort:
@@ -134,7 +146,8 @@ class ResultSet (object):
         if self._response:
             return self.total
         else:
-            query = self.to_elastic()
+            query = self.to_elastic(for_count=True)
+            logger.debug('Counting %s/%s: %s', self.mapping.index_name, self.mapping.doc_type, query)
             result = self.mapping.es.count(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query)
             return result['count']
 
@@ -142,12 +155,8 @@ class ResultSet (object):
     def response(self):
         if self._response is None:
             query = self.to_elastic()
-            # import pprint
-            # print '----- request -----'
-            # pprint.pprint(query)
+            logger.debug('Querying %s/%s: %s', self.mapping.index_name, self.mapping.doc_type, query)
             self._response = self.mapping.es.search(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query, size=self.limit, from_=self.offset)
-            # print '----- response -----'
-            # pprint.pprint(self._response)
         return self._response
 
     @property
@@ -192,6 +201,10 @@ class ResultSet (object):
         for facet in self.facets:
             yield facet, facet.facet_values(self.response)
 
+    @property
+    def aggregates(self):
+        return collections.OrderedDict(self.facet_values())
+
 class Aggregate (object):
     def __init__(self, field, name=None, label=None):
         self.field = field
@@ -211,8 +224,14 @@ class Aggregate (object):
         return value['key']
 
 class TermAggregate (Aggregate):
+    def __init__(self, field, name=None, label=None, size=10, include=None, exclude=None):
+        super(TermAggregate, self).__init__(field, name=name, label=label)
+        self.size = size
+        self.include = include
+        self.exclude = exclude
+
     def to_elastic(self):
-        return {'terms': {'field': self.field, 'size': 40}}
+        return {'terms': {'field': self.field, 'size': self.size}}
 
     def filter(self, values):
         return F(**{self.field: values})
@@ -316,7 +335,7 @@ class F (object):
         return self._combine(other, 'and')
 
     def filter_spec(self, val):
-        if isinstance(val[1], basestring):
+        if isinstance(val[1], (basestring, bool, int)):
             return {'term': {val[0]: val[1]}}
         else:
             return {'terms': {val[0]: list(val[1])}}
