@@ -1,6 +1,7 @@
 from django import template
 from django.utils.html import escape
 from django.http import QueryDict
+from django.contrib.humanize.templatetags.humanize import intcomma
 import string
 
 register = template.Library()
@@ -10,17 +11,21 @@ def facet_checkbox(facet, value, filters=None, missing='MISSING'):
     if filters is None:
         filters = {}
     key = facet.get_key(value)
-    return '<label><input type="checkbox" name="%(name)s" value="%(key)s"%(checked)s data-count="%(count)s" /> %(key)s (%(count)s)</label>' % {
+    return '<label><input type="checkbox" name="%(name)s" value="%(key)s"%(checked)s data-count="%(count)s" /> %(key_fmt)s (%(count_fmt)s)</label>' % {
         'name': facet.field,
-        'key': key or missing,
+        'key': key or '',
+        'key_fmt': key or missing,
         'count': value['doc_count'],
+        'count_fmt': intcomma(value['doc_count']),
         'checked': ' checked="checked"' if facet.field in filters and key in filters[facet.field] else '',
     }
 
 @register.simple_tag
-def facet_values(facet, filters):
+def facet_values(facet, filters, missing='MISSING'):
     html = '<ul class="list-unstyled facet-values">'
     for term in filters.get(facet.field, []):
+        if not term:
+            term = missing
         html += '<li><a class="remove" data-term="%(term)s">&times;</a> %(term)s</li>' % {'term': escape(term)}
     html += '</ul>'
     return html
