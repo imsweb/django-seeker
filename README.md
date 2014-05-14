@@ -1,3 +1,9 @@
+Requirements
+============
+
+  * Django 1.7 or later
+
+
 Documentation
 =============
 
