@@ -10,9 +10,10 @@ setup(
     url='http://imsweb.com',
     license='BSD',
     packages=find_packages(),
-#    install_requires=[
-#        'Django>=1.7',
-#    ],
+    install_requires=[
+        'elasticsearch>=1.0',
+        'tqdm',
+    ],
     include_package_data=True,
     classifiers=[
         'Development Status :: 3 - Alpha',
