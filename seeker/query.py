@@ -231,7 +231,12 @@ class TermAggregate (Aggregate):
         self.exclude = exclude
 
     def to_elastic(self):
-        return {'terms': {'field': self.field, 'size': self.size}}
+        q = {'terms': {'field': self.field, 'size': self.size}}
+        if self.include:
+            q['terms']['include'] = {'pattern': self.include, 'flags': 'CASE_INSENSITIVE'}
+        if self.exclude:
+            q['terms']['exclude'] = {'pattern': self.exclude, 'flags': 'CASE_INSENSITIVE'}
+        return q
 
     def filter(self, values):
         return F(**{self.field: values})

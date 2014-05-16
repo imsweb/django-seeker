@@ -9,11 +9,13 @@ def get_model_mappings(model_class):
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.model_mappings.get(model_class, [])
 
-def get_facet_filters(request_data, facets):
+def get_facet_filters(request_data, facets, exclude=None):
     filters = {}
     facet_filters = []
+    if exclude is None:
+        exclude = set()
     for facet in facets:
-        if facet.field in request_data:
+        if facet.field in request_data and facet.field not in exclude:
             terms = request_data.getlist(facet.field)
             filters[facet.field] = set(terms)
             facet_filters.append(facet.filter(terms))
