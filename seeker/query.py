@@ -224,11 +224,12 @@ class Aggregate (object):
         return value['key']
 
 class TermAggregate (Aggregate):
-    def __init__(self, field, name=None, label=None, size=10, include=None, exclude=None):
+    def __init__(self, field, name=None, label=None, size=10, include=None, exclude=None, filter_operator='or'):
         super(TermAggregate, self).__init__(field, name=name, label=label)
         self.size = size
         self.include = include
         self.exclude = exclude
+        self.filter_operator = filter_operator
 
     def to_elastic(self):
         q = {'terms': {'field': self.field, 'size': self.size}}
@@ -239,7 +240,10 @@ class TermAggregate (Aggregate):
         return q
 
     def filter(self, values):
-        return F(**{self.field: values})
+        if self.filter_operator == 'and':
+            return And(self.field, values)
+        else:
+            return F(**{self.field: values})
 
 class StatsAggregate (Aggregate):
     def to_elastic(self):
@@ -359,6 +363,18 @@ class F (object):
             return [_es(f) for f in self.filters]
         else:
             return _es(self.filters[0])
+
+class AndSpec (object):
+    def __init__(self, field, values):
+        self.field = field
+        self.values = list(values)
+
+    def filter_spec(self):
+        return {'terms': {self.field: self.values, 'execution': 'and'}}
+
+class And (F):
+    def __init__(self, field, values):
+        self.filters = [AndSpec(field, values)]
 
 class RangeSpec (object):
     def __init__(self, field, min_value, max_value, min_oper='gte', max_oper='lte'):
