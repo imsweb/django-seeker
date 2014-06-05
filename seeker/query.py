@@ -206,10 +206,11 @@ class ResultSet (object):
         return collections.OrderedDict(self.facet_values())
 
 class Aggregate (object):
-    def __init__(self, field, name=None, label=None):
+    def __init__(self, field, name=None, label=None, description=None):
         self.field = field
         self.name = name or 'agg_%s' % self.field
         self.label = label or field.replace('_', ' ').capitalize()
+        self.description = description
 
     def facet_values(self, response):
         return response['aggregations'][self.name]['buckets']
@@ -224,8 +225,8 @@ class Aggregate (object):
         return value['key']
 
 class TermAggregate (Aggregate):
-    def __init__(self, field, name=None, label=None, size=10, include=None, exclude=None, filter_operator='or'):
-        super(TermAggregate, self).__init__(field, name=name, label=label)
+    def __init__(self, field, name=None, label=None, description=None, size=10, include=None, exclude=None, filter_operator='or'):
+        super(TermAggregate, self).__init__(field, name=name, label=label, description=description)
         self.size = size
         self.include = include
         self.exclude = exclude
@@ -260,10 +261,10 @@ class YearHistogram (Aggregate):
         return value['key_as_string']
 
 class RangeAggregate (Aggregate):
-    def __init__(self, field, name=None, label=None, ranges=None, under='Under', over='Over', value_format=int):
-        super(RangeAggregate, self).__init__(field, name=name, label=label)
-        self.under = under
-        self.over = over
+    separator = '-'
+
+    def __init__(self, field, name=None, label=None, description=None, ranges=None, value_format=int):
+        super(RangeAggregate, self).__init__(field, name=name, label=label, description=description)
         self.ranges = ranges
         self.value_format = value_format
 
@@ -272,10 +273,10 @@ class RangeAggregate (Aggregate):
 
     def _parse_range(self, value):
         parts = value.split()
-        if parts[0] == self.over:
-            return self.value_format(parts[-1]), None
-        elif parts[0] == self.under:
+        if parts[0] == self.separator:
             return None, self.value_format(parts[-1])
+        elif parts[-1] == self.separator:
+            return self.value_format(parts[0]), None
         else:
             return self.value_format(parts[0]), self.value_format(parts[-1])
 
@@ -283,19 +284,17 @@ class RangeAggregate (Aggregate):
         ranges = []
         for val in values:
             min_value, max_value = self._parse_range(val)
-            ranges.append(Range(self.field, min_value=min_value, max_value=max_value, max_oper='lt'))
+            ranges.append(Range(self.field, min_value=min_value, max_value=max_value))
         return reduce(operator.or_, ranges)
 
     def get_key(self, value):
         from_val = value.get('from', '')
         to_val = value.get('to', '')
-        if from_val and to_val:
-            return '%s - %s' % (self.value_format(from_val), self.value_format(to_val))
-        elif from_val:
-            return '%s %s' % (self.over, self.value_format(from_val))
-        elif to_val:
-            return '%s %s' % (self.under, self.value_format(to_val))
-        return ''
+        if from_val != '':
+            from_val = self.value_format(from_val)
+        if to_val != '':
+            to_val = self.value_format(to_val)
+        return '%s - %s' % (from_val, to_val)
 
 # Basically taken from ElasticUtils, and simplified to generate Query DSL directly and not handle inverts.
 # Ideally, I'd like to eventually just use ElasticUtils, but they don't support ES 1.0 yet.

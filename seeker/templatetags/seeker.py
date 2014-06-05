@@ -21,12 +21,12 @@ def facet_checkbox(facet, value, filters=None, missing='MISSING'):
     }
 
 @register.simple_tag
-def facet_values(facet, filters, missing='MISSING'):
+def facet_values(facet, filters, missing='MISSING', remove='&times;'):
     html = '<ul class="list-unstyled facet-values">'
     for term in filters.get(facet.field, []):
         if not term:
             term = missing
-        html += '<li><a class="remove" data-term="%(term)s">&times;</a> %(term)s</li>' % {'term': escape(term)}
+        html += '<li><a class="remove" data-term="%(term)s">%(remove)s</a> %(term)s</li>' % {'term': escape(term), 'remove': remove}
     html += '</ul>'
     return html
 
