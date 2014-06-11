@@ -151,6 +151,13 @@ class ResultSet (object):
             result = self.mapping.es.count(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query)
             return result['count']
 
+    def queryset(self):
+        query = self.to_elastic()
+        logger.debug('Queryset for %s/%s: %s', self.mapping.index_name, self.mapping.doc_type, query)
+        response = self.mapping.es.search(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query, size=self.limit, _source=False)
+        pks = set(hit['_id'] for hit in response['hits']['hits'])
+        return self.mapping.queryset().filter(pk__in=pks)
+
     @property
     def response(self):
         if self._response is None:

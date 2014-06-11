@@ -49,3 +49,6 @@ def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
     for hit in response['hits']['hits']:
         mapping = seeker_app.doc_types[hit['_type']]
         yield Result(mapping, hit, max_score)
+
+def queryset(model_class, **kwargs):
+    return get_model_mappings(model_class)[0].query(**kwargs).queryset()
