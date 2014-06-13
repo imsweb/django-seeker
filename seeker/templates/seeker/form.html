@@ -26,9 +26,11 @@
                     <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu" role="menu">
-                    <li><a href="" data-toggle="modal" data-target="#save-dialog">Save This Search</a></li>
+                    {% if querystring %}
+                        <li><a href="" data-toggle="modal" data-target="#save-dialog">Save This Search</a></li>
+                    {% endif %}
                     {% for s in saved_searches %}
-                        {% if forloop.first %}
+                        {% if forloop.first and querystring %}
                             <li class="divider"></li>
                         {% endif %}
                         <li><a href="{{ s.get_absolute_url }}">{{ s }}</a></li>
