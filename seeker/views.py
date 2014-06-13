@@ -1,4 +1,6 @@
 from django.views.generic import TemplateView
+from django.shortcuts import redirect
+from django.contrib import messages
 from .query import TermAggregate
 
 class SeekerView (TemplateView):
@@ -32,10 +34,20 @@ class SeekerView (TemplateView):
         offset = (page - 1) * self.page_size
         results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset)
         params = self.request.GET.copy()
+        querystring = params.urlencode()
         try:
             params.pop('page')
         except:
             pass
+        try:
+            from .models import SavedSearch
+            can_save = True
+            current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
+            saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
+        except ImportError:
+            can_save = False
+            current_search = None
+            saved_searches = None
         kwargs.update({
             'results': results,
             'filters': filters,
@@ -44,6 +56,42 @@ class SeekerView (TemplateView):
             'page': page,
             'page_param': self.page_param,
             'page_size': self.page_size,
-            'querystring': params.urlencode(),
+            'querystring': querystring,
+            'can_save': can_save,
+            'current_search': current_search,
+            'saved_searches': saved_searches,
         })
         return kwargs
+
+    def get(self, request, *args, **kwargs):
+        try:
+            from .models import SavedSearch
+            saved = SavedSearch.objects.get(user=request.user, url=request.path, default=True)
+            querystring = request.GET.urlencode()
+            if querystring == '' and saved.querystring != querystring:
+                return redirect(saved)
+        except:
+            pass
+        return super(SeekerView, self).get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        qs = request.POST.get('querystring', '').strip()
+        if '_save' in request.POST:
+            name = request.POST.get('name', '').strip()
+            if not name:
+                messages.error(request, 'You did not provide a name for the saved search. Please try again.')
+                return redirect(request.get_full_path())
+            default = request.POST.get('default', '').strip() == '1'
+            if default:
+                request.user.seeker_searches.filter(url=request.path).update(default=False)
+            search = request.user.seeker_searches.create(name=name, url=request.path, querystring=qs, default=default)
+            messages.success(request, 'Successfully saved "%s".' % search)
+            return redirect(search)
+        elif '_default' in request.POST:
+            request.user.seeker_searches.filter(url=request.path).update(default=False)
+            request.user.seeker_searches.filter(url=request.path, querystring=qs).update(default=True)
+        elif '_unset' in request.POST:
+            request.user.seeker_searches.filter(url=request.path).update(default=False)
+        elif '_delete' in request.POST:
+            request.user.seeker_searches.filter(url=request.path, querystring=qs).delete()
+        return redirect(request.get_full_path())

@@ -212,7 +212,7 @@ class Mapping (object):
     not need to be actual model field names.
     """
 
-    batch_size = 1000
+    batch_size = getattr(settings, 'SEEKER_BATCH_SIZE', 1000)
     """
     Batch size to use when indexing large querysets.
     """
@@ -323,19 +323,29 @@ class Mapping (object):
         """
         return True
 
-    def get_objects(self):
+    def get_objects(self, cursor=False):
         """
         A generator yielding object instances that will subsequently be indexed using :meth:`.get_data` and :meth:`.get_id`. This method
         calls :meth:`.queryset` and orders it by ``pk``, then slices the results according to :attr:`.batch_size`. This results
         in more queries, but avoids loading all objects into memory at once.
+        
+        :param cursor: If True, use a server-side cursor when fetching the results for better performance.
         """
-        qs = self.queryset().order_by('pk')
-        total = qs.count()
-        for start in range(0, total, self.batch_size):
-            end = min(start + self.batch_size, total)
-            for obj in qs.all()[start:end]:
-                if self.should_index(obj):
-                    yield obj
+        if cursor:
+            from .compiler import CursorQuery
+            qs = self.queryset().order_by()
+            # Swap out the Query object with a clone using our subclass.
+            qs.query = qs.query.clone(klass=CursorQuery)
+            for obj in qs:
+                yield obj
+        else:
+            qs = self.queryset().order_by('pk')
+            total = qs.count()
+            for start in range(0, total, self.batch_size):
+                end = min(start + self.batch_size, total)
+                for obj in qs.all()[start:end]:
+                    if self.should_index(obj):
+                        yield obj
 
     def get_id(self, obj):
         """

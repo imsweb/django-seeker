@@ -25,6 +25,12 @@ class Command (BaseCommand):
             default=False,
             help='Suppress all output to stdout'
         ),
+        make_option('--cursor',
+            action='store_true',
+            dest='cursor',
+            default=False,
+            help='Use a server-side cursor when fetching objects'
+        ),
     )
 
     def handle(self, *args, **options):
@@ -44,7 +50,7 @@ class Command (BaseCommand):
                     '_type': mapping.doc_type,
                 }
                 def get_actions():
-                    for obj in mapping.get_objects():
+                    for obj in mapping.get_objects(cursor=options['cursor']):
                         action.update({
                             '_id': mapping.get_id(obj),
                             '_source': mapping.get_data(obj),
