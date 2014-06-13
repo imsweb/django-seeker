@@ -212,9 +212,9 @@ class Mapping (object):
     not need to be actual model field names.
     """
 
-    batch_size = getattr(settings, 'SEEKER_BATCH_SIZE', 1000)
+    batch_size = None
     """
-    Batch size to use when indexing large querysets.
+    Batch size to use when indexing large querysets. Defaults to SEEKER_BATCH_SIZE.
     """
 
     auto_index = True
@@ -230,6 +230,8 @@ class Mapping (object):
 
     def __init__(self):
         self._field_cache = None
+        if self.batch_size is None:
+            self.batch_size = getattr(settings, 'SEEKER_BATCH_SIZE', 1000)
 
     @property
     def hosts(self):
