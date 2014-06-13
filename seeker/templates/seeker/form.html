@@ -20,23 +20,25 @@
         <button type="submit" class="btn btn-primary">Filter</button>
         <a href="{{ request_path }}?q=" class="btn btn-default">Clear</a>
         {% if can_save %}
-            <div class="btn-group">
-                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
-                    <i class="fa fa-floppy-o"></i>
-                    <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu" role="menu">
-                    {% if querystring %}
-                        <li><a href="" data-toggle="modal" data-target="#save-dialog">Save This Search</a></li>
-                    {% endif %}
-                    {% for s in saved_searches %}
-                        {% if forloop.first and querystring %}
-                            <li class="divider"></li>
+            {% if querystring or saved_searches %}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                        <i class="fa fa-floppy-o"></i>
+                        <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        {% if querystring %}
+                            <li><a href="" data-toggle="modal" data-target="#save-dialog">Save This Search</a></li>
                         {% endif %}
-                        <li><a href="{{ s.get_absolute_url }}">{{ s }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
+                        {% for s in saved_searches %}
+                            {% if forloop.first and querystring %}
+                                <li class="divider"></li>
+                            {% endif %}
+                            <li><a href="{{ s.get_absolute_url }}">{{ s }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
         {% endif %}
     </div>
 </form>
