@@ -96,18 +96,13 @@ class ResultSet (object):
             name = parts[0]
             if name in mapping.field_map:
                 f = mapping.field_map.get(name)
-                d = {
+                if f.index and f.data_type == 'string':
+                    name += '.raw'
+                self.sort = [{name: {
                     'order': parts[1] if len(parts) > 1 else 'asc',
                     'ignore_unmapped': True,
                     'missing': '_last',
-                }
-                if f.index and f.data_type == 'string':
-                    # For sorting on indexed strings, pull the value out of _source.
-                    d['script'] = '_source.%s' % name
-                    d['type'] = f.data_type
-                    self.sort = [{'_script': d}]
-                else:
-                    self.sort = [{name: d}]
+                }}]
         self.prefetch = prefetch
         self._instances = {}
         self._response = None

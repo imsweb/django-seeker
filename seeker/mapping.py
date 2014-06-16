@@ -58,8 +58,12 @@ class MappingType (object):
 class StringType (MappingType):
     data_type = 'string'
 
+    def __init__(self, *args, **kwargs):
+        self.analyzer = kwargs.pop('analyzer', 'snowball')
+        super(StringType, self).__init__(*args, **kwargs)
+
     def mapping_params(self):
-        extra = {'analyzer': 'snowball'} if self.index else {'index': 'not_analyzed'}
+        extra = {'analyzer': self.analyzer, 'fields': {'raw': {'type': 'string', 'index': 'not_analyzed'}}} if self.index else {'index': 'not_analyzed'}
         return super(StringType, self).mapping_params(**extra)
 
 class DateType (MappingType):
@@ -330,7 +334,7 @@ class Mapping (object):
         A generator yielding object instances that will subsequently be indexed using :meth:`.get_data` and :meth:`.get_id`. This method
         calls :meth:`.queryset` and orders it by ``pk``, then slices the results according to :attr:`.batch_size`. This results
         in more queries, but avoids loading all objects into memory at once.
-        
+
         :param cursor: If True, use a server-side cursor when fetching the results for better performance.
         """
         if cursor:

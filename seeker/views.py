@@ -25,6 +25,7 @@ class SeekerView (TemplateView):
         keywords = self.request.GET.get('q', '').strip()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
+        sort = self.request.GET.get('sort', None)
         for facet in self.get_facets():
             facets.append(facet)
             if facet.field in self.request.GET:
@@ -32,7 +33,7 @@ class SeekerView (TemplateView):
                 filters[facet.field] = set(terms)
                 facet_filters.append(facet.filter(terms))
         offset = (page - 1) * self.page_size
-        results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset)
+        results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
         params = self.request.GET.copy()
         querystring = params.urlencode()
         try:
