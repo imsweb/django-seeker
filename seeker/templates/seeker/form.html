@@ -2,7 +2,8 @@
 
 <form action="" method="get">
     <div class="form-group">
-        <input type="text" class="form-control" placeholder="Keywords" name="q" value="{{ keywords }}" autofocus="autofocus" />
+        <label class="sr-only" for="q">Keywords</label>
+        <input type="text" class="form-control" placeholder="Keywords" name="q" id="q" value="{{ keywords }}" autofocus="autofocus" />
     </div>
     {% for facet, values in results.facet_values %}
         {% if values %}

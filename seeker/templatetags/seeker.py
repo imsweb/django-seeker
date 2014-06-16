@@ -26,7 +26,7 @@ def facet_values(facet, filters, missing='MISSING', remove='&times;'):
     for term in filters.get(facet.field, []):
         if not term:
             term = missing
-        html += '<li><a class="remove" data-term="%(term)s">%(remove)s</a> %(term)s</li>' % {'term': escape(term), 'remove': remove}
+        html += '<li><a class="remove" data-term="%(term)s" title="Remove this term">%(remove)s</a> %(term)s</li>' % {'term': escape(term), 'remove': remove}
     html += '</ul>'
     return html
 
