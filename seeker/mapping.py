@@ -342,7 +342,7 @@ class Mapping (object):
             qs = self.queryset().order_by()
             # Swap out the Query object with a clone using our subclass.
             qs.query = qs.query.clone(klass=CursorQuery)
-            for obj in qs:
+            for obj in qs.iterator():
                 yield obj
         else:
             qs = self.queryset().order_by('pk')

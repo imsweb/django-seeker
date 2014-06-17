@@ -5,6 +5,7 @@ from elasticsearch.helpers import bulk
 from optparse import make_option
 import StringIO
 import sys
+import gc
 
 def silent_iter(iterable, **kwargs):
     for obj in iterable:
@@ -69,3 +70,5 @@ class Command (BaseCommand):
                 output.flush()
                 # Refresh the index, so documents are available for searching when this command completes.
                 mapping.es.indices.refresh(index=mapping.index_name)
+                # Clean up memory after potentially large indexing sets.
+                gc.collect()
