@@ -126,6 +126,12 @@ class IntegerType (MappingType):
     def to_elastic(self, value):
         return int(value)
 
+class FloatType (MappingType):
+    data_type = 'double'
+
+    def to_elastic(self, value):
+        return float(value)
+
 DEFAULT_TYPE_MAP = {
     models.CharField: StringType,
     models.TextField: StringType,
@@ -139,6 +145,8 @@ DEFAULT_TYPE_MAP = {
     models.ManyToManyField: StringType(index=False, facet=True),
     models.IntegerField: IntegerType,
     models.PositiveIntegerField: IntegerType,
+    models.FloatField: FloatType,
+    models.DecimalField: FloatType,
 }
 
 def object_data(obj, schema, preparer=None):
@@ -163,8 +171,9 @@ class ObjectType (MappingType):
 
     def __init__(self, model=None, fields=None, exclude=None, **schema):
         self.schema = {}
-        if model is not None:
-            for f in (model._meta.fields + model._meta.many_to_many):
+        self.model = model
+        if self.model is not None:
+            for f in (self.model._meta.fields + self.model._meta.many_to_many):
                 if f.__class__ in DEFAULT_TYPE_MAP and (fields is None or f.name in fields) and (exclude is None or f.name not in exclude):
                     t = DEFAULT_TYPE_MAP[f.__class__]
                     if f.choices:
@@ -180,9 +189,9 @@ class ObjectType (MappingType):
 
     def to_elastic(self, value):
         if hasattr(value, 'all'):
-            return [object_data(obj, self.schema) for obj in value.all()]
+            return [object_data(obj, self.schema, preparer=self) for obj in value.all()]
         elif hasattr(value, 'pk'):
-            return object_data(value, self.schema)
+            return object_data(value, self.schema, preparer=self)
         return None
 
     def mapping_params(self):

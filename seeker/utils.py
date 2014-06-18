@@ -1,6 +1,10 @@
 from django.apps import apps
 from django.conf import settings
 
+def get_mappings():
+    seeker_app = apps.get_app_config('seeker')
+    return seeker_app.mappings
+
 def get_app_mappings(app_label):
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.app_mappings.get(app_label, [])
