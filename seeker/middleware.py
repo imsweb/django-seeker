@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from .utils import get_mappings, get_model_mappings
 import operator
+import logging
+
+logger = logging.getLogger(__name__)
 
 def find_relations(model_class, other_class, schema, prefix=''):
     """
@@ -33,6 +36,7 @@ def index_related(model_class, instance, delete=False):
         criteria = []
         for rel in find_relations(mapping.model, model_class, mapping.field_map):
             criteria.append(models.Q(**{rel: instance}))
+            logger.debug('Relation found from %s to %s via "%s"', mapping.model.__name__, model_class.__name__, rel)
         if criteria:
             for obj in mapping.queryset().filter(reduce(operator.or_, criteria)):
                 if delete:
