@@ -2,18 +2,32 @@ from django.apps import apps
 from django.conf import settings
 
 def get_mappings():
+    """
+    Returns a list of all defined mappings.
+    """
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.mappings
 
 def get_app_mappings(app_label):
+    """
+    Returns a list of mappings for the specified ``app_label``.
+    """
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.app_mappings.get(app_label, [])
 
 def get_model_mappings(model_class):
+    """
+    Returns a list of mappings for the specified model class.
+    """
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.model_mappings.get(model_class, [])
 
 def get_facet_filters(request_data, facets, exclude=None):
+    """
+    Given request data (i.e. ``request.GET`` or ``request.POST``) and a list of facets (``Aggregate`` subclasses),
+    returns a dictionary of filtered terms (facet.field -> [term1, term2]) and a list of :class:`seeker.query.F`
+    instances suitable for filtering queries.
+    """
     filters = {}
     facet_filters = []
     if exclude is None:
@@ -32,6 +46,9 @@ def index(obj):
         mapping.index(obj)
 
 def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
+    """
+    Yields Result objects matching the given query across all Elasticsearch indices.
+    """
     from elasticsearch import Elasticsearch
     from .query import Result
     seeker_app = apps.get_app_config('seeker')
@@ -55,4 +72,8 @@ def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
         yield Result(mapping, hit, max_score)
 
 def queryset(model_class, **kwargs):
+    """
+    Given a model class and keyword query arguments, returns a Django QuerySet by first querying Elasticsearch for a list of
+    IDs, then calling ``mapping.queryset().filter(pk__in=<id_list>)``.
+    """
     return get_model_mappings(model_class)[0].query(**kwargs).queryset()

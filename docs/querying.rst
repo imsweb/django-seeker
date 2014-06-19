@@ -40,13 +40,26 @@ The above query will return results whose "author" field is "Dan", and either ha
 Range Filtering
 ~~~~~~~~~~~~~~~
 
-TODO
+The ``seeker.query.Range`` object is a subclass of ``F`` that allows filtering a field by min/max values::
+
+    mapping.query(filters=seeker.Range('year', 2010, 2014))
+
+By default, the range is inclusive on both ends, but the operators may be specified by passing ``min_oper`` and ``max_oper``
+keyword arguments to the ``Range`` object. See http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl-range-filter.html
+for more information.
 
 
 Faceting/Aggregations
 ---------------------
 
-TODO
+Example::
+
+    result = mapping.query(facets=[
+        seeker.TermAggregate('author', size=40),
+        seeker.YearHistogram('date_published'),
+    ])
+    for facet, values in result.facet_values():
+        print facet, values
 
 
 Highlighting
@@ -64,4 +77,6 @@ TODO
 Sorting
 -------
 
-TODO
+You may specify a field name to sort results by, optionally with an order separate by a colon (defaults to ``asc``). For example::
+
+    mapping.query(query='some term', sort='name:desc')

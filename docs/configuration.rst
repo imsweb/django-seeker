@@ -19,6 +19,12 @@ Seeker Settings
 ``SEEKER_DEFAULT_OPERATOR`` (default: ``OR``)
      The default operator to use when performing keyword queries.
 
+``SEEKER_SAVED_SEARCHES`` (default: ``True``)
+    Whether the ``SavedSearch`` model should be installed, and present the option to save searches in the default form.
+
+``SEEKER_BATCH_SIZE`` (default: 1000)
+    The default indexing batch size.
+
 
 Model Indexing Middleware
 -------------------------

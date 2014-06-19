@@ -13,13 +13,45 @@ def follow(obj, path):
     return obj
 
 class MappingType (object):
+    """
+    The base class for all mapping types. Most options correspond to those documented at
+    http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/mapping-core-types.html
+    """
+
     data_type = 'string'
+    """
+    The Elasticsearch data type.
+    """
+
     index = True
+    """
+    Whether the field should be indexed in Elasticsearch.
+    """
+
     store = False
+    """
+    Whether the field should be stored in Elasticsearch. Defaults to False, since all fields are stored in ``_source`` by default anyway.
+    """
+
     boost = None
+    """
+    A boost multiplier, used in scoring results.
+    """
+
     include_in_all = None
+    """
+    Whether to include this field in the special Elasticsearch ``_all`` field, which is used when a search does not specify which fields to search.
+    """
+
     multi = False
+    """
+    Whether this field
+    """
+
     facet = False
+    """
+    Whether this field should be facetable when using the default seeker views.
+    """
 
     def __init__(self, index=True, store=False, boost=None, include_in_all=None, facet=False, multi=False):
         self.index = index
@@ -30,6 +62,10 @@ class MappingType (object):
         self.multi = multi
 
     def to_elastic(self, value):
+        """
+        Transforms a python value into a value suitable for sending to Elasticsearch. By default, returns a list of strings if the specified
+        value has an ``all()`` method, otherwise returns the unicode representation of the value.
+        """
         if value is None:
             return None
         try:
@@ -38,9 +74,16 @@ class MappingType (object):
             return unicode(value)
 
     def to_python(self, value):
+        """
+        Coerces values coming out of Elasticsearch back to a python data type. By default, simply return the value from elasticsearch-py.
+        """
         return value
 
     def mapping_params(self, **extra):
+        """
+        Returns a dictionary of mapping parameters to use when PUTing Elasticsearch mappings:
+        http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/indices-put-mapping.html
+        """
         params = {
             'type': self.data_type,
         }
@@ -56,6 +99,12 @@ class MappingType (object):
         return params
 
 class StringType (MappingType):
+    """
+    A string value. The __init__ method takes an optional additional parameter, ``analyzer``, that will be passed to Elasticsearch.
+    If ``index`` is set to True, the string will be analyzed with the specified analyzer, and an additional ``.raw`` field will be
+    stored as ``not_analyzed`` for sorting purposes.
+    """
+
     data_type = 'string'
 
     def __init__(self, *args, **kwargs):
@@ -67,6 +116,10 @@ class StringType (MappingType):
         return super(StringType, self).mapping_params(**extra)
 
 class DateType (MappingType):
+    """
+    A date value with an ES format of ``date``.
+    """
+
     data_type = 'date'
 
     def to_elastic(self, value):
@@ -87,6 +140,10 @@ class DateType (MappingType):
         return super(DateType, self).mapping_params(format='date')
 
 class DateTimeType (MappingType):
+    """
+    A date value with an ES format of ``date_optional_time``.
+    """
+
     data_type = 'date'
 
     def to_elastic(self, value):
@@ -115,18 +172,31 @@ class DateTimeType (MappingType):
         return super(DateTimeType, self).mapping_params(format='date_optional_time')
 
 class BooleanType (MappingType):
+    """
+    A boolean value.
+    """
+
     data_type = 'boolean'
 
     def to_elastic(self, value):
         return bool(value)
 
 class IntegerType (MappingType):
+    """
+    An integer value.
+    """
+
     data_type = 'integer'
 
     def to_elastic(self, value):
         return int(value)
 
 class FloatType (MappingType):
+    """
+    A float value, actually stored in ES as ``double``. Currently, this is used for both Django ``FloatField`` and ``DecimalField`` (which
+    may lose some precision).
+    """
+
     data_type = 'double'
 
     def to_elastic(self, value):
@@ -376,12 +446,21 @@ class Mapping (object):
         return object_data(obj, self.field_map, preparer=self)
 
     def index(self, obj):
+        """
+        Send a single object to Elasticsearch for indexing.
+        """
         self.es.index(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), body=self.get_data(obj))
 
     def delete(self, obj):
+        """
+        Delete a single object from the Elasticsearch index.
+        """
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj))
 
     def refresh(self):
+        """
+        Creates the Elasticsearch index if necessary, and PUTs the mapping parameters.
+        """
         self._field_cache = None
         if not self.es.indices.exists(index=self.index_name):
             self.es.indices.create(index=self.index_name)
@@ -389,11 +468,17 @@ class Mapping (object):
         self.es.indices.flush(index=self.index_name)
 
     def clear(self):
+        """
+        Clears the Elasticsearch index by deleting the mapping entirely.
+        """
         if self.es.indices.exists_type(index=self.index_name, doc_type=self.doc_type):
             self.es.indices.delete_mapping(index=self.index_name, doc_type=self.doc_type)
             self.es.indices.flush(index=self.index_name)
 
     def query(self, **kwargs):
+        """
+        Returns a :class:`ResultSet` for this mapping with the specified parameters.
+        """
         from .query import ResultSet
         return ResultSet(self, **kwargs)
 

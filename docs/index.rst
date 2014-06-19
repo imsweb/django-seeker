@@ -15,6 +15,7 @@ Contents:
    mapping
    querying
    views
+   utils
    tests
 
 

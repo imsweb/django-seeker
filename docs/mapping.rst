@@ -48,6 +48,7 @@ You can specify which model fields you want to index by setting a list of field 
     class PostMapping (seeker.Mapping):
         model = Post
         fields = ('title', 'body', 'published')
+        exclude = ('slug',)
 
 You can also fully customize the schema by setting ``fields`` to a dictionary::
 
@@ -56,7 +57,7 @@ You can also fully customize the schema by setting ``fields`` to a dictionary::
         fields = {
             'title': seeker.StringType(index=False),
             'body': seeker.StringType,
-            'word_count': seeker.NumberType,
+            'word_count': seeker.IntegerType,
         }
 
 When Seeker goes to index this mapping, it will still automatically pull data from any model field with a matching name.
@@ -68,6 +69,25 @@ yourself. To do this, you can implement a ``prepare_word_count`` mapping method:
 
         def prepare_word_count(self, obj):
             return len(obj.body.split())
+
+
+Field Overrides
+---------------
+
+You may want to override the mapping type of a specific field, without having to define mapping types for the rest of the fields
+for which the default is acceptable. To do this, you may specify an ``overrides`` dictionary. For example, to index the ``author``
+field as an object containing all its fields, rather than simply a string representation, you may do::
+
+    class PostMapping (seeker.Mapping):
+        model = Post
+        overrides = {
+            'author': seeker.ObjectType(Author),
+            'word_count': seeker.IntegerType,
+        }
+
+In addition to overriding default mapping types for existing fields, ``overrides`` allows you to specify additional fields while
+still maintaining the default fields. In the example above, the ``PostMapping`` will contain ``word_count`` in addition to all the
+indexable fields from the ``Post`` model.
 
 
 Customizing The Entire Data Mapping
@@ -84,22 +104,24 @@ If, for some reason, you need to customize the entire data mapping process, you 
             # Manipulate the data from the default implementation. Or not.
             return data
 
+The default implementation of ``get_data`` calls :meth:`seeker.mapping.object_data`.
+
 
 What Gets Indexed and How
 -------------------------
 
 When re-indexing a mapping, the process is as follows:
 
-    1. ``get_objects`` is called, and expected to yield a single object at a time to index
-    2. ``get_objects`` calls ``queryset``, which by default returns ``self.model.objects.all()``
-    3. The resulting queryset is sliced into groups of ``batch_size`` (by PK), to avoid a single large query
-    4. For each object, ``should_index`` is called to determine if the object should be indexed. By default, all objects are indexed.
-    5. ``get_id`` and ``get_data`` are called to generate the ID and data sent to Elasticsearch for each object
+    1. :meth:`seeker.mapping.Mapping.get_objects` is called, and expected to yield a single object at a time to index
+    2. :meth:`seeker.mapping.Mapping.get_objects` calls :meth:`seeker.mapping.Mapping.queryset`, which by default returns ``self.model.objects.all()``
+    3. The resulting queryset is sliced into groups of ``batch_size`` (ordered by PK), to avoid a single large query
+    4. For each object, :meth:`seeker.mapping.Mapping.should_index` is called to determine if the object should be indexed. By default, all objects are indexed.
+    5. :meth:`seeker.mapping.Mapping.get_id` and :meth:`seeker.mapping.Mapping.get_data` are called to generate the ID and data sent to Elasticsearch for each object
 
 
 Module Documentation
 --------------------
 
-.. autoclass:: seeker.mapping.Mapping
+.. automodule:: seeker.mapping
    :members:
    :exclude-members: type_map
