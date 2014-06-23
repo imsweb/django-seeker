@@ -422,7 +422,8 @@ class Mapping (object):
             # Swap out the Query object with a clone using our subclass.
             qs.query = qs.query.clone(klass=CursorQuery)
             for obj in qs.iterator():
-                yield obj
+                if self.should_index(obj):
+                    yield obj
         else:
             qs = self.queryset().order_by('pk')
             total = qs.count()
