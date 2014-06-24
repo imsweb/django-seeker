@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.text import capfirst
 import collections
 import datetime
 import logging
@@ -351,7 +352,7 @@ class Mapping (object):
         return {
             '_all': {'enabled': True, 'analyzer': 'snowball'},
             'dynamic': 'strict',
-            'properties': {name: t.mapping_params() for name, t in self.field_map.items()},
+            'properties': {name: t.mapping_params() for name, t in self.field_map.iteritems()},
         }
 
     def _get_field(self, name, t):
@@ -367,7 +368,7 @@ class Mapping (object):
         """
         seen = set()
         if isinstance(self.fields, dict):
-            for name, t in self.fields.items():
+            for name, t in self.fields.iteritems():
                 seen.add(name)
                 yield name, self._get_field(name, t)
         else:
@@ -379,8 +380,8 @@ class Mapping (object):
                         t = StringType(index=False)
                     seen.add(f.name)
                     yield f.name, self._get_field(f.name, t)
-        if self.overrides:
-            for name, t in self.overrides.items():
+        if isinstance(self.overrides, dict):
+            for name, t in self.overrides.iteritems():
                 if name not in seen:
                     if isinstance(t, type):
                         t = t()
@@ -393,6 +394,20 @@ class Mapping (object):
             for name, t in self.get_fields():
                 self._field_cache[name] = t
         return self._field_cache
+
+    def field_label(self, field_name):
+        """
+        Returns a human-readable label for the given field name. If the field name comes from a Django model, the verbose_name is
+        looked up, otherwise the field name is transformed by replacing underscores with spaces.
+        """
+        try:
+            return capfirst(self.model._meta.get_field(field_name).verbose_name)
+        except:
+            return ' '.join(w.capitalize() for w in field_name.split('_'))
+
+    @property
+    def field_labels(self):
+        return collections.OrderedDict((name, self.field_label(name)) for name in self.field_map)
 
     def queryset(self):
         """

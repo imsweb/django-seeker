@@ -10,13 +10,10 @@ class SeekerView (TemplateView):
     page_size = 10
 
     def get_facets(self):
-        for name, t in self.mapping.instance().field_map.items():
+        mapping = self.mapping.instance()
+        for name, t in mapping.field_map.iteritems():
             if t.facet:
-                try:
-                    f = self.mapping.model._meta.get_field(name)
-                    yield TermAggregate(name, label=f.verbose_name)
-                except:
-                    yield TermAggregate(name)
+                yield TermAggregate(name, label=mapping.field_label(name))
 
     def get_context_data(self, **kwargs):
         filters = {}
@@ -61,6 +58,7 @@ class SeekerView (TemplateView):
             'can_save': can_save,
             'current_search': current_search,
             'saved_searches': saved_searches,
+            'mapping': self.mapping.instance(),
         })
         return kwargs
 

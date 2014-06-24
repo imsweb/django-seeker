@@ -36,7 +36,7 @@ def list_display(values, sep=', '):
     return sep.join(unicode(v) for v in values)
 
 @register.simple_tag
-def sort_link(sort_by, label=None, querystring='', name='sort'):
+def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None):
     q = QueryDict(querystring).copy()
     parts = q.get(name, '').split(':')
     if parts[0] and parts[0] == sort_by:
@@ -50,14 +50,30 @@ def sort_link(sort_by, label=None, querystring='', name='sort'):
         d = cur = ''
     q[name] = '%s:%s' % (sort_by, d) if d else sort_by
     if label is None:
-        label = string.capwords(sort_by.replace('_', ' '))
+        if mapping:
+            label = mapping.field_label(sort_by)
+        else:
+            label = string.capwords(sort_by.replace('_', ' '))
     return '<a href="?%s" class="sort %s">%s</a>' % (q.urlencode(), cur, escape(label))
+
+@register.simple_tag
+def field_label(mapping, field_name):
+    return mapping.field_label(field_name)
+
+@register.simple_tag
+def result_value(result, field_name):
+    value = result.data.get(field_name, '')
+    if value is None:
+        return ''
+    if isinstance(value, (list, tuple)):
+        return list_display(value)
+    return value
 
 @register.simple_tag
 def suggest_link(suggestions, querystring='', name='q'):
     q = QueryDict(querystring).copy()
     keywords = q.get(name, '').strip()
-    for term, replacement in suggestions.items():
+    for term, replacement in suggestions.iteritems():
         keywords = keywords.replace(term, replacement)
     q[name] = keywords
     return '<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords))

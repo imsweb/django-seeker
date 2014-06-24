@@ -74,7 +74,7 @@ class ResultSet (object):
             }
         self.filters = filters or []
         if isinstance(self.filters, dict):
-            self.filters = [F(**{name: values}) for name, values in self.filters.items()]
+            self.filters = [F(**{name: values}) for name, values in self.filters.iteritems()]
         elif isinstance(self.filters, F):
             self.filters = [self.filters]
         self.facets = facets or []
@@ -353,7 +353,7 @@ class F (object):
     def to_elastic(self):
         def _es(val):
             if isinstance(val, dict):
-                for conn, vals in val.items():
+                for conn, vals in val.iteritems():
                     return {conn: [_es(v) for v in vals]}
             else:
                 if hasattr(val, 'filter_spec'):
