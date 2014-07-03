@@ -98,11 +98,11 @@ class ResultSet (object):
                 f = mapping.field_map.get(name)
                 if f.index and f.data_type == 'string':
                     name += '.raw'
-                self.sort = [{name: {
-                    'order': parts[1] if len(parts) > 1 else 'asc',
-                    'ignore_unmapped': True,
-                    'missing': '_last',
-                }}]
+            self.sort = [{name: {
+                'order': parts[1] if len(parts) > 1 else 'asc',
+                'ignore_unmapped': True,
+                'missing': '_last',
+            }}]
         self.prefetch = prefetch
         self._instances = {}
         self._response = None
