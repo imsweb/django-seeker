@@ -465,7 +465,8 @@ class Mapping (object):
         """
         Send a single object to Elasticsearch for indexing.
         """
-        self.es.index(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), body=self.get_data(obj))
+        if self.should_index(obj):
+            self.es.index(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), body=self.get_data(obj))
 
     def delete(self, obj):
         """
