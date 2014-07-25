@@ -17,7 +17,10 @@ Seeker Settings
 .. _setting-seeker-default-operator:
 
 ``SEEKER_DEFAULT_OPERATOR`` (default: ``OR``)
-     The default operator to use when performing keyword queries.
+    The default operator to use when performing keyword queries.
+
+``SEEKER_HTTP_AUTH`` (default: ``None``)
+    A colon-separated username and password to use for HTTP basic authentication.
 
 ``SEEKER_SAVED_SEARCHES`` (default: ``True``)
     Whether the ``SavedSearch`` model should be installed, and present the option to save searches in the default form.

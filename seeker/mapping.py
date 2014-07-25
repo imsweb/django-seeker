@@ -223,7 +223,7 @@ DEFAULT_TYPE_MAP = {
 def object_data(obj, schema, preparer=None):
     """
     Helper function for converting a Django object into a dictionary based on the specified schema (name -> MappingType).
-    If a preparer is specified, it will be search for prepare_<fieldname> methods.
+    If a preparer is specified, it will be searched for prepare_<fieldname> methods.
     """
     data = {}
     for name, t in schema.iteritems():
@@ -329,7 +329,7 @@ class Mapping (object):
     def es(self):
         if not hasattr(self, '_es'):
             from elasticsearch import Elasticsearch
-            self._es = Elasticsearch(self.hosts)
+            self._es = Elasticsearch(self.hosts, **self.connection_options)
         return self._es
 
     @property
@@ -347,6 +347,15 @@ class Mapping (object):
         Defaults to the :ref:`SEEKER_INDEX <setting-seeker-index>` setting.
         """
         return getattr(settings, 'SEEKER_INDEX', 'seeker')
+
+    @property
+    def connection_options(self):
+        """
+        A dictionary of keyword arguments to use when creating an Elasticsearch instance. By default, this will
+        include ``http_auth`` if the ``SEEKER_HTTP_AUTH`` setting is specified.
+        """
+        auth = getattr(settings, 'SEEKER_HTTP_AUTH', None)
+        return {'http_auth': auth} if auth else {}
 
     def build_schema(self):
         return {
