@@ -151,20 +151,28 @@ class DateTimeType (MappingType):
         if value is None:
             return None
         if isinstance(value, datetime.datetime):
-            if timezone.is_aware(value):
-                return timezone.localtime(value, timezone=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
-            else:
+            if not timezone.is_aware(value):
                 logger.warning('Mapping a naive datetime (%s); assuming local time', value)
-                return timezone.make_aware(value, timezone=timezone.get_default_timezone()).strftime('%Y-%m-%dT%H:%M:%S')
+                value = timezone.make_aware(value, timezone=timezone.get_default_timezone())
+            # Send the value to Elasticsearch in UTC.
+            return timezone.localtime(value, timezone=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
         elif hasattr(value, 'strftime'):
             return value.strftime('%Y-%m-%d')
         return value
 
+    def _parse_datetime(self, value):
+        for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
+            try:
+                return datetime.datetime.strptime(value, fmt)
+            except:
+                pass
+        raise ValueError('No matching date format was found.')
+
     def to_python(self, value):
         try:
-            for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
-                return datetime.datetime.strptime(value, fmt)
-            raise ValueError('No matching date format was found.')
+            d = self._parse_datetime(value)
+            # Dates coming out of Elasticsearch will be in UTC, make them aware.
+            return timezone.make_aware(d, timezone=timezone.utc)
         except:
             logger.warning('Could not parse datetime value: %s', value)
             return value
