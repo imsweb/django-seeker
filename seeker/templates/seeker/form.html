@@ -19,7 +19,8 @@
     {% endfor %}
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">Filter</button>
-        <a href="{{ request_path }}?q=" class="btn btn-default">Clear</a>
+        <a href="{{ request_path }}?q=" class="btn btn-default">Reset</a>
+        <a class="btn btn-default" data-toggle="modal" data-target="#display-fields"><i class="fa fa-list"></i></a>
         {% if can_save %}
             {% if querystring or saved_searches %}
                 <div class="btn-group">
@@ -41,6 +42,27 @@
                 </div>
             {% endif %}
         {% endif %}
+    </div>
+    <div class="modal fade" id="display-fields">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title">Show Fields</h4>
+                </div>
+                <div class="modal-body">
+                    {% for name, label in mapping.field_labels.iteritems %}
+                        <div class="checkbox">
+                            <label><input type="checkbox" name="d" value="{{ name }}"{% if name in display_fields %} checked="checked"{% endif %} /> {{ label }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Show Selected Fields</button>
+                </div>
+            </div>
+        </div>
     </div>
 </form>
 
