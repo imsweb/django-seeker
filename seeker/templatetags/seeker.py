@@ -1,7 +1,10 @@
 from django import template
 from django.utils.html import escape
 from django.http import QueryDict
+from django.conf import settings
+from django.utils import dateformat
 from django.contrib.humanize.templatetags.humanize import intcomma
+import datetime
 import string
 
 register = template.Library()
@@ -67,7 +70,22 @@ def result_value(result, field_name):
         return ''
     if isinstance(value, (list, tuple)):
         return list_display(value)
+    if isinstance(value, datetime.datetime):
+        return dateformat.format(value, settings.DATETIME_FORMAT)
+    if isinstance(value, datetime.date):
+        return dateformat.format(value, settings.DATE_FORMAT)
     return value
+
+@register.simple_tag
+def result_link(result, field_name, view=None):
+    if view is not None:
+        return view.get_url(result, field_name)
+    else:
+        try:
+            return result.instance.get_absolute_url()
+        except:
+            pass
+    return ''
 
 @register.simple_tag
 def suggest_link(suggestions, querystring='', name='q'):

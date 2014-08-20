@@ -170,9 +170,9 @@ class DateTimeType (MappingType):
 
     def to_python(self, value):
         try:
-            d = self._parse_datetime(value)
-            # Dates coming out of Elasticsearch will be in UTC, make them aware.
-            return timezone.make_aware(d, timezone=timezone.utc)
+            # Dates coming out of Elasticsearch will be in UTC, make them aware and convert them to local time.
+            d = timezone.make_aware(self._parse_datetime(value), timezone=timezone.utc)
+            return timezone.localtime(d)
         except:
             logger.warning('Could not parse datetime value: %s', value)
             return value

@@ -8,6 +8,8 @@ class SeekerView (TemplateView):
     template_name = 'seeker/seeker.html'
     page_param = 'page'
     page_size = 10
+    display = None
+    links = None
 
     def get_facets(self):
         mapping = self.mapping.instance()
@@ -15,11 +17,24 @@ class SeekerView (TemplateView):
             if t.facet:
                 yield TermAggregate(name, label=mapping.field_label(name))
 
+    def get_default_fields(self):
+        if self.display:
+            return self.display
+        mapping = self.mapping.instance()
+        return mapping.field_map.keys()
+
+    def get_url(self, result, field_name):
+        try:
+            return result.instance.get_absolute_url()
+        except:
+            return ''
+
     def get_context_data(self, **kwargs):
         filters = {}
         facets = []
         facet_filters = []
         keywords = self.request.GET.get('q', '').strip()
+        display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
         sort = self.request.GET.get('sort', None)
@@ -46,9 +61,12 @@ class SeekerView (TemplateView):
             can_save = False
             current_search = None
             saved_searches = None
-        kwargs.update({
+        params = super(SeekerView, self).get_context_data(**kwargs)
+        params.update({
             'results': results,
             'filters': filters,
+            'display_fields': display_fields,
+            'link_fields': self.links or (display_fields[0],),
             'keywords': keywords,
             'request_path': self.request.path,
             'page': page,
@@ -60,7 +78,7 @@ class SeekerView (TemplateView):
             'saved_searches': saved_searches,
             'mapping': self.mapping.instance(),
         })
-        return kwargs
+        return params
 
     def get(self, request, *args, **kwargs):
         try:

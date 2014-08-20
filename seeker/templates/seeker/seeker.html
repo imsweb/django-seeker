@@ -2,7 +2,7 @@
 <html>
     <head>
         <title>Seeker</title>
-        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" />
         <style>
             body { padding-top: 20px; }
             .table-responsive { overflow: auto; }
@@ -16,40 +16,13 @@
                 </div>
                 <div class="col-md-9">
                     <div class="table-responsive">
-                        <table class="table table-striped">
-                            {% for result in results %}
-                                {% if forloop.first %}
-                                    <thead>
-                                        <tr>
-                                            <th>Rank</th>
-                                            {% for name in result.data.keys %}
-                                                <th>{{ name }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                {% endif %}
-                                        <tr>
-                                            <td>
-                                                <div class="progress" style="margin-bottom:0;">
-                                                    <div class="progress-bar" style="width:{{ result.percentile }}%;"></div>
-                                                </div>
-                                            </td>
-                                            {% for value in result.data.values %}
-                                                <td>{{ value|truncatewords:10 }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                {% if forloop.last %}
-                                    </tbody>
-                                {% endif %}
-                            {% endfor %}
-                        </table>
+                        {% include "seeker/table.html" %}
                     </div>
                     <p><em>Found {{ results.total }} result{{ results.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}.</em></p>
                 </div>
             </div>
         </div>
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
     </body>
 </html>
