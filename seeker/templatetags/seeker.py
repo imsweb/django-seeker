@@ -3,6 +3,7 @@ from django.utils.html import escape
 from django.http import QueryDict
 from django.conf import settings
 from django.utils import dateformat
+from django.core.paginator import Paginator
 from django.contrib.humanize.templatetags.humanize import intcomma
 import datetime
 import string
@@ -95,3 +96,19 @@ def suggest_link(suggestions, querystring='', name='q'):
         keywords = keywords.replace(term, replacement)
     q[name] = keywords
     return '<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords))
+
+@register.inclusion_tag('seeker/pager.html')
+def pager(total, page_size=10, page=1, param='page', querystring='', spread=7):
+    paginator = Paginator(range(total), page_size)
+    page = paginator.page(page)
+    if paginator.num_pages > spread:
+        start = max(1, page.number - (spread // 2))
+        page_range = range(start, start + spread)
+    else:
+        page_range = paginator.page_range
+    return {
+        'page_range': page_range,
+        'page': page,
+        'param': param,
+        'querystring': querystring,
+    }

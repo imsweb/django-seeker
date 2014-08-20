@@ -18,7 +18,7 @@
                     <div class="table-responsive">
                         {% include "seeker/table.html" %}
                     </div>
-                    <p><em>Found {{ results.total }} result{{ results.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}.</em></p>
+                    {% include "seeker/footer.html" %}
                 </div>
             </div>
         </div>

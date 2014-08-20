@@ -1,7 +1,10 @@
 from django.views.generic import TemplateView
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.http import StreamingHttpResponse
 from .query import TermAggregate
+from .utils import get_facet_filters
+from elasticsearch.helpers import scan
 
 class SeekerView (TemplateView):
     mapping = None
@@ -10,6 +13,7 @@ class SeekerView (TemplateView):
     page_size = 10
     display = None
     links = None
+    export_name = 'seeker'
 
     def get_facets(self):
         mapping = self.mapping.instance()
@@ -30,20 +34,15 @@ class SeekerView (TemplateView):
             return ''
 
     def get_context_data(self, **kwargs):
-        filters = {}
-        facets = []
-        facet_filters = []
         keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
         sort = self.request.GET.get('sort', None)
-        for facet in self.get_facets():
-            facets.append(facet)
-            if facet.field in self.request.GET:
-                terms = self.request.GET.getlist(facet.field)
-                filters[facet.field] = set(terms)
-                facet_filters.append(facet.filter(terms))
+
+        facets = list(self.get_facets())
+        filters, facet_filters = get_facet_filters(self.request.GET, facets)
+
         offset = (page - 1) * self.page_size
         results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
         params = self.request.GET.copy()
@@ -80,7 +79,31 @@ class SeekerView (TemplateView):
         })
         return params
 
+    def export(self, request):
+        mapping = self.mapping.instance()
+        keywords = self.request.GET.get('q', '').strip()
+        display_fields = self.request.GET.getlist('d') or self.get_default_fields()
+        sort = self.request.GET.get('sort', None)
+        facet_filters = get_facet_filters(self.request.GET, self.get_facets())[1]
+        query = mapping.query(query=keywords, filters=facet_filters, sort=sort).to_elastic()
+
+        def csv_escape(value):
+            if isinstance(value, (list, tuple)):
+                value = '; '.join(unicode(v) for v in value)
+            return '"%s"' % unicode(value).replace('"', '""')
+
+        def csv_generator():
+            yield ','.join(mapping.field_label(f) for f in display_fields) + '\n'
+            for result in scan(mapping.es, index=mapping.index_name, doc_type=mapping.doc_type, query=query):
+                yield ','.join(csv_escape(result['_source'].get(f, '')) for f in display_fields) + '\n'
+
+        resp = StreamingHttpResponse(csv_generator(), content_type='text/csv')
+        resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
+        return resp
+
     def get(self, request, *args, **kwargs):
+        if '_export' in request.GET:
+            return self.export(request)
         try:
             from .models import SavedSearch
             saved = SavedSearch.objects.get(user=request.user, url=request.path, default=True)
