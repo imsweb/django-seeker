@@ -33,3 +33,10 @@ and boolean fields if not otherwise specified. To customize which facets are exe
         def get_facets(self):
             # Only facet on the "published" field, with a custom label.
             yield seeker.TermAggregate('published', label='Is Published?')
+
+
+Class Reference
+---------------
+
+.. autoclass:: seeker.views.SeekerView
+    :members:

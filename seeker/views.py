@@ -4,36 +4,124 @@ from django.contrib import messages
 from django.http import StreamingHttpResponse
 from .query import TermAggregate
 from .utils import get_facet_filters
+from .models import SavedSearch
 from elasticsearch.helpers import scan
+import re
 
 class SeekerView (TemplateView):
     mapping = None
+    """
+    A :class:`seeker.mapping.Mapping` class to present a view for.
+    """
+
     template_name = 'seeker/seeker.html'
+    """
+    The template to render.
+    """
+
     page_param = 'page'
+    """
+    The name of the paging GET parameter to use.
+    """
+
     page_size = 10
+    """
+    The number of results to show per page.
+    """
+
     display = None
+    """
+    A list of field names to display by default. If empty or ``None``, all mapping fields are displayed.
+    """
+
     links = None
+    """
+    A list of field names to display links for. If empty or ``None``, the first display field will be a link.
+    """
+
+    can_save = True
+    """
+    Whether searches for this view can be saved.
+    """
+
     export_name = 'seeker'
+    """
+    The filename (without extension, which will be .csv) to use when exporting data from this view.
+    """
+
+    def _querystring(self):
+        qs = self.request.META.get('QUERY_STRING', '')
+        qs = re.sub(r'%s=\d+' % self.page_param, '', qs).replace('&&', '&')
+        if qs.startswith('&'):
+            qs = qs[1:]
+        if qs.endswith('&'):
+            qs = qs[:-1]
+        return qs
 
     def get_facets(self):
+        """
+        Yields :class:`seeker.query.Aggregate` objects to facet on. By default, yields a :class:`seeker.query.TermAggregate`
+        instance for any mapping fields with ``facet=True``.
+        """
         mapping = self.mapping.instance()
         for name, t in mapping.field_map.iteritems():
             if t.facet:
                 yield TermAggregate(name, label=mapping.field_label(name))
 
     def get_default_fields(self):
+        """
+        Returns a list of field names to display by default if the user has not specified any. Defaults to all
+        mapping fields.
+        """
         if self.display:
             return self.display
         mapping = self.mapping.instance()
         return mapping.field_map.keys()
 
     def get_url(self, result, field_name):
+        """
+        Returns a URL for the specified result row and field name. By default, this simply returns the absolute URL of
+        ``result.instance``, if it exists. This method can be overridden (in combination with :attr:`links`) to provide links
+        for any number of columns based on field name.
+        """
         try:
             return result.instance.get_absolute_url()
         except:
             return ''
 
     def get_context_data(self, **kwargs):
+        """
+        Returns the context for rendering :attr:`template_name`. The available context variables are:
+
+            results
+                A :class:`seeker.query.ResultSet` instance.
+            filters
+                A dictionary of field name filters.
+            display_fields
+                A list of mapping field names to display.
+            link_fields
+                A list of field names that should be displayed as links.
+            keywords
+                The keywords string.
+            request_path
+                The current request path, with no querystring.
+            page
+                The current page number.
+            page_param
+                The name of the paging GET parameter.
+            page_size
+                The number of results to show on a page.
+            querystring
+                The querystring for this request.
+            can_save
+                Whether this search can be saved.
+            current_search
+                The current SavedSearch object, or ``None``.
+            saved_searches
+                A list of all SavedSearch objects for this view.
+            mapping
+                An instance of :attr:`mapping`.
+        """
         keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
@@ -45,21 +133,11 @@ class SeekerView (TemplateView):
 
         offset = (page - 1) * self.page_size
         results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
-        params = self.request.GET.copy()
-        querystring = params.urlencode()
-        try:
-            params.pop('page')
-        except:
-            pass
-        try:
-            from .models import SavedSearch
-            can_save = True
-            current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
-            saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
-        except ImportError:
-            can_save = False
-            current_search = None
-            saved_searches = None
+
+        querystring = self._querystring()
+        current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
+        saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
+
         params = super(SeekerView, self).get_context_data(**kwargs)
         params.update({
             'results': results,
@@ -72,7 +150,7 @@ class SeekerView (TemplateView):
             'page_param': self.page_param,
             'page_size': self.page_size,
             'querystring': querystring,
-            'can_save': can_save,
+            'can_save': self.can_save,
             'current_search': current_search,
             'saved_searches': saved_searches,
             'mapping': self.mapping.instance(),
@@ -80,6 +158,10 @@ class SeekerView (TemplateView):
         return params
 
     def export(self, request):
+        """
+        A helper method called when ``_export`` is present in ``request.GET``. Returns a ``StreamingHttpResponse``
+        that yields CSV data for all matching results.
+        """
         mapping = self.mapping.instance()
         keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
@@ -102,19 +184,30 @@ class SeekerView (TemplateView):
         return resp
 
     def get(self, request, *args, **kwargs):
+        """
+        Overridden from Django's TemplateView for two purposes:
+
+            1. Check to see if ``_export`` is present in ``request.GET``, and if so, defer handling to ``self.export``.
+            2. If there is no querystring, check to see if there is a default SavedSearch set for this view, and if so, redirect to it.
+        """
         if '_export' in request.GET:
             return self.export(request)
         try:
-            from .models import SavedSearch
-            saved = SavedSearch.objects.get(user=request.user, url=request.path, default=True)
-            querystring = request.GET.urlencode()
-            if querystring == '' and saved.querystring != querystring:
-                return redirect(saved)
+            querystring = self._querystring()
+            if not querystring:
+                default = SavedSearch.objects.get(user=request.user, url=request.path, default=True)
+                if default.querystring != querystring:
+                    return redirect(default)
         except:
             pass
         return super(SeekerView, self).get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
+        """
+        Overridden from Django's TemplateView to handle saved search actions.
+        """
+        if not self.can_save:
+            return redirect(request.get_full_path())
         qs = request.POST.get('querystring', '').strip()
         if '_save' in request.POST:
             name = request.POST.get('name', '').strip()

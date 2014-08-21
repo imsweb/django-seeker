@@ -19,6 +19,8 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+from django.conf import settings
+settings.configure()
 
 # -- General configuration ------------------------------------------------
 
