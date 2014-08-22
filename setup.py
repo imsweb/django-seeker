@@ -1,9 +1,14 @@
 from setuptools import setup, find_packages
-import seeker
+import os
+import re
+
+def get_version():
+    with open(os.path.join(os.path.dirname(__file__), 'seeker', '__init__.py')) as fp:
+        return re.match(r".*__version__ = '(.*?)'", fp.read(), re.S).group(1)
 
 setup(
     name='seeker',
-    version=seeker.__version__,
+    version=get_version(),
     description='A python package for mapping and querying Django models in Elasticsearch.',
     author='Dan Watson',
     author_email='watsond@imsweb.com',
