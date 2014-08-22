@@ -4,11 +4,10 @@ from seeker.utils import get_app_mappings
 from elasticsearch.helpers import scan
 from optparse import make_option
 import json
-import sys
 
 class Command (BaseCommand):
     args = '<app1 app2 ...>'
-    help = 'Re-indexes the specified applications'
+    help = 'Dumps out data from the specified applications'
     option_list = BaseCommand.option_list + (
         make_option('--indent',
             type='int',
@@ -20,12 +19,12 @@ class Command (BaseCommand):
 
     def handle(self, *args, **options):
         app_labels = args or [a.label for a in apps.get_app_configs()]
-        output = sys.stdout
-        output.write('[\n')
+        output = self.stdout
+        output.write('[')
         for app_label in app_labels:
             for mapping in get_app_mappings(app_label):
                 for idx, doc in enumerate(scan(mapping.es, index=mapping.index_name, doc_type=mapping.doc_type)):
                     if idx > 0:
-                        output.write(',\n')
-                    output.write(json.dumps(doc, indent=options['indent']))
-        output.write('\n]\n')
+                        output.write(',')
+                    output.write(json.dumps(doc, indent=options['indent']), ending='')
+        output.write(']')
