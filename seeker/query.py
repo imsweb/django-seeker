@@ -211,7 +211,7 @@ class Aggregate (object):
     def __init__(self, field, name=None, label=None, description=None):
         self.field = field
         self.name = name or 'agg_%s' % self.field.replace('.', '__')
-        self.label = label or field.replace('_', ' ').capitalize()
+        self.label = label or field.replace('.raw', '').replace('_', ' ').capitalize()
         self.description = description
 
     def facet_values(self, response):
