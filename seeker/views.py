@@ -5,6 +5,7 @@ from django.http import StreamingHttpResponse
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .models import SavedSearch
+from .mapping import StringType
 from elasticsearch.helpers import scan
 import re
 
@@ -65,8 +66,9 @@ class SeekerView (TemplateView):
         """
         mapping = self.mapping.instance()
         for name, t in mapping.field_map.iteritems():
-            if t.facet:
-                yield TermAggregate(name, label=mapping.field_label(name))
+            if isinstance(t, StringType) and t.facet:
+                field_name = name + '.raw' if t.index else name
+                yield TermAggregate(field_name, label=mapping.field_label(name))
 
     def get_default_fields(self):
         """
@@ -132,7 +134,7 @@ class SeekerView (TemplateView):
         filters, facet_filters = get_facet_filters(self.request.GET, facets)
 
         offset = (page - 1) * self.page_size
-        results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
+        results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, highlight=display_fields, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
         current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()

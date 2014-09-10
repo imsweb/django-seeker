@@ -65,8 +65,14 @@ def field_label(mapping, field_name):
     return mapping.field_label(field_name)
 
 @register.simple_tag
-def result_value(result, field_name):
-    value = result.data.get(field_name, '')
+def result_value(result, field_name, highlight=True):
+    if highlight:
+        try:
+            value = result.hit['highlight'][field_name][0]
+        except:
+            value = result.data.get(field_name, '')
+    else:
+        value = result.data.get(field_name, '')
     if value is None:
         return ''
     if isinstance(value, (list, tuple)):
