@@ -5,27 +5,18 @@
         <label class="sr-only" for="q">Keywords</label>
         <input type="text" class="form-control" placeholder="Keywords" name="q" id="q" value="{{ keywords }}" autofocus="autofocus" />
     </div>
-    {% for facet, values in results.facet_values %}
-        {% if values %}
-            <h4>{{ facet.label|capfirst }}</h4>
-            <div class="choices">
-                {% for value in values %}
-                    <div class="checkbox">
-                        {% facet_checkbox facet value filters %}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    {% for facet in facets %}
+        {% render_facet facet results facet_fields %}
     {% endfor %}
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">Filter</button>
         <a href="{{ request_path }}?q=" class="btn btn-default">Reset</a>
-        <a class="btn btn-default" data-toggle="modal" data-target="#display-fields"><i class="fa fa-list"></i></a>
+        <a class="btn btn-default" data-toggle="modal" data-target="#display-fields"><i class="glyphicon glyphicon-list"></i></a>
         {% if can_save %}
             {% if querystring or saved_searches %}
                 <div class="btn-group">
                     <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
-                        <i class="fa fa-floppy-o"></i>
+                        <i class="glyphicon glyphicon-floppy-disk"></i>
                         <span class="caret"></span>
                     </button>
                     <ul class="dropdown-menu" role="menu">

@@ -2,7 +2,9 @@ from django.views.generic import TemplateView
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse
+from django.conf import settings
 from .query import TermAggregate
+from .facets import TermsFacet
 from .utils import get_facet_filters
 from .models import SavedSearch
 from elasticsearch.helpers import scan
@@ -66,7 +68,7 @@ class SeekerView (TemplateView):
         mapping = self.mapping.instance()
         for name, t in mapping.field_map.iteritems():
             if t.facet:
-                yield TermAggregate(name, label=mapping.field_label(name))
+                yield TermsFacet(name, label=mapping.field_label(name))
 
     def get_default_fields(self):
         """
@@ -88,6 +90,23 @@ class SeekerView (TemplateView):
             return result.instance.get_absolute_url()
         except:
             return ''
+
+    def get_results(self):
+        pass
+
+    def get_search(self, keywords=None, facets=None, aggregate=True):
+        m = self.mapping.instance()
+        s = m.search()
+        if keywords:
+            s = s.query('query_string', query=keywords, auto_generate_phrase_queries=True, analyze_wildcard=True,
+                    default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
+        if facets:
+            for facet in facets:
+                if facet.field in self.request.GET:
+                    s = facet.filter(s, self.request.GET.getlist(facet.field))
+                if aggregate:
+                    facet.apply(s)
+        return s
 
     def get_context_data(self, **kwargs):
         """
@@ -127,12 +146,11 @@ class SeekerView (TemplateView):
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
         sort = self.request.GET.get('sort', None)
+        offset = (page - 1) * self.page_size
 
         facets = list(self.get_facets())
-        filters, facet_filters = get_facet_filters(self.request.GET, facets)
-
-        offset = (page - 1) * self.page_size
-        results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
+        search = self.get_search(keywords=keywords, facets=facets)
+        #results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
         current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
@@ -140,8 +158,9 @@ class SeekerView (TemplateView):
 
         params = super(SeekerView, self).get_context_data(**kwargs)
         params.update({
-            'results': results,
-            'filters': filters,
+            'results': search.execute(),
+            'facets': facets,
+            'facet_fields': set(f.field for f in facets if f.field in self.request.GET),
             'display_fields': display_fields,
             'link_fields': self.links or (display_fields[0],),
             'keywords': keywords,

@@ -1,0 +1,14 @@
+{% load humanize %}
+
+<h4>{{ facet.label|capfirst }}</h4>
+<div class="choices">
+    {% for key, count in values %}
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" name="{{ facet.field }}" value="{{ key }}" data-count="{{ count }}"{% if checked %} checked="checked"{% endif %} />
+                {{ key|default:"MISSING" }}
+                ({{ count|intcomma }})
+            </label>
+        </div>
+    {% endfor %}
+</div>

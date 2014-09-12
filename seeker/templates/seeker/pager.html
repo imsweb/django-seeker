@@ -1,11 +1,11 @@
 <ul class="pagination">
     {% if page.has_previous %}
-        <li><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ page.previous_page_number }}" title="Previous Page"><i class="fa fa-chevron-left"></i></a></li>
+        <li><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ page.previous_page_number }}" title="Previous Page"><i class="glyphicon glyphicon-chevron-left"></i></a></li>
     {% endif %}
     {% for p in page_range %}
         <li{% if p == page.number %} class="active"{% endif %}><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ p }}">{{ p }}</a></li>
     {% endfor %}
     {% if page.has_next %}
-        <li><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ page.next_page_number }}" title="Next Page"><i class="fa fa-chevron-right"></i></a></li>
+        <li><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ page.next_page_number }}" title="Next Page"><i class="glyphicon glyphicon-chevron-right"></i></a></li>
     {% endif %}
 </ul>

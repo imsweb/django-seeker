@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.text import capfirst
+import elasticsearch_dsl
 import collections
 import datetime
 import logging
@@ -508,6 +509,13 @@ class Mapping (object):
         if self.es.indices.exists_type(index=self.index_name, doc_type=self.doc_type):
             self.es.indices.delete_mapping(index=self.index_name, doc_type=self.doc_type)
             self.es.indices.flush(index=self.index_name)
+
+    def search(self):
+        """
+        Returns a :class:`elasticsearch_dsl.Search` object configured to search on this mapping.
+        """
+        # cls = type('SeekerResponse_%s' % self.__class__.__name__, (SeekerResponse,), {'mapping': self})
+        return elasticsearch_dsl.Search(using=self.es).index(self.index_name).doc_type(self.doc_type)
 
     def query(self, **kwargs):
         """

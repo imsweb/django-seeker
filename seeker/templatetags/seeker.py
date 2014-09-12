@@ -10,19 +10,17 @@ import string
 
 register = template.Library()
 
-@register.simple_tag
-def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix=''):
-    if filters is None:
-        filters = {}
-    key = facet.get_key(value)
-    return '<label><input type="checkbox" name="%(name)s" value="%(key)s"%(checked)s data-count="%(count)s" /> %(key_fmt)s (%(count_prefix)s%(count_fmt)s)</label>' % {
-        'name': facet.field,
-        'key': key or '',
-        'key_fmt': key or missing,
-        'count': value['doc_count'],
-        'count_fmt': intcomma(value['doc_count']),
-        'count_prefix': count_prefix,
-        'checked': ' checked="checked"' if facet.field in filters and key in filters[facet.field] else '',
+@register.inclusion_tag('seeker/facet.html')
+def render_facet(facet, results, facet_fields=None):
+    values = []
+    for data in facet.values(results):
+        key = facet.get_key(data)
+        count = data['doc_count']
+        values.append((key, count))
+    return {
+        'facet': facet,
+        'values': values,
+        'checked': facet_fields and facet.field in facet_fields,
     }
 
 @register.simple_tag
@@ -66,7 +64,7 @@ def field_label(mapping, field_name):
 
 @register.simple_tag
 def result_value(result, field_name):
-    value = result.data.get(field_name, '')
+    value = getattr(result, field_name, None)
     if value is None:
         return ''
     if isinstance(value, (list, tuple)):

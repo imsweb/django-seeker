@@ -1,10 +1,10 @@
 {% load seeker %}
 
 <div class="pull-right">
-    {% pager results.total page_size=page_size page=page querystring=querystring %}
+    {% pager results.hits.total page_size=page_size page=page querystring=querystring %}
 </div>
 <p>
-    <em>Found {{ results.total }} result{{ results.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
+    <em>Found {{ results.hits.total }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
     &mdash;
     <a href="?{{ querystring }}&_export">Export these results</a>
 </p>
