@@ -1,4 +1,6 @@
 from django import template
+from django.template import loader
+from django.template.base import Context
 from django.utils.html import escape
 from django.http import QueryDict
 from django.conf import settings
@@ -36,8 +38,30 @@ def facet_values(facet, filters, missing='MISSING', remove='&times;'):
     return html
 
 @register.filter
+def string_format(value):
+    if value is None:
+        return ''
+    if isinstance(value, (list, tuple)):
+        return list_display(value)
+    if isinstance(value, dict):
+        return dict_display(value)
+    if isinstance(value, datetime.datetime):
+        return dateformat.format(value, settings.DATETIME_FORMAT)
+    if isinstance(value, datetime.date):
+        return dateformat.format(value, settings.DATE_FORMAT)
+    return unicode(value)
+
+@register.filter
 def list_display(values, sep=', '):
-    return sep.join(unicode(v) for v in values)
+    return sep.join(string_format(v) for v in values)
+
+@register.filter
+def dict_display(d, sep=', '):
+    parts = []
+    for key, value in d.items():
+        if key and value:
+            parts.append('%s: %s' % (key, string_format(value)))
+    return sep.join(parts)
 
 @register.simple_tag
 def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None):
@@ -65,7 +89,7 @@ def field_label(mapping, field_name):
     return mapping.field_label(field_name)
 
 @register.simple_tag
-def result_value(result, field_name, highlight=True):
+def result_value(result, field_name, highlight=True, template=None):
     if highlight:
         try:
             value = result.hit['highlight'][field_name][0]
@@ -73,15 +97,22 @@ def result_value(result, field_name, highlight=True):
             value = result.data.get(field_name, '')
     else:
         value = result.data.get(field_name, '')
-    if value is None:
-        return ''
-    if isinstance(value, (list, tuple)):
-        return list_display(value)
-    if isinstance(value, datetime.datetime):
-        return dateformat.format(value, settings.DATETIME_FORMAT)
-    if isinstance(value, datetime.date):
-        return dateformat.format(value, settings.DATE_FORMAT)
-    return value
+    # First, try to render the field using a template.
+    search_templates = [
+        'seeker/%s/%s.html' % (result.mapping.doc_type, field_name),
+    ]
+    if template:
+        search_templates.insert(0, template)
+    try:
+        t = loader.select_template(search_templates)
+        return t.render(Context({
+            'result': result,
+            'value': value,
+        }))
+    except:
+        pass
+    # Otherwise, do our best to render the value as a string.
+    return string_format(value)
 
 @register.simple_tag
 def result_link(result, field_name, view=None):

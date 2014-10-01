@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>seeker</name>
+	<name>django-seeker</name>
 	<comment>A python package for mapping data (usually from Django models) into Elasticsearch.</comment>
 	<projects>
 	</projects>
