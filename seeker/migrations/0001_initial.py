@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 ('querystring', models.TextField(blank=True)),
                 ('default', models.BooleanField(default=False)),
                 ('date_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('user', models.ForeignKey(to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(related_name=b'seeker_searches', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'ordering': (b'name',),
