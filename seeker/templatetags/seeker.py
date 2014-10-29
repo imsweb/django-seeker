@@ -95,6 +95,13 @@ def result_value(result, field_name, highlight=True, template=None):
             value = result.hit['highlight'][field_name][0]
         except:
             value = result.data.get(field_name, '')
+        # For nested objects, see if any of the sub-fields were highlighted.
+        if isinstance(value, dict):
+            for key in value:
+                try:
+                    value[key] = result.hit['highlight']['%s.%s' % (field_name, key)][0]
+                except:
+                    pass
     else:
         value = result.data.get(field_name, '')
     # First, try to render the field using a template.

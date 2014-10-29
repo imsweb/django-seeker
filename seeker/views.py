@@ -5,7 +5,7 @@ from django.http import StreamingHttpResponse
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .models import SavedSearch
-from .mapping import StringType
+from .mapping import StringType, ObjectType
 from elasticsearch.helpers import scan
 import re
 
@@ -124,6 +124,7 @@ class SeekerView (TemplateView):
             mapping
                 An instance of :attr:`mapping`.
         """
+        mapping = self.mapping.instance()
         keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
@@ -134,7 +135,18 @@ class SeekerView (TemplateView):
         filters, facet_filters = get_facet_filters(self.request.GET, facets)
 
         offset = (page - 1) * self.page_size
-        results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, highlight=display_fields, limit=self.page_size, offset=offset, sort=sort)
+
+        highlight = []
+        for name in display_fields:
+            try:
+                f = mapping.field_map[name]
+                if isinstance(f, ObjectType):
+                    highlight.append('%s.*' % name)
+                else:
+                    highlight.append(name)
+            except:
+                pass
+        results = mapping.query(query=keywords, filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
         current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
@@ -155,7 +167,7 @@ class SeekerView (TemplateView):
             'can_save': self.can_save,
             'current_search': current_search,
             'saved_searches': saved_searches,
-            'mapping': self.mapping.instance(),
+            'mapping': mapping,
         })
         return params
 
