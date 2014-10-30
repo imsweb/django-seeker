@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.contrib.humanize.templatetags.humanize import intcomma
 import datetime
 import string
+import re
 
 register = template.Library()
 
@@ -88,20 +89,30 @@ def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None):
 def field_label(mapping, field_name):
     return mapping.field_label(field_name)
 
+def _find_hilight_words(highlight):
+    words = set()
+    for matches in highlight.values():
+        for m in matches:
+            words.update(re.findall(r'<em>([^<]+)</em>', m))
+    return words
+
+def _highlight(obj, words):
+    if isinstance(obj, (list, tuple)):
+        return [_highlight(s, words) for s in obj]
+    elif isinstance(obj, dict):
+        return {k: _highlight(v, words) for k, v in obj.items()}
+    elif isinstance(obj, (unicode, str, int)):
+        s = unicode(obj)
+        for w in words:
+            s = s.replace(w, '<em>%s</em>' % w)
+        return s
+    return obj
+
 @register.simple_tag
 def result_value(result, field_name, highlight=True, template=None):
     if highlight:
-        try:
-            value = result.hit['highlight'][field_name][0]
-        except:
-            value = result.data.get(field_name, '')
-        # For nested objects, see if any of the sub-fields were highlighted.
-        if isinstance(value, dict):
-            for key in value:
-                try:
-                    value[key] = result.hit['highlight']['%s.%s' % (field_name, key)][0]
-                except:
-                    pass
+        words = _find_hilight_words(result.hit.get('highlight', {}))
+        value = _highlight(result.data.get(field_name, ''), words)
     else:
         value = result.data.get(field_name, '')
     # First, try to render the field using a template.
