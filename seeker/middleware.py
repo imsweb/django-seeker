@@ -39,7 +39,7 @@ def index_related(model_class, instance, delete=False):
             logger.debug('Relation found from %s to %s via "%s"', mapping.model.__name__, model_class.__name__, rel)
         if criteria:
             for obj in mapping.queryset().filter(reduce(operator.or_, criteria)):
-                if delete:
+                if delete or not mapping.should_index(obj):
                     mapping.delete(obj)
                 else:
                     mapping.index(obj)
@@ -58,7 +58,10 @@ class ModelIndexingMiddleware (object):
         model_class = ContentType.objects.get_for_model(instance).model_class()
         for mapping in get_model_mappings(model_class):
             if mapping.auto_index:
-                mapping.index(instance)
+                if mapping.should_index(instance):
+                    mapping.index(instance)
+                else:
+                    mapping.delete(instance)
         index_related(model_class, instance)
 
     def handle_delete(self, sender, instance, **kwargs):

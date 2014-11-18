@@ -478,18 +478,18 @@ class Mapping (object):
         """
         return object_data(obj, self.field_map, preparer=self)
 
-    def index(self, obj):
+    def index(self, obj, refresh=True):
         """
         Send a single object to Elasticsearch for indexing.
         """
         if self.should_index(obj):
-            self.es.index(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), body=self.get_data(obj))
+            self.es.index(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), body=self.get_data(obj), refresh=refresh)
 
-    def delete(self, obj):
+    def delete(self, obj, refresh=True):
         """
         Delete a single object from the Elasticsearch index.
         """
-        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj))
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), refresh=refresh)
 
     def refresh(self):
         """
