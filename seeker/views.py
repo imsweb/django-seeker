@@ -1,7 +1,7 @@
 from django.views.generic import TemplateView
 from django.shortcuts import redirect
 from django.contrib import messages
-from django.http import StreamingHttpResponse
+from django.http import StreamingHttpResponse, Http404
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .models import SavedSearch
@@ -48,6 +48,11 @@ class SeekerView (TemplateView):
     export_name = 'seeker'
     """
     The filename (without extension, which will be .csv) to use when exporting data from this view.
+    """
+
+    permission = None
+    """
+    If specified, a permission to check (using ``request.user.has_perm``) for this view.
     """
 
     def _querystring(self):
@@ -196,6 +201,22 @@ class SeekerView (TemplateView):
         resp = StreamingHttpResponse(csv_generator(), content_type='text/csv')
         resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
         return resp
+
+    def check_permission(self, request):
+        """
+        Check to see if the user has permission for this view. This method may optionally return an ``HttpResponse``.
+        """
+        if self.permission and not request.user.has_perm(self.permission):
+            raise Http404
+
+    def dispatch(self, request, *args, **kwargs):
+        """
+        Overridden to perform permission checking by calling ``self.check_permission``.
+        """
+        resp = self.check_permission(request)
+        if resp:
+            return resp
+        return super(SeekerView, self).dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         """
