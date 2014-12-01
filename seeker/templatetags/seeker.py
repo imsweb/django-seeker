@@ -97,24 +97,37 @@ def _find_hilight_words(highlight):
     return words
 
 def _highlight(obj, words):
+    was_highlighted = False
     if isinstance(obj, (list, tuple)):
-        return [_highlight(s, words) for s in obj]
+        values = []
+        for s in obj:
+            val, h = _highlight(s, words)
+            was_highlighted |= h
+            values.append(val)
+        return values, was_highlighted
     elif isinstance(obj, dict):
-        return {k: _highlight(v, words) for k, v in obj.items()}
+        values = {}
+        for k, v in obj.items():
+            val, h = _highlight(v, words)
+            was_highlighted |= h
+            values[k] = val
+        return values, was_highlighted
     elif isinstance(obj, (unicode, str, int)):
         s = unicode(obj)
         for w in words:
+            was_highlighted |= w in s
             s = s.replace(w, '<em>%s</em>' % w)
-        return s
-    return obj
+        return s, was_highlighted
+    return obj, was_highlighted
 
 @register.simple_tag
 def result_value(result, field_name, highlight=True, template=None):
     if highlight:
         words = _find_hilight_words(result.hit.get('highlight', {}))
-        value = _highlight(result.data.get(field_name, ''), words)
+        value, was_highlighted = _highlight(result.data.get(field_name, ''), words)
     else:
         value = result.data.get(field_name, '')
+        was_highlighted = False
     # First, try to render the field using a template.
     search_templates = [
         'seeker/%s/%s.html' % (result.mapping.doc_type, field_name),
@@ -126,6 +139,7 @@ def result_value(result, field_name, highlight=True, template=None):
         return t.render(Context({
             'result': result,
             'value': value,
+            'highlighted': was_highlighted,
         }))
     except:
         pass
