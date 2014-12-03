@@ -96,21 +96,29 @@ def _find_hilight_words(highlight):
             words.update(re.findall(r'<em>([^<]+)</em>', m))
     return words
 
+class HighlightList (list):
+    highlighted = False
+
+class HighlightDict (dict):
+    highlighted = False
+
 def _highlight(obj, words):
     was_highlighted = False
     if isinstance(obj, (list, tuple)):
-        values = []
+        values = HighlightList()
         for s in obj:
             val, h = _highlight(s, words)
             was_highlighted |= h
             values.append(val)
+        values.highlighted = was_highlighted
         return values, was_highlighted
     elif isinstance(obj, dict):
-        values = {}
+        values = HighlightDict()
         for k, v in obj.items():
             val, h = _highlight(v, words)
             was_highlighted |= h
             values[k] = val
+        values.highlighted = was_highlighted
         return values, was_highlighted
     elif isinstance(obj, (unicode, str, int)):
         s = unicode(obj)
