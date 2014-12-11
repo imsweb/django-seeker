@@ -3,7 +3,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse
 from django.conf import settings
-from .query import TermAggregate
 from .facets import TermsFacet
 from .utils import get_facet_filters
 from .models import SavedSearch
@@ -11,14 +10,19 @@ from elasticsearch.helpers import scan
 import re
 
 class SeekerView (TemplateView):
-    mapping = None
+    document = None
     """
-    A :class:`seeker.mapping.Mapping` class to present a view for.
+    A :class:`elasticsearch_dsl.DocType` class to present a view for.
     """
 
     template_name = 'seeker/seeker.html'
     """
     The template to render.
+    """
+
+    facets = []
+    """
+    A list of :class:`seeker.BaseFacet` objects to facet the results by.
     """
 
     page_param = 'page'
@@ -60,16 +64,6 @@ class SeekerView (TemplateView):
             qs = qs[:-1]
         return qs
 
-    def get_facets(self):
-        """
-        Yields :class:`seeker.query.Aggregate` objects to facet on. By default, yields a :class:`seeker.query.TermAggregate`
-        instance for any mapping fields with ``facet=True``.
-        """
-        mapping = self.mapping.instance()
-        for name, t in mapping.field_map.iteritems():
-            if t.facet:
-                yield TermsFacet(name, label=mapping.field_label(name))
-
     def get_default_fields(self):
         """
         Returns a list of field names to display by default if the user has not specified any. Defaults to all
@@ -77,8 +71,7 @@ class SeekerView (TemplateView):
         """
         if self.display:
             return self.display
-        mapping = self.mapping.instance()
-        return mapping.field_map.keys()
+        return [name for name in self.document._doc_type.mapping]
 
     def get_url(self, result, field_name):
         """
@@ -94,18 +87,16 @@ class SeekerView (TemplateView):
     def get_results(self):
         pass
 
-    def get_search(self, keywords=None, facets=None, aggregate=True):
-        m = self.mapping.instance()
-        s = m.search()
+    def get_search(self, keywords=None, aggregate=True):
+        s = self.document.search()
         if keywords:
             s = s.query('query_string', query=keywords, auto_generate_phrase_queries=True, analyze_wildcard=True,
                     default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
-        if facets:
-            for facet in facets:
-                if facet.field in self.request.GET:
-                    s = facet.filter(s, self.request.GET.getlist(facet.field))
-                if aggregate:
-                    facet.apply(s)
+        for facet in self.facets:
+            if facet.field in self.request.GET:
+                s = facet.filter(s, self.request.GET.getlist(facet.field))
+            if aggregate:
+                facet.apply(s)
         return s
 
     def get_context_data(self, **kwargs):
@@ -148,19 +139,22 @@ class SeekerView (TemplateView):
         sort = self.request.GET.get('sort', None)
         offset = (page - 1) * self.page_size
 
-        facets = list(self.get_facets())
-        search = self.get_search(keywords=keywords, facets=facets)
+        search = self.get_search(keywords)
         #results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
-        current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
-        saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
+        if self.request.user.is_authenticated():
+            current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
+            saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
+        else:
+            current_search = None
+            saved_searches = []
 
         params = super(SeekerView, self).get_context_data(**kwargs)
         params.update({
             'results': search.execute(),
-            'facets': facets,
-            'facet_fields': set(f.field for f in facets if f.field in self.request.GET),
+            'facets': self.facets,
+            'facet_fields': set(f.field for f in self.facets if f.field in self.request.GET),
             'display_fields': display_fields,
             'link_fields': self.links or (display_fields[0],),
             'keywords': keywords,
@@ -172,7 +166,6 @@ class SeekerView (TemplateView):
             'can_save': self.can_save,
             'current_search': current_search,
             'saved_searches': saved_searches,
-            'mapping': self.mapping.instance(),
         })
         return params
 

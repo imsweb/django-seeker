@@ -1,4 +1,5 @@
 from elasticsearch_dsl import A, F
+import functools
 import operator
 
 class BaseFacet (object):
@@ -51,7 +52,7 @@ class YearHistogram (BaseFacet):
                 }
             }
             filters.append(F('range', **kw))
-        return search.filter(reduce(operator.or_, filters))
+        return search.filter(functools.reduce(operator.or_, filters))
 
     def get_key(self, value):
         return value['key_as_string']
