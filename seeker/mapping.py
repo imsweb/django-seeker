@@ -88,6 +88,10 @@ class Indexable (object):
             es.indices.delete_mapping(index=index, doc_type=cls._doc_type.name)
             es.indices.flush(index=index)
 
+    @property
+    def instance(self):
+        return self.queryset().get(pk=self.id)
+
     def delete(self, using=None, index=None):
         """
         Delete this document from the Elasticsearch index.
