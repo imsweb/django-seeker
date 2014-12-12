@@ -38,25 +38,21 @@ def list_display(values, sep=', '):
     return sep.join(unicode(v) for v in values)
 
 @register.simple_tag
-def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None):
+def sort_link(sort_by, label=None, querystring='', name='sort', document=None):
     q = QueryDict(querystring).copy()
-    parts = q.get(name, '').split(':')
-    if parts[0] and parts[0] == sort_by:
-        if len(parts) > 1:
-            d = '' if parts[1] == 'desc' else 'desc'
-            cur = parts[1] or 'asc'
-        else:
-            d = 'desc'
-            cur = 'asc'
-    else:
-        d = cur = ''
-    q[name] = '%s:%s' % (sort_by, d) if d else sort_by
+    field = q.get(name, '')
+    direction = 'asc'
+    if field.startswith('-'):
+        field = field[1:]
+        direction = 'desc'
+    d = '' if direction == 'desc' or field != sort_by else '-'
+    q[name] = '%s%s' % (d, sort_by)
     if label is None:
-        if mapping:
-            label = mapping.field_label(sort_by)
+        if document:
+            label = document.label_for_field(sort_by)
         else:
-            label = string.capwords(sort_by.replace('_', ' '))
-    return '<a href="?%s" class="sort %s">%s</a>' % (q.urlencode(), cur, escape(label))
+            label = string.capwords(sort_by.replace('.raw', '').replace('_', ' '))
+    return '<a href="?%s" class="sort %s">%s</a>' % (q.urlencode(), direction, escape(label))
 
 @register.simple_tag
 def field_label(mapping, field_name):

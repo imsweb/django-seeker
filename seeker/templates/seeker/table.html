@@ -7,7 +7,7 @@
                 <th>{% sort_link "" label="Rank" querystring=querystring %}</th>
             {% endif %}
             {% for name in display_fields %}
-                <th>{% sort_link name querystring=querystring mapping=mapping %}</th>
+                <th>{% sort_link name querystring=querystring document=document %}</th>
             {% endfor %}
         </tr>
     </thead>

@@ -42,7 +42,7 @@
                     <h4 class="modal-title">Show Fields</h4>
                 </div>
                 <div class="modal-body">
-                    {% for name, label in mapping.field_labels.iteritems %}
+                    {% for name, label in field_labels %}
                         <div class="checkbox">
                             <label><input type="checkbox" name="d" value="{{ name }}"{% if name in display_fields %} checked="checked"{% endif %} /> {{ label }}</label>
                         </div>

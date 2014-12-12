@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 def follow(obj, path):
     for part in path.split('__'):
         obj = getattr(obj, part, None)
-    return obj
+    return obj, part
 
 class Indexable (object):
     _model = None
-    
+
     @classmethod
     def queryset(cls):
         """
@@ -73,8 +73,26 @@ class Indexable (object):
         """
         data = {}
         for name in cls._doc_type.mapping:
-            data[name] = follow(obj, name)
+            value, final_name = follow(obj, name)
+            # Get display values for fields with choices set.
+            if hasattr(obj, 'get_%s_display' % final_name):
+                value = getattr(obj, 'get_%s_display' % final_name)()
+            data[name] = value
         return data
+
+    @classmethod
+    def label_for_field(cls, field_name):
+        """
+        Returns a human-readable label for the given field name. First checks to see if the field is defined on the Django model, and if so, uses
+        that field's verbose_name.
+        """
+        if field_name.endswith('.raw'):
+            field_name = field_name[:-4]
+        try:
+            f = cls._model._meta.get_field(field_name)
+            return f.verbose_name.capitalize()
+        except:
+            return field_name.replace('_', ' ').capitalize()
 
     @classmethod
     def clear(cls, using=None, index=None):
@@ -92,17 +110,6 @@ class Indexable (object):
     def instance(self):
         return self.queryset().get(pk=self.id)
 
-    def delete(self, using=None, index=None):
-        """
-        Delete this document from the Elasticsearch index.
-        """
-        es = self._get_connection(using)
-        if index is None:
-            index = getattr(self._meta, 'index', self._doc_type.index)
-        if index is None:
-            raise
-        es.delete(index=index, doc_type=self._doc_type.name, id=getattr(self, 'id', None))
-
 def document_field(field):
     defaults = {
         models.DateField: dsl.Date(),
@@ -115,7 +122,7 @@ def document_field(field):
     return defaults.get(field.__class__, s)
 
 def document_from_model(model_class, document_class=dsl.DocType, fields=None, exclude=None,
-                        index=None, using='default', doc_type=None, mapping=None):
+                        index=None, using='default', doc_type=None, mapping=None, field_factory=None):
     meta_parent = (object,)
     if hasattr(document_class, 'Meta'):
         meta_parent = (document_class.Meta, object)
@@ -134,6 +141,9 @@ def document_from_model(model_class, document_class=dsl.DocType, fields=None, ex
         }),
         '_model': model_class,
     }
+    if field_factory is None:
+        field_factory = document_field
     for f in model_class._meta.fields + model_class._meta.many_to_many:
-        attrs[f.name] = document_field(f)
+        if not isinstance(f, models.AutoField):
+            attrs[f.name] = field_factory(f)
     return type('%sDoc' % model_class.__name__, (document_class, Indexable), attrs)

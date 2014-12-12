@@ -9,7 +9,7 @@ class Facet (object):
 
     def __init__(self, field, label=None):
         self.field = field
-        self.label = label if label else self.field.replace('_', ' ')
+        self.label = label if label else self.field.replace('_', ' ').replace('.raw', '')
 
     def filter(self, search, values):
         raise NotImplementedError()

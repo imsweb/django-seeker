@@ -135,12 +135,12 @@ class SeekerView (TemplateView):
         page = int(page) if page.isdigit() else 1
         sort = self.request.GET.get('sort', None)
         offset = (page - 1) * self.page_size
+        sort_fields = [str(sort)] if sort else []
 
-        search = self.get_search(keywords)
-        #results = self.mapping.instance().query(query=keywords, filters=facet_filters, facets=facets, limit=self.page_size, offset=offset, sort=sort)
+        search = self.get_search(keywords).sort(*sort_fields)[offset:offset + self.page_size]
 
         querystring = self._querystring()
-        if self.request.user.is_authenticated():
+        if self.request.user and self.request.user.is_authenticated():
             current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
             saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
         else:
@@ -160,9 +160,11 @@ class SeekerView (TemplateView):
             'page_param': self.page_param,
             'page_size': self.page_size,
             'querystring': querystring,
-            'can_save': self.can_save,
+            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
             'current_search': current_search,
             'saved_searches': saved_searches,
+            'document': self.document,
+            'field_labels': [(name, self.document.label_for_field(name)) for name in self.document._doc_type.mapping],
         })
         return params
 
@@ -173,24 +175,20 @@ class SeekerView (TemplateView):
         """
         keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
-        sort = self.request.GET.get('sort', None)
-        #facet_filters = get_facet_filters(self.request.GET, self.get_facets())[1]
-        #query = mapping.query(query=keywords, filters=facet_filters, sort=sort).to_elastic()
         search = self.get_search(keywords, aggregate=False)
-        print(search.to_dict())
-        
+
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
                 value = '; '.join(six.text_type(v) for v in value)
             return '"%s"' % six.text_type(value).replace('"', '""')
 
         def csv_generator():
-#            yield ','.join(mapping.field_label(f) for f in display_fields) + '\n'
-            for result in scan(connections.get_connection('default'), query=search.to_dict()):
+            yield ','.join(self.document.label_for_field(f) for f in display_fields) + '\n'
+            for result in scan(connections.get_connection('default'), query=search.to_dict(), index=self.document._doc_type.index, doc_type=self.document._doc_type.name):
                 yield ','.join(csv_escape(result['_source'].get(f, '')) for f in display_fields) + '\n'
 
-        resp = StreamingHttpResponse(csv_generator(), content_type='text/plain')
-#        resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
+        resp = StreamingHttpResponse(csv_generator(), content_type='text/csv')
+        resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
         return resp
 
     def get(self, request, *args, **kwargs):
