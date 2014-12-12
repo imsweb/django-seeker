@@ -2,7 +2,7 @@ from elasticsearch_dsl import A, F
 import functools
 import operator
 
-class BaseFacet (object):
+class Facet (object):
     field = None
     label = None
     aggregation = None
@@ -23,7 +23,7 @@ class BaseFacet (object):
     def get_key(self, value):
         return value['key']
 
-class TermsFacet (BaseFacet):
+class TermsFacet (Facet):
     def __init__(self, field, label=None, size=10):
         super(TermsFacet, self).__init__(field, label=label)
         self.aggregation = A('terms', field=self.field, size=size)
@@ -37,7 +37,7 @@ class TermsFacet (BaseFacet):
             return search.filter('term', **kw)
         return search
 
-class YearHistogram (BaseFacet):
+class YearHistogram (Facet):
     def __init__(self, field, label=None, fmt='yyyy'):
         super(YearHistogram, self).__init__(field, label=label)
         self.aggregation = A('date_histogram', field=self.field, interval='year', format=fmt)

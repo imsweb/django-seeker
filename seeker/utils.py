@@ -1,26 +1,17 @@
-from django.apps import apps
 from django.conf import settings
+from .registry import model_documents
 
-def get_mappings():
+def get_mappings(model=None):
     """
-    Returns a list of all defined mappings.
+    Returns a list of all registered mappings, optionally filtered by a model class.
     """
-    seeker_app = apps.get_app_config('seeker')
-    return seeker_app.mappings
-
-def get_app_mappings(app_label):
-    """
-    Returns a list of mappings for the specified ``app_label``.
-    """
-    seeker_app = apps.get_app_config('seeker')
-    return seeker_app.app_mappings.get(app_label, [])
-
-def get_model_mappings(model_class):
-    """
-    Returns a list of mappings for the specified model class.
-    """
-    seeker_app = apps.get_app_config('seeker')
-    return seeker_app.model_mappings.get(model_class, [])
+    if model:
+        return model_documents.get(model, [])
+    else:
+        mappings = []
+        for mapping_list in model_documents.values():
+            mappings.extend(mapping_list)
+        return mappings
 
 def get_facet_filters(request_data, facets, exclude=None):
     """

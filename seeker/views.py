@@ -7,6 +7,8 @@ from .facets import TermsFacet
 from .utils import get_facet_filters
 from .models import SavedSearch
 from elasticsearch.helpers import scan
+from elasticsearch_dsl.connections import connections
+import six
 import re
 
 class SeekerView (TemplateView):
@@ -69,9 +71,7 @@ class SeekerView (TemplateView):
         Returns a list of field names to display by default if the user has not specified any. Defaults to all
         mapping fields.
         """
-        if self.display:
-            return self.display
-        return [name for name in self.document._doc_type.mapping]
+        return self.display or [name for name in self.document._doc_type.mapping]
 
     def get_url(self, result, field_name):
         """
@@ -83,9 +83,6 @@ class SeekerView (TemplateView):
             return result.instance.get_absolute_url()
         except:
             return ''
-
-    def get_results(self):
-        pass
 
     def get_search(self, keywords=None, aggregate=True):
         s = self.document.search()
@@ -174,25 +171,26 @@ class SeekerView (TemplateView):
         A helper method called when ``_export`` is present in ``request.GET``. Returns a ``StreamingHttpResponse``
         that yields CSV data for all matching results.
         """
-        mapping = self.mapping.instance()
         keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         sort = self.request.GET.get('sort', None)
-        facet_filters = get_facet_filters(self.request.GET, self.get_facets())[1]
-        query = mapping.query(query=keywords, filters=facet_filters, sort=sort).to_elastic()
-
+        #facet_filters = get_facet_filters(self.request.GET, self.get_facets())[1]
+        #query = mapping.query(query=keywords, filters=facet_filters, sort=sort).to_elastic()
+        search = self.get_search(keywords, aggregate=False)
+        print(search.to_dict())
+        
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(unicode(v) for v in value)
-            return '"%s"' % unicode(value).replace('"', '""')
+                value = '; '.join(six.text_type(v) for v in value)
+            return '"%s"' % six.text_type(value).replace('"', '""')
 
         def csv_generator():
-            yield ','.join(mapping.field_label(f) for f in display_fields) + '\n'
-            for result in scan(mapping.es, index=mapping.index_name, doc_type=mapping.doc_type, query=query):
+#            yield ','.join(mapping.field_label(f) for f in display_fields) + '\n'
+            for result in scan(connections.get_connection('default'), query=search.to_dict()):
                 yield ','.join(csv_escape(result['_source'].get(f, '')) for f in display_fields) + '\n'
 
-        resp = StreamingHttpResponse(csv_generator(), content_type='text/csv')
-        resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
+        resp = StreamingHttpResponse(csv_generator(), content_type='text/plain')
+#        resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
         return resp
 
     def get(self, request, *args, **kwargs):
