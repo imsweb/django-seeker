@@ -3,13 +3,28 @@ from django.db import models
 from elasticsearch_dsl.connections import connections
 import elasticsearch_dsl as dsl
 import logging
+import six
 
 logger = logging.getLogger(__name__)
 
 def follow(obj, path):
-    for part in path.split('__'):
-        obj = getattr(obj, part, None)
-    return obj, part
+    parts = path.split('__') if path else []
+    for idx, part in enumerate(parts):
+        if hasattr(obj, 'get_%s_display' % part):
+            # If the root object has a method to get the display value for this part, we're done (the rest of the path, if any, is ignored).
+            return getattr(obj, 'get_%s_display' % part)()
+        else:
+            # Otherwise, follow the yellow brick road.
+            obj = getattr(obj, part, None)
+            if isinstance(obj, models.Manager):
+                # Managers are a special case - basically, branch and recurse over all objects with the remainder of the path. This means
+                # any path with a Manager/ManyToManyField in it will always return a list, which I think makes sense.
+                new_path = '__'.join(parts[idx + 1:])
+                return [follow(o, new_path) for o in obj.all()]
+    # We traversed the whole path and wound up with an object. If it's a Django model, use the unicode representation.
+    if isinstance(obj, models.Model):
+        return six.text_type(obj)
+    return obj
 
 class Indexable (object):
     _model = None
@@ -73,11 +88,7 @@ class Indexable (object):
         """
         data = {}
         for name in cls._doc_type.mapping:
-            value, final_name = follow(obj, name)
-            # Get display values for fields with choices set.
-            if hasattr(obj, 'get_%s_display' % final_name):
-                value = getattr(obj, 'get_%s_display' % final_name)()
-            data[name] = value
+            data[name] = follow(obj, name)
         return data
 
     @classmethod
