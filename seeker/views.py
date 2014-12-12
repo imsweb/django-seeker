@@ -4,7 +4,6 @@ from django.contrib import messages
 from django.http import StreamingHttpResponse
 from django.conf import settings
 from .facets import TermsFacet
-from .utils import get_facet_filters
 from .models import SavedSearch
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
