@@ -3,7 +3,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse
 from django.conf import settings
-from .facets import TermsFacet
 from .models import SavedSearch
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
@@ -23,7 +22,7 @@ class SeekerView (TemplateView):
 
     facets = []
     """
-    A list of :class:`seeker.BaseFacet` objects to facet the results by.
+    A list of :class:`seeker.Facet` objects to facet the results by.
     """
 
     page_param = 'page'
@@ -65,6 +64,22 @@ class SeekerView (TemplateView):
             qs = qs[:-1]
         return qs
 
+    def clean_sort(self, fields):
+        """
+        Given a list of potential field names to sort by, returns a list of valid sort fields.
+        """
+        valid_fields = set()
+        for f in self.document._doc_type.mapping:
+            valid_fields.add(f)
+            valid_fields.add('-%s' % f)
+        return [f for f in fields if f in valid_fields]
+
+    def get_facets(self):
+        """
+        Returns a list of :class:`seeker.Facet` objects to facet results by. Defaults to :attr:`self.facets`.
+        """
+        return self.facets
+
     def get_default_fields(self):
         """
         Returns a list of field names to display by default if the user has not specified any. Defaults to all
@@ -83,16 +98,17 @@ class SeekerView (TemplateView):
         except:
             return ''
 
-    def get_search(self, keywords=None, aggregate=True):
+    def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.document.search()
         if keywords:
             s = s.query('query_string', query=keywords, auto_generate_phrase_queries=True, analyze_wildcard=True,
                     default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
-        for facet in self.facets:
-            if facet.field in self.request.GET:
-                s = facet.filter(s, self.request.GET.getlist(facet.field))
-            if aggregate:
-                facet.apply(s)
+        if facets:
+            for facet in facets:
+                if facet.field in self.request.GET:
+                    s = facet.filter(s, self.request.GET.getlist(facet.field))
+                if aggregate:
+                    facet.apply(s)
         return s
 
     def get_context_data(self, **kwargs):
@@ -100,11 +116,13 @@ class SeekerView (TemplateView):
         Returns the context for rendering :attr:`template_name`. The available context variables are:
 
             results
-                A :class:`seeker.query.ResultSet` instance.
-            filters
-                A dictionary of field name filters.
+                An :class:`elasticsearch_dsl.result.Response` instance that can be iterated.
+            facets
+                A list of :class:`seeker.Facet` objects used to facet results.
             display_fields
                 A list of mapping field names to display.
+            facet_fields
+                A list of facet field names that are currently filtered.
             link_fields
                 A list of field names that should be displayed as links.
             keywords
@@ -125,18 +143,20 @@ class SeekerView (TemplateView):
                 The current SavedSearch object, or ``None``.
             saved_searches
                 A list of all SavedSearch objects for this view.
-            mapping
-                An instance of :attr:`mapping`.
+            document
+                An :class:`elasticsearch_dsl.DocType` class.
+            field_labels
+                A list of tuples (field_name, label) for each field defined in the document mapping.
         """
         keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
-        sort = self.request.GET.get('sort', None)
+        sort_fields = self.clean_sort(self.request.GET.getlist('sort'))
         offset = (page - 1) * self.page_size
-        sort_fields = [str(sort)] if sort else []
+        facets = list(self.get_facets())
 
-        search = self.get_search(keywords).sort(*sort_fields)[offset:offset + self.page_size]
+        search = self.get_search(keywords, facets=facets).sort(*sort_fields)[offset:offset + self.page_size]
 
         querystring = self._querystring()
         if self.request.user and self.request.user.is_authenticated():
@@ -149,8 +169,8 @@ class SeekerView (TemplateView):
         params = super(SeekerView, self).get_context_data(**kwargs)
         params.update({
             'results': search.execute(),
-            'facets': self.facets,
-            'facet_fields': set(f.field for f in self.facets if f.field in self.request.GET),
+            'facets': facets,
+            'facet_fields': set(f.field for f in facets if f.field in self.request.GET),
             'display_fields': display_fields,
             'link_fields': self.links or (display_fields[0],),
             'keywords': keywords,
