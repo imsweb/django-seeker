@@ -179,12 +179,14 @@ def pager(total, page_size=10, page=1, param='page', querystring='', spread=7):
     paginator = Paginator(range(total), page_size)
     page = paginator.page(page)
     if paginator.num_pages > spread:
-        start = max(1, page.number - (spread // 2))
-        page_range = range(start, start + spread)
+        start = max(1, min(paginator.num_pages + 1 - spread, page.number - (spread // 2)))
+        end = min(start + spread, paginator.num_pages + 1)
+        page_range = range(start, end)
     else:
         page_range = paginator.page_range
     return {
         'page_range': page_range,
+        'paginator': paginator,
         'page': page,
         'param': param,
         'querystring': querystring,
