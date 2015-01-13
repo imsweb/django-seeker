@@ -96,6 +96,13 @@ class SeekerView (TemplateView):
         except:
             return ''
 
+    def get_query(self):
+        """
+        Returns a query to pass to ``mapping.query``. Defaults to the "q" GET parameter, but can be overrideen to provide
+        a query dict that will be serialized to Elasticsearch.
+        """
+        return self.request.GET.get('q', '').strip()
+
     def get_context_data(self, **kwargs):
         """
         Returns the context for rendering :attr:`template_name`. The available context variables are:
@@ -151,7 +158,7 @@ class SeekerView (TemplateView):
                     highlight.append(name)
             except:
                 pass
-        results = mapping.query(query=keywords, filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
+        results = mapping.query(query=self.get_query(), filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
         current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
@@ -182,11 +189,10 @@ class SeekerView (TemplateView):
         that yields CSV data for all matching results.
         """
         mapping = self.mapping.instance()
-        keywords = self.request.GET.get('q', '').strip()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         sort = self.request.GET.get('sort', None)
         facet_filters = get_facet_filters(self.request.GET, self.get_facets())[1]
-        query = mapping.query(query=keywords, filters=facet_filters, sort=sort).to_elastic()
+        query = mapping.query(query=self.get_query(), filters=facet_filters, sort=sort).to_elastic()
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
