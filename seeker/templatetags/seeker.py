@@ -65,7 +65,16 @@ def dict_display(d, sep=', '):
     return sep.join(parts)
 
 @register.simple_tag
-def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None):
+def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None, sort_overrides=None):
+    if label is None:
+        if mapping:
+            label = mapping.field_label(sort_by)
+        else:
+            label = string.capwords(sort_by.replace('_', ' '))
+    if sort_overrides:
+        sort_by = sort_overrides.get(sort_by, sort_by)
+        if sort_by is None:
+            return label
     q = QueryDict(querystring).copy()
     parts = q.get(name, '').split(':')
     if parts[0] and parts[0] == sort_by:
@@ -78,11 +87,6 @@ def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None):
     else:
         d = cur = ''
     q[name] = '%s:%s' % (sort_by, d) if d else sort_by
-    if label is None:
-        if mapping:
-            label = mapping.field_label(sort_by)
-        else:
-            label = string.capwords(sort_by.replace('_', ' '))
     return '<a href="?%s" class="sort %s">%s</a>' % (q.urlencode(), cur, escape(label))
 
 @register.simple_tag

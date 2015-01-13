@@ -40,6 +40,11 @@ class SeekerView (TemplateView):
     A list of field names to display links for. If empty or ``None``, the first display field will be a link.
     """
 
+    sort_overrides = None
+    """
+    A dictionary of field names mapped to the respective sort field to be used when sorting.
+    """
+
     can_save = True
     """
     Whether searches for this view can be saved.
@@ -108,6 +113,8 @@ class SeekerView (TemplateView):
                 A list of mapping field names to display.
             link_fields
                 A list of field names that should be displayed as links.
+            sort_overrides
+                A dictionary of field names mapped to the respective sort field to be used when sorting.
             keywords
                 The keywords string.
             request_path
@@ -163,6 +170,7 @@ class SeekerView (TemplateView):
             'filters': filters,
             'display_fields': display_fields,
             'link_fields': self.links or (display_fields[0],),
+            'sort_overrides': self.sort_overrides,
             'keywords': keywords,
             'request_path': self.request.path,
             'page': page,
