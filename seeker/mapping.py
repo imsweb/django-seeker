@@ -243,7 +243,7 @@ def object_data(obj, schema, preparer=None):
             try:
                 data[name] = t.to_elastic(follow(obj, name))
             except:
-                pass
+                logger.exception('Problem extracting data for %s', name)
     return data
 
 class ObjectType (MappingType):
