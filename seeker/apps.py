@@ -22,7 +22,7 @@ class SeekerConfig (AppConfig):
                     if item is not Mapping and issubclass(item, Mapping):
                         mapping = item.instance()
                         if mapping.doc_type in self.doc_types:
-                            raise ImproperlyConfigured('doc_type must be unique across all mappings')
+                            raise ImproperlyConfigured('doc_type (%s) must be unique across all mappings [hint: check your mapping class names!]' % mapping.doc_type)
                         self.mappings.append(mapping)
                         self.app_mappings.setdefault(app.label, []).append(mapping)
                         self.doc_types[mapping.doc_type] = mapping
