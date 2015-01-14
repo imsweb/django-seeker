@@ -69,9 +69,11 @@ class MappingType (object):
         """
         if value is None:
             return None
-        try:
+        elif isinstance(value, (list, tuple)):
+            return [unicode(v) for v in value]
+        elif hasattr(value, 'all'):
             return [unicode(v) for v in value.all()]
-        except:
+        else:
             return unicode(value)
 
     def to_python(self, value):
