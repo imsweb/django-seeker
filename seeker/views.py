@@ -144,7 +144,7 @@ class SeekerView (TemplateView):
                 An instance of :attr:`mapping`.
         """
         mapping = self.mapping.instance()
-        keywords = self.request.GET.get('q', '').strip()
+        keywords = self.get_query()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
@@ -165,7 +165,7 @@ class SeekerView (TemplateView):
                     highlight.append(name)
             except:
                 pass
-        results = mapping.query(query=self.get_query(), filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
+        results = mapping.query(query=keywords, filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
         current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
