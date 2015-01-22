@@ -90,6 +90,14 @@ class SeekerView (TemplateView):
         mapping = self.mapping.instance()
         return mapping.field_map.keys()
 
+    def get_selectable_fields(self):
+        """
+        Returns a dictionary of selectable fields (those that can be selected for display) with field names mapped to
+        their associated labels. Defaults to all mapping fields by way of a pass-through to ``mapping.field_labels``.
+        """
+        mapping = self.mapping.instance()
+        return mapping.field_labels
+
     def get_url(self, result, field_name):
         """
         Returns a URL for the specified result row and field name. By default, this simply returns the absolute URL of
@@ -120,6 +128,8 @@ class SeekerView (TemplateView):
                 A list of mapping field names to display.
             link_fields
                 A list of field names that should be displayed as links.
+            selectable_fields
+                A dictionary of selectable fields (those that can be selected for display) with field names mapped to their associated labels.
             sort_overrides
                 A dictionary of field names mapped to the respective sort field to be used when sorting.
             keywords
@@ -177,6 +187,7 @@ class SeekerView (TemplateView):
             'filters': filters,
             'display_fields': display_fields,
             'link_fields': self.links or (display_fields[0],),
+            'selectable_fields': self.get_selectable_fields(),
             'sort_overrides': self.sort_overrides,
             'keywords': keywords,
             'request_path': self.request.path,
