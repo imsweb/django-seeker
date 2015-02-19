@@ -64,6 +64,9 @@
             </div>
         </div>
     </div>
+    
+    {# Include a hidden input for the current sort, if one exists. Allows us to maintain the sort across changes to facets, display fields, etc. #}
+    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}" />{% endif %}
 </form>
 
 <form action="" method="post">

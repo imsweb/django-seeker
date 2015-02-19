@@ -188,6 +188,7 @@ class SeekerView (TemplateView):
             'display_fields': display_fields,
             'link_fields': self.links or (display_fields[0],),
             'selectable_fields': self.get_selectable_fields(),
+            'sort': sort,
             'sort_overrides': self.sort_overrides,
             'keywords': keywords,
             'request_path': self.request.path,
