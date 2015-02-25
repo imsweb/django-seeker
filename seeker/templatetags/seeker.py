@@ -13,6 +13,10 @@ import re
 
 register = template.Library()
 
+@register.filter
+def facet_key(facet, value):
+    return facet.get_key(value)
+
 @register.simple_tag
 def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix=''):
     if filters is None:
