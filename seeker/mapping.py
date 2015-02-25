@@ -190,6 +190,8 @@ class BooleanType (MappingType):
     data_type = 'boolean'
 
     def to_elastic(self, value):
+        if value is None:
+            return None
         return bool(value)
 
 class IntegerType (MappingType):
@@ -200,6 +202,8 @@ class IntegerType (MappingType):
     data_type = 'integer'
 
     def to_elastic(self, value):
+        if value is None:
+            return None
         return int(value)
 
 class FloatType (MappingType):
@@ -211,6 +215,8 @@ class FloatType (MappingType):
     data_type = 'double'
 
     def to_elastic(self, value):
+        if value is None:
+            return None
         return float(value)
 
 DEFAULT_TYPE_MAP = {
