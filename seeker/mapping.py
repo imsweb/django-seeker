@@ -526,6 +526,7 @@ class Mapping (object):
 
     @classmethod
     def instance(cls):
-        if not hasattr(cls, '_seeker_singleton'):
-            cls._seeker_singleton = cls()
-        return cls._seeker_singleton
+        cache_name = '_seeker_instance_%s' % cls.__name__
+        if not hasattr(cls, cache_name):
+            setattr(cls, cache_name, cls())
+        return getattr(cls, cache_name)
