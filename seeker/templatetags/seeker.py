@@ -140,7 +140,8 @@ def _highlight(obj, words):
 def result_value(result, field_name, highlight=True, template=None):
     if highlight:
         words = _find_hilight_words(result.hit.get('highlight', {}))
-        value, was_highlighted = _highlight(result.data.get(field_name, ''), words)
+        value = escape(result.data.get(field_name, ''))
+        value, was_highlighted = _highlight(value, words)
     else:
         value = result.data.get(field_name, '')
         was_highlighted = False

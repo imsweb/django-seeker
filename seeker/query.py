@@ -102,6 +102,7 @@ class ResultSet (object):
                 'order': parts[1] if len(parts) > 1 else 'asc',
                 'ignore_unmapped': True,
                 'missing': '_last',
+                'mode': 'min',
             }}]
         self.prefetch = prefetch
         self._instances = {}
