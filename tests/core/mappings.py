@@ -1,8 +1,13 @@
 import seeker
+import elasticsearch_dsl
 from .models import Book, Magazine
 
-class BookMapping (seeker.Mapping):
-    model = Book
+class BookDocument (elasticsearch_dsl.DocType, seeker.Indexable):
+    class Meta:
+        index = 'seeker-tests'
+        doc_type = 'book'
 
-class MagazineMapping (seeker.Mapping):
-    model = Magazine
+MagazineDocument = seeker.document_from_model(Magazine)
+
+seeker.register(Book, BookDocument)
+seeker.register(Magazine, MagazineDocument)

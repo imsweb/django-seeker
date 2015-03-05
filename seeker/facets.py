@@ -40,7 +40,7 @@ class TermsFacet (Facet):
 class YearHistogram (Facet):
     def __init__(self, field, label=None, fmt='yyyy'):
         super(YearHistogram, self).__init__(field, label=label)
-        self.aggregation = A('date_histogram', field=self.field, interval='year', format=fmt)
+        self.aggregation = A('date_histogram', field=self.field, interval='year', format=fmt, order={'_key': 'desc'})
 
     def filter(self, search, values):
         filters = []

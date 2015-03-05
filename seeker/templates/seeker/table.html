@@ -15,11 +15,7 @@
         {% for result in results %}
             <tr>
                 {% if keywords %}
-                    <td>
-                        <div class="progress" style="margin-bottom:0;">
-                            <div class="progress-bar" style="width:{{ result.percentile }}%;"></div>
-                        </div>
-                    </td>
+                    <td>{% result_score result results.hits.max_score %}</td>
                 {% endif %}
                 {% for name in display_fields %}
                     {% if name in link_fields %}

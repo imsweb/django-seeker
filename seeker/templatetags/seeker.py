@@ -83,6 +83,15 @@ def result_link(result, field_name, view=None):
     return ''
 
 @register.simple_tag
+def result_score(result, max_score):
+    pct = result.meta.score / max_score if max_score else 0.0
+    return """
+        <div class="progress" style="margin-bottom:0;">
+            <div class="progress-bar" style="width:%.3f%%;"></div>
+        </div>
+    """ % (pct * 100.0)
+
+@register.simple_tag
 def suggest_link(suggestions, querystring='', name='q'):
     q = QueryDict(querystring).copy()
     keywords = q.get(name, '').strip()

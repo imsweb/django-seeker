@@ -38,6 +38,14 @@ class Indexable (object):
         return cls._model.objects.all()
 
     @classmethod
+    def count(cls):
+        """
+        Returns the number of objects that will be indexed. By default, this just returns ``cls.queryset().count()``, but may
+        be overridden to account for objects that won't be indexed.
+        """
+        return cls.queryset().count()
+
+    @classmethod
     def should_index(cls, obj):
         """
         Called by :meth:`.get_objects` for every object returned by :meth:`.queryset` to determine if it should be indexed. The default

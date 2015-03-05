@@ -3,6 +3,7 @@ from django.apps import apps
 from seeker.registry import model_documents
 from elasticsearch.helpers import bulk
 from elasticsearch_dsl.connections import connections
+import tqdm
 import sys
 import gc
 
@@ -22,7 +23,7 @@ def reindex(doc_class, options):
             })
             yield action
     es = connections.get_connection(doc_class._doc_type.using)
-    bulk(es, get_actions())
+    bulk(es, tqdm.tqdm(get_actions(), total=doc_class.count()))
     es.indices.refresh(index=doc_class._doc_type.index)
 
 class Command (BaseCommand):

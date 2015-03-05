@@ -9,6 +9,8 @@ sys.path.insert(0, BASE_DIR)
 SECRET_KEY = 'seeker_tests__this_is_not_very_secret'
 
 INSTALLED_APPS = (
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
     'seeker',
     'core',
 )
