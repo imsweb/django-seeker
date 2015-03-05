@@ -16,6 +16,7 @@ class Facet (object):
 
     def apply(self, search):
         search.aggs[self.field] = self.aggregation
+        return search
 
     def values(self, response):
         return response.aggregations[self.field]['buckets']

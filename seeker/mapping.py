@@ -134,6 +134,9 @@ def document_field(field):
         models.DateField: dsl.Date(),
         models.DateTimeField: dsl.Date(),
         models.IntegerField: dsl.Long(),
+        models.BooleanField: dsl.Boolean(),
+        models.NullBooleanField: dsl.Boolean(),
+        models.SlugField: dsl.String(index='not_analyzed'),
     }
     s = dsl.String(analyzer='snowball', fields={
         'raw': dsl.String(index='not_analyzed'),
@@ -164,5 +167,7 @@ def document_from_model(model_class, document_class=dsl.DocType, fields=None, ex
         field_factory = document_field
     for f in model_class._meta.fields + model_class._meta.many_to_many:
         if not isinstance(f, models.AutoField):
-            attrs[f.name] = field_factory(f)
+            field = field_factory(f)
+            if field:
+                attrs[f.name] = field
     return type('%sDoc' % model_class.__name__, (document_class, Indexable), attrs)
