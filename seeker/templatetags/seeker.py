@@ -5,6 +5,7 @@ from django.utils.html import escape
 from django.http import QueryDict
 from django.conf import settings
 from django.utils import dateformat
+from django.utils.safestring import mark_safe
 from django.core.paginator import Paginator
 from django.contrib.humanize.templatetags.humanize import intcomma
 import datetime
@@ -129,19 +130,18 @@ def _highlight(obj, words):
         values.highlighted = was_highlighted
         return values, was_highlighted
     elif isinstance(obj, (unicode, str, int)):
-        s = unicode(obj)
+        s = escape(unicode(obj))
         for w in words:
             was_highlighted |= w in s
             s = s.replace(w, '<em>%s</em>' % w)
-        return s, was_highlighted
+        return mark_safe(s), was_highlighted
     return obj, was_highlighted
 
 @register.simple_tag
 def result_value(result, field_name, highlight=True, template=None):
     if highlight:
         words = _find_hilight_words(result.hit.get('highlight', {}))
-        value = escape(result.data.get(field_name, ''))
-        value, was_highlighted = _highlight(value, words)
+        value, was_highlighted = _highlight(result.data.get(field_name, ''), words)
     else:
         value = result.data.get(field_name, '')
         was_highlighted = False
