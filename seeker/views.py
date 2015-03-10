@@ -40,6 +40,11 @@ class SeekerView (TemplateView):
     A list of field names to display links for. If empty or ``None``, the first display field will be a link.
     """
 
+    sort = None
+    """
+    The default field to sort on. If empty or ``None``, results will be sorted by relevance when no other sort is supplied.
+    """
+
     sort_overrides = None
     """
     A dictionary of field names mapped to the respective sort field to be used when sorting.
@@ -62,6 +67,10 @@ class SeekerView (TemplateView):
 
     def _querystring(self):
         qs = self.request.META.get('QUERY_STRING', '')
+        # If a default sort is specified for this view and a sort isn't supplied in the querystring, add the default
+        # sort to the querystring in order to have the sort direction displayed properly in the display fields header.
+        if self.sort and 'sort=' not in qs:
+            qs = 'sort=%s&%s' % (self.sort, qs)
         qs = re.sub(r'%s=\d+' % self.page_param, '', qs).replace('&&', '&')
         if qs.startswith('&'):
             qs = qs[1:]
@@ -111,10 +120,16 @@ class SeekerView (TemplateView):
 
     def get_query(self):
         """
-        Returns a query to pass to ``mapping.query``. Defaults to the "q" GET parameter, but can be overrideen to provide
+        Returns a query to pass to ``mapping.query``. Defaults to the "q" GET parameter, but can be overridden to provide
         a query dict that will be serialized to Elasticsearch.
         """
         return self.request.GET.get('q', '').strip()
+
+    def get_sort(self):
+        """
+        Returns the field to sort on. Defaults to the "sort" GET parameter with a fallback to the default sort for this view.
+        """
+        return self.request.GET.get('sort', self.sort)
 
     def get_context_data(self, **kwargs):
         """
@@ -130,6 +145,8 @@ class SeekerView (TemplateView):
                 A list of field names that should be displayed as links.
             selectable_fields
                 A dictionary of selectable fields (those that can be selected for display) with field names mapped to their associated labels.
+            sort
+                The field to sort on.
             sort_overrides
                 A dictionary of field names mapped to the respective sort field to be used when sorting.
             keywords
@@ -158,7 +175,7 @@ class SeekerView (TemplateView):
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
-        sort = self.request.GET.get('sort', None)
+        sort = self.get_sort()
 
         facets = list(self.get_facets())
         filters, facet_filters = get_facet_filters(self.request.GET, facets)
@@ -210,7 +227,7 @@ class SeekerView (TemplateView):
         """
         mapping = self.mapping.instance()
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
-        sort = self.request.GET.get('sort', None)
+        sort = self.get_sort()
         facet_filters = get_facet_filters(self.request.GET, self.get_facets())[1]
         query = mapping.query(query=self.get_query(), filters=facet_filters, sort=sort).to_elastic()
 
