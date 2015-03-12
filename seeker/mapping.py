@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.text import capfirst
+import elasticsearch
 import collections
 import datetime
 import logging
@@ -344,8 +345,7 @@ class Mapping (object):
     @property
     def es(self):
         if not hasattr(self, '_es'):
-            from elasticsearch import Elasticsearch
-            self._es = Elasticsearch(self.hosts, **self.connection_options)
+            self._es = elasticsearch.Elasticsearch(self.hosts, **self.connection_options)
         return self._es
 
     @property
@@ -497,7 +497,12 @@ class Mapping (object):
         """
         Delete a single object from the Elasticsearch index.
         """
-        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), refresh=refresh)
+        try:
+            self.es.delete(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), refresh=refresh)
+        except elasticsearch.TransportError, e:
+            # Ignore 404 errors here, since the record doesn't exist anyway.
+            if e.status_code != 404:
+                raise e
 
     def refresh(self):
         """
