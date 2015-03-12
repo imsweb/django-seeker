@@ -6,6 +6,7 @@ from django.conf import settings
 from .models import SavedSearch
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
+import collections
 import six
 import re
 
@@ -154,8 +155,10 @@ class SeekerView (TemplateView):
         page = int(page) if page.isdigit() else 1
         sort_fields = self.clean_sort(self.request.GET.getlist('sort'))
         offset = (page - 1) * self.page_size
-        facets = list(self.get_facets())
-
+        
+        # Build an OrderedDict of Facet -> [selected values]
+        facets = collections.OrderedDict((f, self.request.GET.getlist(f.field)) for f in self.get_facets())
+        
         search = self.get_search(keywords, facets=facets).sort(*sort_fields)[offset:offset + self.page_size]
 
         querystring = self._querystring()
@@ -170,7 +173,6 @@ class SeekerView (TemplateView):
         params.update({
             'results': search.execute(),
             'facets': facets,
-            'facet_fields': set(f.field for f in facets if f.field in self.request.GET),
             'display_fields': display_fields,
             'link_fields': self.links or (display_fields[0],),
             'keywords': keywords,

@@ -1,4 +1,5 @@
 from django import template
+from django.template import loader
 from django.utils.html import escape
 from django.http import QueryDict
 from django.conf import settings
@@ -10,28 +11,20 @@ import string
 
 register = template.Library()
 
-@register.inclusion_tag('seeker/facet.html')
-def render_facet(facet, results, facet_fields=None):
+@register.simple_tag
+def render_facet(facet, results, selected=None, template='seeker/facet.html'):
     values = []
     for data in facet.values(results):
         key = facet.get_key(data)
         count = data['doc_count']
-        values.append((key, count))
-    return {
+        sel = selected and key in selected
+        values.append((key, count, sel))
+    template_name = facet.template or template
+    return loader.render_to_string(template_name, {
         'facet': facet,
         'values': values,
-        'checked': facet_fields and facet.field in facet_fields,
-    }
-
-@register.simple_tag
-def facet_values(facet, filters, missing='MISSING', remove='&times;'):
-    html = '<ul class="list-unstyled facet-values">'
-    for term in filters.get(facet.field, []):
-        if not term:
-            term = missing
-        html += '<li><a class="remove" data-term="%(term)s" title="Remove this term">%(remove)s</a> %(term)s</li>' % {'term': escape(term), 'remove': remove}
-    html += '</ul>'
-    return html
+        'selected': selected,
+    })
 
 @register.filter
 def list_display(values, sep=', '):
@@ -83,13 +76,13 @@ def result_link(result, field_name, view=None):
     return ''
 
 @register.simple_tag
-def result_score(result, max_score):
+def result_score(result, max_score=None, template='seeker/score.html'):
     pct = result.meta.score / max_score if max_score else 0.0
-    return """
-        <div class="progress" style="margin-bottom:0;">
-            <div class="progress-bar" style="width:%.3f%%;"></div>
-        </div>
-    """ % (pct * 100.0)
+    return loader.render_to_string(template, {
+        'score': result.meta.score,
+        'max_score': max_score,
+        'percentile': pct * 100.0,
+    })
 
 @register.simple_tag
 def suggest_link(suggestions, querystring='', name='q'):
@@ -100,18 +93,20 @@ def suggest_link(suggestions, querystring='', name='q'):
     q[name] = keywords
     return '<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords))
 
-@register.inclusion_tag('seeker/pager.html')
-def pager(total, page_size=10, page=1, param='page', querystring='', spread=7):
+@register.simple_tag
+def pager(total, page_size=10, page=1, param='page', querystring='', spread=7, template='seeker/pager.html'):
     paginator = Paginator(range(total), page_size)
     page = paginator.page(page)
     if paginator.num_pages > spread:
-        start = max(1, page.number - (spread // 2))
-        page_range = range(start, start + spread)
+        start = max(1, min(paginator.num_pages + 1 - spread, page.number - (spread // 2)))
+        end = min(start + spread, paginator.num_pages + 1)
+        page_range = range(start, end)
     else:
         page_range = paginator.page_range
-    return {
+    return loader.render_to_string(template, {
         'page_range': page_range,
+        'paginator': paginator,
         'page': page,
         'param': param,
         'querystring': querystring,
-    }
+    })

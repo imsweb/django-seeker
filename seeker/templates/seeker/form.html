@@ -5,8 +5,8 @@
         <label class="sr-only" for="q">Keywords</label>
         <input type="text" class="form-control" placeholder="Keywords" name="q" id="q" value="{{ keywords }}" autofocus="autofocus" />
     </div>
-    {% for facet in facets %}
-        {% render_facet facet results facet_fields %}
+    {% for facet, selected in facets.items %}
+        {% render_facet facet results selected %}
     {% endfor %}
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">Filter</button>

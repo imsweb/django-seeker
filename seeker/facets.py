@@ -6,10 +6,12 @@ class Facet (object):
     field = None
     label = None
     aggregation = None
+    template = None
 
-    def __init__(self, field, label=None):
+    def __init__(self, field, label=None, template=None):
         self.field = field
         self.label = label if label else self.field.replace('_', ' ').replace('.raw', '')
+        self.template = template
 
     def filter(self, search, values):
         raise NotImplementedError()
@@ -25,8 +27,8 @@ class Facet (object):
         return value['key']
 
 class TermsFacet (Facet):
-    def __init__(self, field, label=None, size=10):
-        super(TermsFacet, self).__init__(field, label=label)
+    def __init__(self, field, label=None, template=None, size=10):
+        super(TermsFacet, self).__init__(field, label=label, template=template)
         self.aggregation = A('terms', field=self.field, size=size)
 
     def filter(self, search, values):
@@ -39,8 +41,8 @@ class TermsFacet (Facet):
         return search
 
 class YearHistogram (Facet):
-    def __init__(self, field, label=None, fmt='yyyy'):
-        super(YearHistogram, self).__init__(field, label=label)
+    def __init__(self, field, label=None, template=None, fmt='yyyy'):
+        super(YearHistogram, self).__init__(field, label=label, template=template)
         self.aggregation = A('date_histogram', field=self.field, interval='year', format=fmt, order={'_key': 'desc'})
 
     def filter(self, search, values):
