@@ -312,6 +312,11 @@ class Mapping (object):
     not need to be actual model field names.
     """
 
+    field_label_overrides = None
+    """
+    A dict mapping field names to labels for display.
+    """
+
     batch_size = None
     """
     Batch size to use when indexing large querysets. Defaults to SEEKER_BATCH_SIZE.
@@ -422,9 +427,13 @@ class Mapping (object):
 
     def field_label(self, field_name):
         """
-        Returns a human-readable label for the given field name. If the field name comes from a Django model, the verbose_name is
-        looked up, otherwise the field name is transformed by replacing underscores with spaces.
+        Returns a human-readable label for the given field name, found in the following order:
+        - Label set in self.field_label_overrides.
+        - If the field name comes from a Django model, the verbose_name is looked up.
+        - The field name is transformed by replacing underscores with spaces.
         """
+        if self.field_label_overrides and field_name in self.field_label_overrides:
+            return self.field_label_overrides[field_name]
         try:
             return capfirst(self.model._meta.get_field(field_name).verbose_name)
         except:
