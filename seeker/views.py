@@ -3,7 +3,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse
 from django.conf import settings
-from .models import SavedSearch
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
 import collections
@@ -14,6 +13,11 @@ class SeekerView (TemplateView):
     document = None
     """
     A :class:`elasticsearch_dsl.DocType` class to present a view for.
+    """
+
+    display = None
+    """
+    A list of field names to display by default. If empty or ``None``, all mapping fields are displayed.
     """
 
     template_name = 'seeker/seeker.html'
@@ -34,11 +38,6 @@ class SeekerView (TemplateView):
     page_size = 10
     """
     The number of results to show per page.
-    """
-
-    display = None
-    """
-    A list of field names to display by default. If empty or ``None``, all mapping fields are displayed.
     """
 
     links = None
@@ -163,6 +162,7 @@ class SeekerView (TemplateView):
 
         querystring = self._querystring()
         if self.request.user and self.request.user.is_authenticated():
+            from .models import SavedSearch
             current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
             saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
         else:
@@ -224,6 +224,7 @@ class SeekerView (TemplateView):
         try:
             querystring = self._querystring()
             if not querystring:
+                from .models import SavedSearch
                 default = SavedSearch.objects.get(user=request.user, url=request.path, default=True)
                 if default.querystring != querystring:
                     return redirect(default)

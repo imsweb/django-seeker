@@ -17,6 +17,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'elasticsearch>=1.0',
+        'elasticsearch_dsl',
         'tqdm',
     ],
     include_package_data=True,
