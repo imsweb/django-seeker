@@ -107,6 +107,13 @@ class ModelIndex (Indexable):
     def instance(self):
         return self.queryset().get(pk=self.id)
 
+#RawString = dsl.String(analyzer='snowball', fields={
+#    'raw': dsl.String(index='not_analyzed'),
+#})
+RawString = dsl.String(index='not_analyzed', fields={
+    'analyzed': dsl.String(analyzer='snowball', store=True, include_in_all=True),
+})
+
 def document_field(field):
     defaults = {
         models.DateField: dsl.Date(),

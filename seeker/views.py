@@ -15,6 +15,11 @@ class SeekerView (TemplateView):
     A :class:`elasticsearch_dsl.DocType` class to present a view for.
     """
 
+    available = None
+    """
+    A list of available field names. If empty or ``None``, all mapping fields are available.
+    """
+
     display = None
     """
     A list of field names to display by default. If empty or ``None``, all mapping fields are displayed.
@@ -101,7 +106,7 @@ class SeekerView (TemplateView):
     def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.document.search()
         if keywords:
-            s = s.query('query_string', query=keywords, auto_generate_phrase_queries=True, analyze_wildcard=True,
+            s = s.query('query_string', query=keywords, analyzer='snowball', auto_generate_phrase_queries=True,
                     default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
         if facets:
             for facet in facets:
@@ -149,6 +154,7 @@ class SeekerView (TemplateView):
                 A list of tuples (field_name, label) for each field defined in the document mapping.
         """
         keywords = self.request.GET.get('q', '').strip()
+        available_fields = self.available or list(sorted(self.document._doc_type.mapping))
         display_fields = self.request.GET.getlist('d') or self.get_default_fields()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
@@ -162,9 +168,8 @@ class SeekerView (TemplateView):
 
         querystring = self._querystring()
         if self.request.user and self.request.user.is_authenticated():
-            from .models import SavedSearch
-            current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
-            saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
+            current_search = self.request.user.seeker_searches.filter(url=self.request.path, querystring=querystring).first()
+            saved_searches = self.request.user.seeker_searches.filter(url=self.request.path)
         else:
             current_search = None
             saved_searches = []
@@ -185,7 +190,7 @@ class SeekerView (TemplateView):
             'current_search': current_search,
             'saved_searches': saved_searches,
             'document': self.document,
-            'field_labels': [(name, self.document.label_for_field(name)) for name in self.document._doc_type.mapping],
+            'field_labels': [(name, self.document.label_for_field(name)) for name in available_fields],
         })
         return params
 
@@ -224,8 +229,7 @@ class SeekerView (TemplateView):
         try:
             querystring = self._querystring()
             if not querystring:
-                from .models import SavedSearch
-                default = SavedSearch.objects.get(user=request.user, url=request.path, default=True)
+                default = request.user.seeker_searches.get(url=request.path, default=True)
                 if default.querystring != querystring:
                     return redirect(default)
         except:
