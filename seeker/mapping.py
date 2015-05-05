@@ -107,11 +107,8 @@ class ModelIndex (Indexable):
     def instance(self):
         return self.queryset().get(pk=self.id)
 
-#RawString = dsl.String(analyzer='snowball', fields={
-#    'raw': dsl.String(index='not_analyzed'),
-#})
-RawString = dsl.String(index='not_analyzed', fields={
-    'analyzed': dsl.String(analyzer='snowball', store=True, include_in_all=True),
+RawString = dsl.String(analyzer='snowball', fields={
+    'raw': dsl.String(index='not_analyzed'),
 })
 
 def document_field(field):
@@ -123,10 +120,7 @@ def document_field(field):
         models.NullBooleanField: dsl.Boolean(),
         models.SlugField: dsl.String(index='not_analyzed'),
     }
-    s = dsl.String(analyzer='snowball', fields={
-        'raw': dsl.String(index='not_analyzed'),
-    })
-    return defaults.get(field.__class__, s)
+    return defaults.get(field.__class__, RawString)
 
 def document_from_model(model_class, document_class=dsl.DocType, fields=None, exclude=None,
                         index=None, using='default', doc_type=None, mapping=None, field_factory=None):
@@ -150,6 +144,10 @@ def document_from_model(model_class, document_class=dsl.DocType, fields=None, ex
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.fields + model_class._meta.many_to_many:
+        if fields and f.name not in fields:
+            continue
+        if exclude and f.name in exclude:
+            continue
         if not isinstance(f, models.AutoField):
             field = field_factory(f)
             if field:

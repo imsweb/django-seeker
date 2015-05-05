@@ -25,6 +25,16 @@ class SeekerView (TemplateView):
     A list of field names to display by default. If empty or ``None``, all mapping fields are displayed.
     """
 
+    search = None
+    """
+    A list of field names to search. By default, will included all fields defined on the document mapping.
+    """
+
+    highlight = True
+    """
+    A list of field names to highlight, or True/False to enable/disable highlighting for all fields.
+    """
+
     template_name = 'seeker/seeker.html'
     """
     The template to render.
@@ -106,7 +116,7 @@ class SeekerView (TemplateView):
     def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.document.search()
         if keywords:
-            s = s.query('query_string', query=keywords, analyzer='snowball', auto_generate_phrase_queries=True,
+            s = s.query('query_string', query=keywords, analyzer='snowball', fields=self.search, auto_generate_phrase_queries=True,
                     default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
         if facets:
             for facet in facets:
@@ -165,6 +175,9 @@ class SeekerView (TemplateView):
         facets = collections.OrderedDict((f, self.request.GET.getlist(f.field)) for f in self.get_facets())
         
         search = self.get_search(keywords, facets=facets).sort(*sort_fields)[offset:offset + self.page_size]
+        if self.highlight:
+            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else display_fields
+            search = search.highlight(*highlight_fields)
 
         querystring = self._querystring()
         if self.request.user and self.request.user.is_authenticated():

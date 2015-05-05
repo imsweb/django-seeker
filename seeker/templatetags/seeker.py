@@ -53,7 +53,10 @@ def field_label(mapping, field_name):
 
 @register.simple_tag
 def result_value(result, field_name):
-    value = getattr(result, field_name, None)
+    try:
+        value = result.meta.highlight[field_name][0]
+    except:
+        value = getattr(result, field_name, None)
     if value is None:
         return ''
     if isinstance(value, (list, tuple)):
