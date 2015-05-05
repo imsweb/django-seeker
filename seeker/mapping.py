@@ -27,7 +27,7 @@ def follow(obj, path):
     return obj
 
 class Indexable (object):
-    
+
     @classmethod
     def documents(cls, **kwargs):
         return []
@@ -59,10 +59,11 @@ class Indexable (object):
             es.indices.flush(index=index)
 
 class ModelIndex (Indexable):
+    model = None
 
     @classmethod
     def queryset(cls):
-        raise NotImplementedError()
+        return cls.model.objects.all()
 
     @classmethod
     def count(cls):
@@ -90,7 +91,9 @@ class ModelIndex (Indexable):
     def serialize(cls, obj):
         data = {'_id': str(obj.pk)}
         for name in cls._doc_type.mapping:
-            data[name] = follow(obj, name)
+            value = follow(obj, name)
+            if value is not None:
+                data[name] = value
         return data
 
     @classmethod
@@ -140,6 +143,7 @@ def document_from_model(model_class, document_class=dsl.DocType, fields=None, ex
             'doc_type': doc_type,
             'mapping': mapping,
         }),
+        'model': model_class,
     }
     if field_factory is None:
         field_factory = document_field

@@ -170,10 +170,10 @@ class SeekerView (TemplateView):
         page = int(page) if page.isdigit() else 1
         sort_fields = self.clean_sort(self.request.GET.getlist('sort'))
         offset = (page - 1) * self.page_size
-        
+
         # Build an OrderedDict of Facet -> [selected values]
         facets = collections.OrderedDict((f, self.request.GET.getlist(f.field)) for f in self.get_facets())
-        
+
         search = self.get_search(keywords, facets=facets).sort(*sort_fields)[offset:offset + self.page_size]
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else display_fields
