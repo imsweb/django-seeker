@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.core.management import call_command
 from .models import Book
+from .mappings import BookDocument
 import seeker
 
 class QueryTests (TestCase):
@@ -15,6 +16,11 @@ class QueryTests (TestCase):
         self.assertEqual(set(int(r.meta.id) for r in results), set([2]))
         results = self.document.search().query('term', title='herd').execute()
         self.assertEqual(set(int(r.meta.id) for r in results), set([1]))
+        self.assertIsInstance(results[0], BookDocument)
+        # Test multi-model seeker.search
+        results = seeker.search(models=(Book,)).query('term', title='herd').execute()
+        self.assertEqual(set(int(r.meta.id) for r in results), set([1]))
+        self.assertIsInstance(results[0], BookDocument)
 
     def test_filter(self):
         results = self.document.search().filter('term', **{'authors.raw': 'Alexa Watson'}).execute()
