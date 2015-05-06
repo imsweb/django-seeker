@@ -13,7 +13,7 @@ import six
 import re
 
 class Column (object):
-    
+
     def __init__(self, field=None, label=None, sort=None, highlight=True, template=None):
         self.field = field
         self.label = label or field.replace('_', ' ').replace('.raw', '').capitalize()
@@ -26,7 +26,7 @@ class Column (object):
 
     def __repr__(self):
         return 'Column(%s)' % self.field
-    
+
     def header(self, querystring):
         if not self.sort:
             return escape(self.label)
@@ -39,10 +39,10 @@ class Column (object):
         d = '' if direction == 'desc' or field != self.field else '-'
         q['s'] = '%s%s' % (d, self.field)
         return '<a href="?%s" class="sort %s">%s</a>' % (q.urlencode(), direction, escape(self.label))
-    
+
     def context(self, result, **kwargs):
         return kwargs
-    
+
     def render(self, result, **kwargs):
         try:
             value = result.meta.highlight[self.field][0]
@@ -253,17 +253,17 @@ class SeekerView (TemplateView):
                 The filename of the export file (without .csv), if available.
         """
         keywords = self.request.GET.get('q', '').strip()
-        
+
         # Get all possible columns, then figure out which should be displayed.
         columns = self.get_columns()
         display_fields = self.request.GET.getlist('d') or self.display
         display_columns = [c for c in columns if not display_fields or c.field in display_fields]
-        
+
         # Calculate paging information.
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * self.page_size
-        
+
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = {c.field: c for c in columns}
@@ -272,7 +272,7 @@ class SeekerView (TemplateView):
             c = column_lookup.get(s.replace('-', ''), None)
             if c and c.sort:
                 sort_fields.append('-%s' % c.sort if s.startswith('-') else c.sort)
-        
+
         # Build an OrderedDict of Facet -> [selected values]
         facets = collections.OrderedDict((f, self.request.GET.getlist(f.field)) for f in self.get_facets())
 
