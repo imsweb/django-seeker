@@ -14,7 +14,7 @@ import re
 
 class Column (object):
 
-    def __init__(self, field=None, label=None, sort=None, highlight=True, template=None):
+    def __init__(self, field, label=None, sort=None, highlight=True, template=None):
         self.field = field
         self.label = label or field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
@@ -57,6 +57,7 @@ class Column (object):
             t = loader.select_template(search_templates)
             params = {
                 'result': result,
+                'field': self.field,
                 'value': value,
             }
             params.update(self.context(result, **kwargs))
@@ -81,6 +82,11 @@ class SeekerView (TemplateView):
     display = None
     """
     A list of field/column names to display by default.
+    """
+
+    sort = None
+    """
+    A list of field/column names to sort by default, or None for no default sort order.
     """
 
     search = None
@@ -267,7 +273,8 @@ class SeekerView (TemplateView):
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = {c.field: c for c in columns}
-        for s in self.request.GET.getlist('s'):
+        sorts = self.request.GET.getlist('s') or self.sort or []
+        for s in sorts:
             # Get the column based on the field name, and use it's "sort" field, if applicable.
             c = column_lookup.get(s.replace('-', ''), None)
             if c and c.sort:

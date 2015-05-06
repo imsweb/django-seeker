@@ -10,7 +10,7 @@ class Facet (object):
 
     def __init__(self, field, label=None, template=None):
         self.field = field
-        self.label = label if label else self.field.replace('_', ' ').replace('.raw', '')
+        self.label = label if label else self.field.replace('_', ' ').replace('.raw', '').capitalize()
         self.template = template
 
     def filter(self, search, values):
