@@ -3,26 +3,22 @@
 <table class="table table-striped table-seeker">
     <thead>
         <tr>
-            {% if keywords %}
-                <th>{% sort_link "" label="Rank" querystring=querystring %}</th>
+            {% if show_rank and keywords %}
+                <th><a href="?{{ reset_querystring }}">Rank</a></th>
             {% endif %}
-            {% for name in display_fields %}
-                <th>{% sort_link name querystring=querystring document=document %}</th>
+            {% for col in display_columns %}
+                <th>{% seeker_header col querystring %}</th>
             {% endfor %}
         </tr>
     </thead>
     <tbody>
         {% for result in results %}
             <tr>
-                {% if keywords %}
-                    <td>{% result_score result results.hits.max_score %}</td>
+                {% if show_rank and keywords %}
+                    <td>{% seeker_score result results.hits.max_score %}</td>
                 {% endif %}
-                {% for name in display_fields %}
-                    {% if name in link_fields %}
-                        <td><a href="{% result_link result name view=view %}">{% result_value result name %}</a></td>
-                    {% else %}
-                        <td>{% result_value result name %}</td>
-                    {% endif %}
+                {% for col in display_columns %}
+                    <td>{% seeker_column col result %}</td>
                 {% endfor %}
             </tr>
         {% endfor %}

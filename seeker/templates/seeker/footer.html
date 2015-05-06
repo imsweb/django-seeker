@@ -5,6 +5,7 @@
 </div>
 <p>
     <em>Found {{ results.hits.total }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
-    &mdash;
-    <a href="?{{ querystring }}&_export">Export these results</a>
+    {% if export_name %}
+        &mdash; <a href="?{{ querystring }}&amp;_export">Export these results</a>
+    {% endif %}
 </p>

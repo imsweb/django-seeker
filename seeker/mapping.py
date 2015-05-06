@@ -40,13 +40,6 @@ class Indexable (object):
             return None
 
     @classmethod
-    def label_for_field(cls, field_name):
-        """
-        Returns a human-readable label for the given field name.
-        """
-        return field_name.replace('_', ' ').capitalize()
-
-    @classmethod
     def clear(cls, using=None, index=None):
         """
         Deletes the Elasticsearch mapping associated with this document type.
@@ -95,16 +88,6 @@ class ModelIndex (Indexable):
             if value is not None:
                 data[name] = value
         return data
-
-    @classmethod
-    def label_for_field(cls, field_name):
-        if field_name.endswith('.raw'):
-            field_name = field_name[:-4]
-        try:
-            f = cls.queryset().model._meta.get_field(field_name)
-            return f.verbose_name.capitalize()
-        except:
-            return super(ModelIndex, cls).label_for_field(field_name)
 
     @property
     def instance(self):

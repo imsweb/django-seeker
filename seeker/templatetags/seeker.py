@@ -26,60 +26,16 @@ def render_facet(facet, results, selected=None, template='seeker/facet.html'):
         'selected': selected,
     })
 
-@register.filter
-def list_display(values, sep=', '):
-    return sep.join(unicode(v) for v in values)
+@register.simple_tag
+def seeker_header(column, querystring):
+    return column.header(querystring)
 
 @register.simple_tag
-def sort_link(sort_by, label=None, querystring='', name='sort', document=None):
-    q = QueryDict(querystring).copy()
-    field = q.get(name, '')
-    direction = 'asc'
-    if field.startswith('-'):
-        field = field[1:]
-        direction = 'desc'
-    d = '' if direction == 'desc' or field != sort_by else '-'
-    q[name] = '%s%s' % (d, sort_by)
-    if label is None:
-        if document:
-            label = document.label_for_field(sort_by)
-        else:
-            label = string.capwords(sort_by.replace('.raw', '').replace('_', ' '))
-    return '<a href="?%s" class="sort %s">%s</a>' % (q.urlencode(), direction, escape(label))
+def seeker_column(column, result, **kwargs):
+    return column.render(result, **kwargs)
 
 @register.simple_tag
-def field_label(mapping, field_name):
-    return mapping.field_label(field_name)
-
-@register.simple_tag
-def result_value(result, field_name):
-    try:
-        value = result.meta.highlight[field_name][0]
-    except:
-        value = getattr(result, field_name, None)
-    if value is None:
-        return ''
-    if isinstance(value, (list, tuple)):
-        return list_display(value)
-    if isinstance(value, datetime.datetime):
-        return dateformat.format(value, settings.DATETIME_FORMAT)
-    if isinstance(value, datetime.date):
-        return dateformat.format(value, settings.DATE_FORMAT)
-    return value
-
-@register.simple_tag
-def result_link(result, field_name, view=None):
-    if view is not None:
-        return view.get_url(result, field_name)
-    else:
-        try:
-            return result.instance.get_absolute_url()
-        except:
-            pass
-    return ''
-
-@register.simple_tag
-def result_score(result, max_score=None, template='seeker/score.html'):
+def seeker_score(result, max_score=None, template='seeker/score.html'):
     pct = result.meta.score / max_score if max_score else 0.0
     return loader.render_to_string(template, {
         'score': result.meta.score,
@@ -97,7 +53,7 @@ def suggest_link(suggestions, querystring='', name='q'):
     return '<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords))
 
 @register.simple_tag
-def pager(total, page_size=10, page=1, param='page', querystring='', spread=7, template='seeker/pager.html'):
+def pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html'):
     paginator = Paginator(range(total), page_size)
     page = paginator.page(page)
     if paginator.num_pages > spread:
