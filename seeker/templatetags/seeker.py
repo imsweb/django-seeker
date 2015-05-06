@@ -44,16 +44,7 @@ def seeker_score(result, max_score=None, template='seeker/score.html'):
     })
 
 @register.simple_tag
-def suggest_link(suggestions, querystring='', name='q'):
-    q = QueryDict(querystring).copy()
-    keywords = q.get(name, '').strip()
-    for term, replacement in suggestions.iteritems():
-        keywords = keywords.replace(term, replacement)
-    q[name] = keywords
-    return '<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords))
-
-@register.simple_tag
-def pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html'):
+def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html'):
     paginator = Paginator(range(total), page_size)
     page = paginator.page(page)
     if paginator.num_pages > spread:

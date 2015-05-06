@@ -14,11 +14,10 @@ import re
 
 class Column (object):
 
-    def __init__(self, field, label=None, sort=None, highlight=True, template=None):
+    def __init__(self, field, label=None, sort=None, template=None):
         self.field = field
         self.label = label or field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
-        self.highlight = highlight
         self.template = template
 
     def __str__(self):
@@ -372,7 +371,7 @@ class SeekerView (TemplateView):
         """
         if not self.can_save:
             return redirect(request.get_full_path())
-        qs = request.POST.get('querystring', '').strip()
+        qs = self._querystring()
         if '_save' in request.POST:
             name = request.POST.get('name', '').strip()
             if not name:
