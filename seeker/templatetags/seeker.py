@@ -12,7 +12,7 @@ import string
 register = template.Library()
 
 @register.simple_tag
-def render_facet(facet, results, selected=None, template='seeker/facet.html'):
+def seeker_facet(facet, results, selected=None, template='seeker/facet.html'):
     values = []
     for data in facet.values(results):
         key = facet.get_key(data)

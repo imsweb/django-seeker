@@ -1,10 +1,11 @@
 {% load seeker %}
+{% load i18n %}
 
 <table class="table table-striped table-seeker">
     <thead>
         <tr>
             {% if show_rank and keywords %}
-                <th><a href="?{{ reset_querystring }}">Rank</a></th>
+                <th><a href="?{{ reset_querystring }}">{% trans "Rank" %}</a></th>
             {% endif %}
             {% for col in display_columns %}
                 <th>{% seeker_header col querystring %}</th>
