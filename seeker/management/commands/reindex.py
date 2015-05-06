@@ -24,7 +24,8 @@ def reindex(doc_class, options):
     actions = get_actions() if options['quiet'] else tqdm.tqdm(get_actions(), total=doc_class.count(), leave=True)
     bulk(es, actions)
     es.indices.refresh(index=doc_class._doc_type.index)
-    print()
+    if not options['quiet']:
+        print()
 
 class Command (BaseCommand):
     args = '<app1 app2 ...>'

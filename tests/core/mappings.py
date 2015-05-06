@@ -1,9 +1,9 @@
 import seeker
-import elasticsearch_dsl
+import elasticsearch_dsl as dsl
 from .models import Book, Magazine
 
 BookDocument = seeker.document_from_model(Book)
 MagazineDocument = seeker.document_from_model(Magazine)
 
-seeker.register(Book, BookDocument)
-seeker.register(Magazine, MagazineDocument)
+seeker.register(BookDocument)
+seeker.register(MagazineDocument)

@@ -8,7 +8,7 @@ model_doc_types = {}
 def register(doc_class):
     assert issubclass(doc_class, Indexable)
     documents.append(doc_class)
-    if isinstance(doc_class, ModelIndex):
+    if issubclass(doc_class, ModelIndex):
         # For ModelIndex documents, store some extra information.
         model_class = doc_class.queryset().model
         # It's possible to register more than one document type for a model, so keep a list.

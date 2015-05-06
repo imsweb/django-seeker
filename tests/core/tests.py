@@ -8,7 +8,7 @@ class QueryTests (TestCase):
 
     def setUp(self):
         call_command('reindex', quiet=True)
-        self.document = seeker.get_mappings(Book)[0]
+        self.document = seeker.model_documents[Book][0]
 
     def test_query(self):
         results = self.document.search().query('query_string', query='django').execute()

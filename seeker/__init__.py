@@ -4,6 +4,6 @@ from .mapping import Indexable, ModelIndex, document_from_model, document_field,
 from .facets import Facet, TermsFacet, YearHistogram
 from .views import SeekerView, Column
 from .utils import get_mappings, search, index, queryset
-from .registry import register
+from .registry import register, documents, model_documents
 
 default_app_config = 'seeker.apps.SeekerConfig'
