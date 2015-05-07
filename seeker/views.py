@@ -207,8 +207,7 @@ class SeekerView (TemplateView):
         return self.facets or []
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
-        s = self.document.search()
-        s._extra = {'track_scores': True}
+        s = self.document.search().extra(track_scores=True)
         if keywords:
             s = s.query('query_string', query=keywords, analyzer='snowball', fields=self.search, auto_generate_phrase_queries=True,
                     default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
