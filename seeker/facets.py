@@ -14,14 +14,15 @@ class Facet (object):
         self.template = template
 
     def filter(self, search, values):
-        raise NotImplementedError()
+        raise NotImplementedError('%s has not implemented a filter method.' % self.__class__.__name__)
 
     def apply(self, search):
-        search.aggs[self.field] = self.aggregation
+        if self.aggregation:
+            search.aggs[self.field] = self.aggregation
         return search
 
     def values(self, response):
-        return response.aggregations[self.field]['buckets']
+        return response.aggregations[self.field]['buckets'] if self.aggregation else []
 
     def get_key(self, value):
         return value['key']
@@ -39,6 +40,16 @@ class TermsFacet (Facet):
             kw = {self.field: values[0]}
             return search.filter('term', **kw)
         return search
+
+class GlobalTermsFacet (TermsFacet):
+    def apply(self, search):
+        top = A('global')
+        top[self.field] = self.aggregation
+        search.aggs[self.field] = top
+        return search
+
+    def values(self, response):
+        return response.aggregations[self.field][self.field]['buckets']
 
 class YearHistogram (Facet):
     def __init__(self, field, label=None, template=None, fmt='yyyy'):
