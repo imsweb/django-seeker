@@ -172,6 +172,8 @@ class SeekerView (TemplateView):
             return self.sort_fields[field_name]
         if field_name in self.document._doc_type.mapping:
             dsl_field = self.document._doc_type.mapping[field_name]
+            if not isinstance(dsl_field, dsl.String):
+                return field_name
             if 'raw' in dsl_field.fields:
                 return '%s.raw' % field_name
             elif getattr(dsl_field, 'index', None) == 'not_analyzed':

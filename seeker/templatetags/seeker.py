@@ -1,15 +1,12 @@
 from django import template
 from django.template import loader
-from django.utils.html import escape
-from django.http import QueryDict
-from django.conf import settings
-from django.utils import dateformat
 from django.core.paginator import Paginator
 from django.contrib.humanize.templatetags.humanize import intcomma
-import datetime
-import string
 
 register = template.Library()
+
+# Convenience so people don't need to install django.contrib.humanize
+register.filter(intcomma)
 
 @register.simple_tag
 def seeker_facet(facet, results, selected=None, template='seeker/facet.html'):

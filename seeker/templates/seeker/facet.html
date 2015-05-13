@@ -1,3 +1,5 @@
+{% load seeker %}
+
 <h4>{{ facet.label|capfirst }}</h4>
 <div class="choices">
     {% for key, count, checked in values %}
@@ -5,7 +7,7 @@
             <label>
                 <input type="checkbox" name="{{ facet.field }}" value="{{ key }}" data-count="{{ count }}"{% if checked %} checked="checked"{% endif %} />
                 {{ key|default:"MISSING" }}
-                ({{ count }})
+                ({{ count|intcomma }})
             </label>
         </div>
     {% endfor %}
