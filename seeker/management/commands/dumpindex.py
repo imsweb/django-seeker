@@ -1,13 +1,13 @@
 from django.core.management.base import BaseCommand
 from django.apps import apps
-from seeker.utils import get_app_mappings
 from elasticsearch.helpers import scan
+from elasticsearch_dsl.connections import connections
 from optparse import make_option
 import json
 
 class Command (BaseCommand):
-    args = '<app1 app2 ...>'
-    help = 'Dumps out data from the specified applications'
+    args = '<doc_type>'
+    help = 'Dumps out data from the specified document types'
     option_list = BaseCommand.option_list + (
         make_option('--indent',
             type='int',
@@ -15,16 +15,20 @@ class Command (BaseCommand):
             default=None,
             help='Amount of indentation to use when serializing documents'
         ),
+        make_option('--index',
+            dest='index',
+            default=None,
+            help='Index to dump'
+        ),
     )
 
     def handle(self, *args, **options):
-        app_labels = args or [a.label for a in apps.get_app_configs()]
+        doc_types = ','.join(args) or None
         output = self.stdout
         output.write('[')
-        for app_label in app_labels:
-            for mapping in get_app_mappings(app_label):
-                for idx, doc in enumerate(scan(mapping.es, index=mapping.index_name, doc_type=mapping.doc_type)):
-                    if idx > 0:
-                        output.write(',')
-                    output.write(json.dumps(doc, indent=options['indent']), ending='')
+        es = connections.get_connection()
+        for idx, doc in enumerate(scan(es, index=options['index'], doc_type=doc_types)):
+            if idx > 0:
+                output.write(',')
+            output.write(json.dumps(doc, indent=options['indent']), ending='')
         output.write(']')
