@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 from .utils import get_mappings, get_model_mappings
 import operator
 import logging
@@ -62,14 +63,16 @@ class ModelIndexingMiddleware (object):
                     mapping.index(instance)
                 else:
                     mapping.delete(instance)
-        index_related(model_class, instance)
+        if getattr(settings, 'SEEKER_MIDDLEWARE_INDEX_RELATED', False):
+            index_related(model_class, instance)
 
     def handle_delete(self, sender, instance, **kwargs):
         model_class = ContentType.objects.get_for_model(instance).model_class()
         for mapping in get_model_mappings(model_class):
             if mapping.auto_index:
                 mapping.delete(instance)
-        index_related(model_class, instance, delete=True)
+        if getattr(settings, 'SEEKER_MIDDLEWARE_INDEX_RELATED', False):
+            index_related(model_class, instance, delete=True)
 
     def process_request(self, request):
         # This is really just here so Django keeps the middleware installed.
