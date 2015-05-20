@@ -397,3 +397,14 @@ class RangeSpec (object):
 class Range (F):
     def __init__(self, field, min_value, max_value, min_oper='gte', max_oper='lte'):
         self.filters = [RangeSpec(field, min_value, max_value, min_oper=min_oper, max_oper=max_oper)]
+
+class IdsSpec (object):
+    def __init__(self, values):
+        self.values = list(values)
+
+    def filter_spec(self):
+        return {'ids': {'values': self.values}}
+
+class Ids (F):
+    def __init__(self, values):
+        self.filters = [IdsSpec(values)]

@@ -4,7 +4,6 @@ from django.contrib import messages
 from django.http import StreamingHttpResponse, Http404
 from .query import TermAggregate
 from .utils import get_facet_filters
-from .models import SavedSearch
 from .mapping import StringType, ObjectType
 from elasticsearch.helpers import scan
 import re
@@ -131,6 +130,18 @@ class SeekerView (TemplateView):
         """
         return self.request.GET.get('sort', self.sort)
 
+    def get_display_fields(self):
+        """
+        Returns a list of field names to display.
+        """
+        return self.request.GET.getlist('d') or self.get_default_fields()
+
+    def extra_filters(self):
+        """
+        Returns a list of seeker.query.F objects that should be included as filters.
+        """
+        return []
+
     def get_context_data(self, **kwargs):
         """
         Returns the context for rendering :attr:`template_name`. The available context variables are:
@@ -172,7 +183,7 @@ class SeekerView (TemplateView):
         """
         mapping = self.mapping.instance()
         keywords = self.get_query()
-        display_fields = self.request.GET.getlist('d') or self.get_default_fields()
+        display_fields = self.get_display_fields()
         page = self.request.GET.get(self.page_param, '').strip()
         page = int(page) if page.isdigit() else 1
         sort = self.get_sort()
@@ -192,11 +203,17 @@ class SeekerView (TemplateView):
                     highlight.append(name)
             except:
                 pass
+
+        facet_filters.extend(self.extra_filters())
         results = mapping.query(query=keywords, filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
-        current_search = SavedSearch.objects.filter(user=self.request.user, url=self.request.path, querystring=querystring).first()
-        saved_searches = SavedSearch.objects.filter(user=self.request.user, url=self.request.path)
+        if self.request.user and self.request.user.is_authenticated():
+            current_search = self.request.user.seeker_searches.filter(url=self.request.path, querystring=querystring).first()
+            saved_searches = self.request.user.seeker_searches.filter(url=self.request.path)
+        else:
+            current_search = None
+            saved_searches = []
 
         params = super(SeekerView, self).get_context_data(**kwargs)
         params.update({
@@ -226,9 +243,10 @@ class SeekerView (TemplateView):
         that yields CSV data for all matching results.
         """
         mapping = self.mapping.instance()
-        display_fields = self.request.GET.getlist('d') or self.get_default_fields()
+        display_fields = self.get_display_fields()
         sort = self.get_sort()
         facet_filters = get_facet_filters(self.request.GET, self.get_facets())[1]
+        facet_filters.extend(self.extra_filters())
         query = mapping.query(query=self.get_query(), filters=facet_filters, sort=sort).to_elastic()
 
         def csv_escape(value):
@@ -273,7 +291,7 @@ class SeekerView (TemplateView):
         try:
             querystring = self._querystring()
             if not querystring:
-                default = SavedSearch.objects.get(user=request.user, url=request.path, default=True)
+                default = request.user.seeker_searches.get(url=request.path, default=True)
                 if default.querystring != querystring:
                     return redirect(default)
         except:
