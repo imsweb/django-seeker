@@ -1,11 +1,10 @@
 from django.core.management.base import BaseCommand
 from django.apps import apps
-from seeker.registry import documents
+from seeker.registry import documents, app_documents
+from seeker.utils import progress
 from elasticsearch.helpers import bulk
 from elasticsearch_dsl.connections import connections
 from optparse import make_option
-import tqdm
-import sys
 import gc
 
 def reindex(doc_class, options):
@@ -21,11 +20,9 @@ def reindex(doc_class, options):
             action.update(doc)
             yield action
     es = connections.get_connection(doc_class._doc_type.using)
-    actions = get_actions() if options['quiet'] else tqdm.tqdm(get_actions(), total=doc_class.count(), leave=True)
+    actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
     bulk(es, actions)
     es.indices.refresh(index=doc_class._doc_type.index)
-    if not options['quiet']:
-        print()
 
 class Command (BaseCommand):
     args = '<app1 app2 ...>'
@@ -39,9 +36,12 @@ class Command (BaseCommand):
         )
 
     def handle(self, *args, **options):
-        for doc_class in documents:
-            if not options['quiet']:
-                print('Indexing %s' % doc_class)
+        doc_classes = []
+        for label in args:
+            doc_classes.extend(app_documents.get(label, []))
+        if not args:
+            doc_classes.extend(documents)
+        for doc_class in doc_classes:
             doc_class.clear()
             doc_class.init()
             reindex(doc_class, options)
