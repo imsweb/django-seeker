@@ -9,7 +9,7 @@ register = template.Library()
 register.filter(intcomma)
 
 @register.simple_tag
-def seeker_facet(facet, results, selected=None, template='seeker/facet.html'):
+def seeker_facet(facet, results, selected=None, template='seeker/facet.html', **params):
     values = []
     for data in facet.values(results):
         key = facet.get_key(data)
@@ -17,11 +17,12 @@ def seeker_facet(facet, results, selected=None, template='seeker/facet.html'):
         sel = selected and key in selected
         values.append((key, count, sel))
     template_name = facet.template or template
-    return loader.render_to_string(template_name, {
+    params.update({
         'facet': facet,
         'values': values,
         'selected': selected,
     })
+    return loader.render_to_string(template_name, params)
 
 @register.simple_tag
 def seeker_header(column, querystring):

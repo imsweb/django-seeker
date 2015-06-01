@@ -8,9 +8,10 @@ class Facet (object):
     aggregation = None
     template = None
 
-    def __init__(self, field, label=None, template=None):
+    def __init__(self, field, label=None, name=None, template=None, **kwargs):
         self.field = field
-        self.label = label if label else self.field.replace('_', ' ').replace('.raw', '').capitalize()
+        self.label = label or self.field.replace('_', ' ').replace('.raw', '').capitalize()
+        self.name = (name or self.field).replace('.', '_')
         self.template = template
 
     def filter(self, search, values):
@@ -18,18 +19,18 @@ class Facet (object):
 
     def apply(self, search):
         if self.aggregation:
-            search.aggs[self.field] = self.aggregation
+            search.aggs[self.name] = self.aggregation
         return search
 
     def values(self, response):
-        return response.aggregations[self.field]['buckets'] if self.aggregation else []
+        return response.aggregations[self.name]['buckets'] if self.aggregation else []
 
     def get_key(self, value):
         return value['key']
 
 class TermsFacet (Facet):
-    def __init__(self, field, label=None, template=None, size=10):
-        super(TermsFacet, self).__init__(field, label=label, template=template)
+    def __init__(self, field, label=None, template=None, size=10, **kwargs):
+        super(TermsFacet, self).__init__(field, label=label, template=template, **kwargs)
         self.aggregation = A('terms', field=self.field, size=size)
 
     def filter(self, search, values):

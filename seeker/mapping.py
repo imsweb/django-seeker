@@ -1,13 +1,14 @@
 from django.conf import settings
 from django.db import models
 from elasticsearch_dsl.connections import connections
+from elasticsearch_dsl.field import InnerObject
 import elasticsearch_dsl as dsl
 import logging
 import six
 
 logger = logging.getLogger(__name__)
 
-def follow(obj, path):
+def follow(obj, path, force_string=False):
     parts = path.split('__') if path else []
     for idx, part in enumerate(parts):
         if hasattr(obj, 'get_%s_display' % part):
@@ -20,11 +21,28 @@ def follow(obj, path):
                 # Managers are a special case - basically, branch and recurse over all objects with the remainder of the path. This means
                 # any path with a Manager/ManyToManyField in it will always return a list, which I think makes sense.
                 new_path = '__'.join(parts[idx + 1:])
-                return [follow(o, new_path) for o in obj.all()]
-    # We traversed the whole path and wound up with an object. If it's a Django model, use the unicode representation.
-    if isinstance(obj, models.Model):
+                if new_path:
+                    return [follow(o, new_path, force_string=True) for o in obj.all()]
+    if force_string and isinstance(obj, models.Model):
         return six.text_type(obj)
     return obj
+
+def serialize_object(obj, mapping):
+    data = {}
+    for name in mapping:
+        field = mapping[name]
+        value = follow(obj, name)
+        if value is not None:
+            if isinstance(value, models.Model):
+                data[name] = serialize_object(value, field.properties) if isinstance(field, InnerObject) else six.text_type(value)
+            elif isinstance(value, models.Manager):
+                if isinstance(field, InnerObject):
+                    data[name] = [serialize_object(v, field.properties) for v in value.all()]
+                else:
+                    data[name] = [six.text_type(v) for v in value.all()]
+            else:
+                data[name] = value
+    return data
 
 class Indexable (object):
 
@@ -83,10 +101,7 @@ class ModelIndex (Indexable):
     @classmethod
     def serialize(cls, obj):
         data = {'_id': str(obj.pk)}
-        for name in cls._doc_type.mapping:
-            value = follow(obj, name)
-            if value is not None:
-                data[name] = value
+        data.update(serialize_object(obj, cls._doc_type.mapping))
         return data
 
     @property
@@ -98,6 +113,8 @@ RawString = dsl.String(analyzer='snowball', fields={
 })
 
 def document_field(field):
+    if field.auto_created or field.many_to_many or field.one_to_many:
+        return None
     defaults = {
         models.DateField: dsl.Date(),
         models.DateTimeField: dsl.Date(),
@@ -107,6 +124,17 @@ def document_field(field):
         models.SlugField: dsl.String(index='not_analyzed'),
     }
     return defaults.get(field.__class__, RawString)
+
+def deep_field_factory(field):
+    if field.is_relation and (field.many_to_one or field.one_to_one):
+        props = {}
+        for f in field.related_model._meta.get_fields():
+            nested_field = deep_field_factory(f)
+            if nested_field is not None:
+                props[f.name] = nested_field
+        return dsl.Object(properties=props)
+    else:
+        return document_field(field)
 
 def document_from_model(model_class, document_class=dsl.DocType, fields=None, exclude=None,
                         index=None, using='default', doc_type=None, mapping=None, field_factory=None):
@@ -130,13 +158,12 @@ def document_from_model(model_class, document_class=dsl.DocType, fields=None, ex
     }
     if field_factory is None:
         field_factory = document_field
-    for f in model_class._meta.fields + model_class._meta.many_to_many:
+    for f in model_class._meta.get_fields():
         if fields and f.name not in fields:
             continue
         if exclude and f.name in exclude:
             continue
-        if not isinstance(f, models.AutoField):
-            field = field_factory(f)
-            if field:
-                attrs[f.name] = field
+        field = field_factory(f)
+        if field is not None:
+            attrs[f.name] = field
     return type('%sDoc' % model_class.__name__, (document_class, ModelIndex), attrs)
