@@ -14,11 +14,12 @@ import re
 
 class Column (object):
 
-    def __init__(self, field, label=None, sort=None, template=None):
+    def __init__(self, field, label=None, sort=None, value_format=None, template=None):
         self.field = field
         self.label = label or field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
         self.template = template
+        self.value_format = value_format
 
     def __str__(self):
         return self.label
@@ -47,6 +48,8 @@ class Column (object):
             value = result.meta.highlight[self.field][0]
         except:
             value = getattr(result, self.field, None)
+        if self.value_format:
+            value = self.value_format(value)
         search_templates = [
             'seeker/%s/%s.html' % (result.meta.doc_type, self.field),
         ]
@@ -208,11 +211,26 @@ class SeekerView (TemplateView):
         """
         return self.facets or []
 
+    def get_search_fields(self, mapping=None, prefix=''):
+        if self.search:
+            return self.search
+        elif mapping is not None:
+            fields = []
+            for field_name in mapping:
+                if mapping[field_name].to_dict().get('analyzer') == 'snowball':
+                    fields.append(prefix + field_name)
+                if hasattr(mapping[field_name], 'properties'):
+                    fields.extend(self.get_search_fields(mapping=mapping[field_name].properties, prefix=prefix + field_name + '.'))
+            return fields
+        else:
+            return self.get_search_fields(mapping=self.document._doc_type.mapping)
+
     def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.document.search().extra(track_scores=True)
         if keywords:
-            s = s.query('query_string', query=keywords, analyzer='snowball', fields=self.search, auto_generate_phrase_queries=True,
-                    default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
+            s = s.query('query_string', query=keywords, analyzer='snowball', fields=self.get_search_fields(),
+                auto_generate_phrase_queries=True,
+                default_operator=getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND'))
         if facets:
             for facet in facets:
                 if facet.field in self.request.GET:
