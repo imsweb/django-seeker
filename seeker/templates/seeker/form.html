@@ -14,6 +14,16 @@
                         {% facet_checkbox facet value filters %}
                     </div>
                 {% endfor %}
+                {% if facet.ranges %}
+                    <div class="popover-range">
+                        <h5>Custom Range</h5>
+                        <input type="number" min="0" step="1" class="form-control input-sm range-min range-pair" placeholder="Min..." />
+                        to
+                        <input type="number" min="0" step="1" class="form-control input-sm range-max range-pair" placeholder="Max..." />
+                        <input type="hidden" name="{{ facet.field }}" value="" class="range-hidden" disabled />
+                        <span class="range-separator hidden">{{ facet.separator }}</span>
+                    </div>
+                {% endif %}
             </div>
         {% endif %}
     {% endfor %}
