@@ -58,7 +58,7 @@ class Indexable (object):
             return None
 
     @classmethod
-    def clear(cls, using=None, index=None):
+    def clear(cls, using=None, index=None, keep_mapping=False):
         """
         Deletes the Elasticsearch mapping associated with this document type.
         """
@@ -66,7 +66,10 @@ class Indexable (object):
             index = cls._doc_type.index
         es = connections.get_connection(using or cls._doc_type.using)
         if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
-            es.indices.delete_mapping(index=index, doc_type=cls._doc_type.name)
+            if keep_mapping:
+                es.delete_by_query(index=index, doc_type=cls._doc_type.name, body={'query': {'match_all': {}}})
+            else:
+                es.indices.delete_mapping(index=index, doc_type=cls._doc_type.name)
             es.indices.flush(index=index)
 
 class ModelIndex (Indexable):

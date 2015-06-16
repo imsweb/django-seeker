@@ -32,8 +32,21 @@ class Command (BaseCommand):
             action='store_true',
             dest='quiet',
             default=False,
-            help='Do not produce any output while indexing'),
-        )
+            help='Do not produce any output while indexing'
+        ),
+        make_option('--keep',
+            action='store_true',
+            dest='keep',
+            default=False,
+            help='Keep the existing mapping, instead of re-creating it'
+        ),
+        make_option('--no-data',
+            action='store_false',
+            dest='data',
+            default=True,
+            help='Only create the mappings, do not index any data'
+        ),
+    )
 
     def handle(self, *args, **options):
         doc_classes = []
@@ -42,7 +55,11 @@ class Command (BaseCommand):
         if not args:
             doc_classes.extend(documents)
         for doc_class in doc_classes:
-            doc_class.clear()
-            doc_class.init()
-            reindex(doc_class, options)
+            if options['keep']:
+                doc_class.clear(keep_mapping=True)
+            else:
+                doc_class.clear()
+                doc_class.init()
+            if options['data']:
+                reindex(doc_class, options)
             gc.collect()
