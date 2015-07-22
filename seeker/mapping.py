@@ -44,7 +44,7 @@ def serialize_object(obj, mapping):
                 data[name] = value
     return data
 
-class Indexable (object):
+class Indexable (dsl.DocType):
 
     @classmethod
     def documents(cls, **kwargs):
@@ -116,8 +116,8 @@ RawString = dsl.String(analyzer='snowball', fields={
 })
 
 def document_field(field):
-    if field.auto_created or field.many_to_many or field.one_to_many:
-        return None
+#    if field.auto_created or field.many_to_many or field.one_to_many:
+#        return None
     defaults = {
         models.DateField: dsl.Date(),
         models.DateTimeField: dsl.Date(),
@@ -125,6 +125,8 @@ def document_field(field):
         models.BooleanField: dsl.Boolean(),
         models.NullBooleanField: dsl.Boolean(),
         models.SlugField: dsl.String(index='not_analyzed'),
+        models.DecimalField: dsl.Double(),
+        models.FloatField: dsl.Float(),
     }
     return defaults.get(field.__class__, RawString)
 
@@ -139,11 +141,12 @@ def deep_field_factory(field):
     else:
         return document_field(field)
 
-def document_from_model(model_class, document_class=dsl.DocType, fields=None, exclude=None,
-                        index=None, using='default', doc_type=None, mapping=None, field_factory=None):
+def document_from_model(model_class, document_class=ModelIndex, fields=None, exclude=None,
+                        index=None, using='default', doc_type=None, mapping=None, field_factory=None,
+                        extra=None):
     meta_parent = (object,)
     if hasattr(document_class, 'Meta'):
-        meta_parent = (document_class.Meta, object)
+        meta_parent = (document_class.Meta,)
     if index is None:
         index = getattr(settings, 'SEEKER_INDEX', 'seeker')
     if doc_type is None:
@@ -169,4 +172,6 @@ def document_from_model(model_class, document_class=dsl.DocType, fields=None, ex
         field = field_factory(f)
         if field is not None:
             attrs[f.name] = field
-    return type('%sDoc' % model_class.__name__, (document_class, ModelIndex), attrs)
+    if extra:
+        attrs.update(extra)
+    return type('%sDoc' % model_class.__name__, (document_class,), attrs)

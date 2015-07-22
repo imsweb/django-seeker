@@ -190,7 +190,8 @@ class SeekerView (TemplateView):
         columns = []
         if not self.columns:
             # If not specified, all mapping fields will be available.
-            for f in sorted(self.document._doc_type.mapping):
+            display_sort = lambda name: self.display.index(name) if self.display and name in self.display else 9999
+            for f in sorted(self.document._doc_type.mapping, key=display_sort):
                 label = self.get_field_label(f)
                 sort = self.get_field_sort(f)
                 columns.append(Column(f, label=label, sort=sort))

@@ -1,7 +1,7 @@
-from django.test import TestCase
-from django.core.management import call_command
-from .models import Book
 from .mappings import BookDocument
+from .models import Book
+from django.core.management import call_command
+from django.test import TestCase
 import seeker
 
 class QueryTests (TestCase):
