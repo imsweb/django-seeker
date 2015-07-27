@@ -25,7 +25,7 @@ def search(models=None, using='default'):
             types.append(doc_class)
     return dsl.Search(using=using).index(*indices).doc_type(*types)
 
-def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.stdout, frequency=0.0):
+def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.stdout, frequency=1.0):
     """
     An iterator wrapper that writes/updates a progress bar to an output stream (stdout by default).
     Based on http://code.activestate.com/recipes/576986-progress-bar-for-console-programs-as-iterator/

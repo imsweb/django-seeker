@@ -31,5 +31,7 @@ class QueryTests (TestCase):
 
     def test_facets(self):
         facet = seeker.TermsFacet('category.raw')
-        s = facet.apply(self.document.search())
-        self.assertEqual(facet.values(s.execute()), [{'key': 'Non-Fiction', 'doc_count': 2}, {'key': 'Fiction', 'doc_count': 1}])
+        search = facet.apply(self.document.search())
+        data = facet.data(search.execute())
+        self.assertIn('buckets', data)
+        self.assertEqual(data['buckets'], [{'key': 'Non-Fiction', 'doc_count': 2}, {'key': 'Fiction', 'doc_count': 1}])

@@ -1,6 +1,6 @@
 __version__ = '0.3.0'
 
-from .mapping import Indexable, ModelIndex, document_from_model, document_field, deep_field_factory, RawString
+from .mapping import Indexable, ModelIndex, document_from_model, document_field, deep_field_factory, RawString, RawMultiString
 from .facets import Facet, TermsFacet, GlobalTermsFacet, YearHistogram
 from .views import SeekerView, Column
 from .utils import search, index

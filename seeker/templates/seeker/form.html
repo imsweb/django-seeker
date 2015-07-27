@@ -2,89 +2,35 @@
 {% load i18n %}
 
 <form action="" method="get">
-    <div class="form-group">
-        <label class="sr-only" for="q">{% trans "Keywords" %}</label>
-        <input type="text" class="form-control" placeholder="{% trans "Keywords" %}" name="q" id="q" value="{{ keywords }}" autofocus="autofocus" />
+    <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active"><a href="#criteria" aria-controls="criteria" role="tab" data-toggle="tab">Search</a></li>
+        <li role="presentation"><a href="#display" aria-controls="display" role="tab" data-toggle="tab">Display</a></li>
+    </ul>
+    <div class="tab-content">
+        <div role="tabpanel" class="tab-pane active" id="criteria">
+            <div class="form-group">
+                <label class="sr-only" for="q">{% trans "Keywords" %}</label>
+                <input type="text" class="form-control" placeholder="{% trans "Keywords" %}" name="q" id="q" value="{{ keywords }}" autofocus="autofocus" />
+            </div>
+            {% for facet, selected in facets.items %}
+                <div class="form-group">
+                    {% seeker_facet facet results selected %}
+                </div>
+            {% endfor %}
+        </div>
+        <div role="tabpanel" class="tab-pane" id="display">
+            {% for c in columns %}
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox" name="d" class="display-field" value="{{ c.field }}"{% if c in display_columns %} checked="checked"{% endif %} />
+                        {{ c.label }}
+                    </label>
+                </div>
+            {% endfor %}
+        </div>
     </div>
-    {% for facet, selected in facets.items %}
-        {% seeker_facet facet results selected %}
-    {% endfor %}
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">{% trans "Filter" %}</button>
-        <a href="{{ request_path }}?q=" class="btn btn-default">{% trans "Reset" %}</a>
-        <a class="btn btn-default" data-toggle="modal" data-target="#display-fields"><i class="glyphicon glyphicon-list"></i></a>
-        {% if can_save %}
-            {% if querystring or saved_searches %}
-                <div class="btn-group">
-                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
-                        <i class="glyphicon glyphicon-floppy-disk"></i>
-                        <span class="caret"></span>
-                    </button>
-                    <ul class="dropdown-menu" role="menu">
-                        {% if querystring %}
-                            <li><a href="" data-toggle="modal" data-target="#save-dialog">{% trans "Save This Search" %}</a></li>
-                        {% endif %}
-                        {% for s in saved_searches %}
-                            {% if forloop.first and querystring %}
-                                <li class="divider"></li>
-                            {% endif %}
-                            <li><a href="{{ s.get_absolute_url }}">{{ s }}</a></li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
-        {% endif %}
-    </div>
-    <div class="modal fade" id="display-fields">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                    <h4 class="modal-title">{% trans "Show Columns" %}</h4>
-                </div>
-                <div class="modal-body">
-                    {% for c in columns %}
-                        <div class="checkbox">
-                            <label><input type="checkbox" name="d" value="{{ c.field }}"{% if c in display_columns %} checked="checked"{% endif %} /> {{ c.label }}</label>
-                        </div>
-                    {% endfor %}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">{% trans "Cancel" %}</button>
-                    <button type="submit" class="btn btn-primary">{% trans "Show Selected Columns" %}</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</form>
-
-<form action="" method="post">
-    {% csrf_token %}
-    <input type="hidden" name="querystring" value="{{ querystring }}" />
-    <div class="modal fade" id="save-dialog">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                    <h4 class="modal-title">{% trans "Save This Search" %}</h4>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="search-name">{% trans "Name" %}</label>
-                        <input type="text" name="name" id="search-name" class="form-control" />
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-inline">
-                            <input type="checkbox" name="default" value="1" />
-                            {% trans "Make this your default search for this page" %}
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">{% trans "Cancel" %}</button>
-                    <button type="submit" name="_save" class="btn btn-primary">{% trans "Save Search" %}</button>
-                </div>
-            </div>
-        </div>
+        <a href="?q=" class="btn btn-default">{% trans "Reset" %}</a>
     </div>
 </form>

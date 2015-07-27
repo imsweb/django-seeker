@@ -27,21 +27,25 @@ def follow(obj, path, force_string=False):
         return six.text_type(obj)
     return obj
 
-def serialize_object(obj, mapping):
+def serialize_object(obj, mapping, prepare=None):
     data = {}
     for name in mapping:
-        field = mapping[name]
-        value = follow(obj, name)
-        if value is not None:
-            if isinstance(value, models.Model):
-                data[name] = serialize_object(value, field.properties) if isinstance(field, InnerObject) else six.text_type(value)
-            elif isinstance(value, models.Manager):
-                if isinstance(field, InnerObject):
-                    data[name] = [serialize_object(v, field.properties) for v in value.all()]
+        prep_func = getattr(prepare, 'prepare_%s' % name, None)
+        if prep_func:
+            data[name] = prep_func(obj)
+        else:
+            field = mapping[name]
+            value = follow(obj, name)
+            if value is not None:
+                if isinstance(value, models.Model):
+                    data[name] = serialize_object(value, field.properties) if isinstance(field, InnerObject) else six.text_type(value)
+                elif isinstance(value, models.Manager):
+                    if isinstance(field, InnerObject):
+                        data[name] = [serialize_object(v, field.properties) for v in value.all()]
+                    else:
+                        data[name] = [six.text_type(v) for v in value.all()]
                 else:
-                    data[name] = [six.text_type(v) for v in value.all()]
-            else:
-                data[name] = value
+                    data[name] = value
     return data
 
 class Indexable (dsl.DocType):
@@ -104,7 +108,7 @@ class ModelIndex (Indexable):
     @classmethod
     def serialize(cls, obj):
         data = {'_id': str(obj.pk)}
-        data.update(serialize_object(obj, cls._doc_type.mapping))
+        data.update(serialize_object(obj, cls._doc_type.mapping, prepare=cls))
         return data
 
     @property
@@ -115,9 +119,15 @@ RawString = dsl.String(analyzer='snowball', fields={
     'raw': dsl.String(index='not_analyzed'),
 })
 
+RawMultiString = dsl.String(analyzer='snowball', multi=True, fields={
+    'raw': dsl.String(index='not_analyzed'),
+})
+
 def document_field(field):
-#    if field.auto_created or field.many_to_many or field.one_to_many:
-#        return None
+    if field.auto_created or field.one_to_many:
+        return None
+    if field.many_to_many:
+        return RawMultiString
     defaults = {
         models.DateField: dsl.Date(),
         models.DateTimeField: dsl.Date(),

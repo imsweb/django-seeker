@@ -9,20 +9,13 @@ register = template.Library()
 register.filter(intcomma)
 
 @register.simple_tag
-def seeker_facet(facet, results, selected=None, template='seeker/facet.html', **params):
-    values = []
-    for data in facet.values(results):
-        key = facet.get_key(data)
-        count = data['doc_count']
-        sel = selected and key in selected
-        values.append((key, count, sel))
-    template_name = facet.template or template
+def seeker_facet(facet, results, selected=None, **params):
     params.update({
         'facet': facet,
-        'values': values,
         'selected': selected,
+        'data': facet.data(results),
     })
-    return loader.render_to_string(template_name, params)
+    return loader.render_to_string(facet.template, params)
 
 @register.simple_tag
 def seeker_header(column, querystring):
@@ -44,6 +37,8 @@ def seeker_score(result, max_score=None, template='seeker/score.html'):
 @register.simple_tag
 def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html'):
     paginator = Paginator(range(total), page_size)
+    if paginator.num_pages < 2:
+        return ''
     page = paginator.page(page)
     if paginator.num_pages > spread:
         start = max(1, min(paginator.num_pages + 1 - spread, page.number - (spread // 2)))

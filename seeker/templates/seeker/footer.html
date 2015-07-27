@@ -2,7 +2,7 @@
 {% load i18n %}
 
 <div class="pull-right">
-    {% seeker_pager results.hits.total page_size=page_size page=page querystring=querystring %}
+    {% seeker_pager results.hits.total page_size=page_size page=page querystring=querystring spread=page_spread %}
 </div>
 <p>
     <em>Found {{ results.hits.total|intcomma }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
