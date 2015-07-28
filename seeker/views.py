@@ -9,6 +9,7 @@ from django.utils.safestring import mark_safe
 from django.views.generic import View
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
+from seeker.templatetags.seeker import seeker_format
 import collections
 import elasticsearch_dsl as dsl
 import re
@@ -83,7 +84,8 @@ class Column (object):
         return self.template.render(Context(params))
 
     def export_value(self, result):
-        return getattr(result, self.field, '')
+        export_field = self.field if self.export is True else self.export
+        return seeker_format(getattr(result, export_field, ''))
 
 class SeekerView (View):
     document = None
@@ -184,6 +186,16 @@ class SeekerView (View):
     operator = getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND')
     """
     The query operator to use by default.
+    """
+
+    permission = None
+    """
+    If specified, a permission to check (using ``request.user.has_perm``) for this view.
+    """
+
+    extra_context = {}
+    """
+    Extra context variables to use when rendering. May be passed via as_view(), or overridden as a property.
     """
 
     def normalized_querystring(self, qs=None, ignore=None):
@@ -362,6 +374,9 @@ class SeekerView (View):
             'results_template': self.results_template,
         }
 
+        if self.extra_context:
+            context.update(self.extra_context)
+
         if initial:
             return render(self.request, self.template_name, context)
         else:
@@ -401,18 +416,37 @@ class SeekerView (View):
             return '"%s"' % force_text(value).replace('"', '""')
 
         def csv_generator():
-            yield ','.join('"%s"' % c.label for c in display_columns) + '\n'
+            yield ','.join('"%s"' % c.label for c in display_columns if c.export) + '\n'
             for result in search.scan():
-                yield ','.join(csv_escape(c.export_value(result)) for c in display_columns) + '\n'
+                yield ','.join(csv_escape(c.export_value(result)) for c in display_columns if c.export) + '\n'
 
         resp = StreamingHttpResponse(csv_generator(), content_type='text/csv; charset=utf-8')
         resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
         return resp
 
     def get(self, request, *args, **kwargs):
-        if '_facet' in request.GET:
-            return self.render_facet_query()
-        elif '_export' in request.GET:
-            return self.export()
-        else:
-            return self.render(initial=not request.is_ajax())
+        try:
+            if '_facet' in request.GET:
+                return self.render_facet_query()
+            elif '_export' in request.GET:
+                return self.export()
+            else:
+                return self.render(initial=not request.is_ajax())
+        except Exception, ex:
+            print ex
+
+    def check_permission(self, request):
+        """
+        Check to see if the user has permission for this view. This method may optionally return an ``HttpResponse``.
+        """
+        if self.permission and not request.user.has_perm(self.permission):
+            raise Http404
+
+    def dispatch(self, request, *args, **kwargs):
+        """
+        Overridden to perform permission checking by calling ``self.check_permission``.
+        """
+        resp = self.check_permission(request)
+        if resp is not None:
+            return resp
+        return super(SeekerView, self).dispatch(request, *args, **kwargs)

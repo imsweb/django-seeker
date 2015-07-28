@@ -80,7 +80,7 @@ def seeker_highlight(text, query, algorithm='english'):
         stemWord = lambda word: word
         stemWords = lambda words: words
     phrases = _phrase_re.findall(query)
-    keywords = [w.lower() for w in _phrase_re.sub('', query).split()]
+    keywords = [w.lower() for w in re.split(r'\W+', _phrase_re.sub('', query)) if w]
     highlight = set(stemWords(keywords))
     text = seeker_format(text)
     for phrase in phrases:
