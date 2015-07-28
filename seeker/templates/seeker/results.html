@@ -6,10 +6,10 @@
         <thead>
             <tr>
                 {% if show_rank and keywords %}
-                    <th><a href="?{{ reset_querystring }}">{% trans "Rank" %}</a></th>
+                    <th class="sort"><a href="?{{ reset_querystring }}">{% trans "Rank" %}</a></th>
                 {% endif %}
                 {% for col in display_columns %}
-                    {% seeker_header col querystring %}
+                    {{ col.header }}
                 {% endfor %}
             </tr>
         </thead>

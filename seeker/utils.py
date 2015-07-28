@@ -60,12 +60,15 @@ def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.std
 
     show(0)
     last_update = 0.0
-    for num, item in enumerate(iterator):
+    processed = 0
+    for item in iterator:
         yield item
+        processed += 1
         since = time.time() - last_update
         if since >= frequency:
-            show(num + 1)
+            show(processed)
             last_update = time.time()
+    show(processed)
 
     output.write('\n')
     output.flush()

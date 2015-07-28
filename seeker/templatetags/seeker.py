@@ -1,12 +1,29 @@
 from django import template
-from django.template import loader
-from django.core.paginator import Paginator
 from django.contrib.humanize.templatetags.humanize import intcomma
+from django.core.paginator import Paginator
+from django.template import loader
+from django.utils.encoding import force_text
+from elasticsearch_dsl.utils import AttrList
+import datetime
+import re
 
 register = template.Library()
 
 # Convenience so people don't need to install django.contrib.humanize
 register.filter(intcomma)
+
+@register.filter
+def seeker_format(value):
+    if value is None:
+        return ''
+    # TODO: settings for default list separator and date formats?
+    if isinstance(value, (list, tuple, AttrList)):
+        return ', '.join(force_text(v) for v in value)
+    if isinstance(value, datetime.datetime):
+        return value.strftime('%m/%d/%Y %H:%M:%S')
+    if isinstance(value, datetime.date):
+        return value.strftime('%m/%d/%Y')
+    return force_text(value)
 
 @register.simple_tag
 def seeker_facet(facet, results, selected=None, **params):
@@ -16,10 +33,6 @@ def seeker_facet(facet, results, selected=None, **params):
         'data': facet.data(results),
     })
     return loader.render_to_string(facet.template, params)
-
-@register.simple_tag
-def seeker_header(column, querystring):
-    return column.header(querystring)
 
 @register.simple_tag
 def seeker_column(column, result, **kwargs):
@@ -53,3 +66,29 @@ def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=
         'param': param,
         'querystring': querystring,
     })
+
+_phrase_re = re.compile(r'"([^"]*)"')
+
+@register.simple_tag
+def seeker_highlight(text, query, algorithm='english'):
+    try:
+        import snowballstemmer
+        stemmer = snowballstemmer.stemmer(algorithm)
+        stemWord = stemmer.stemWord
+        stemWords = stemmer.stemWords
+    except:
+        stemWord = lambda word: word
+        stemWords = lambda words: words
+    phrases = _phrase_re.findall(query)
+    keywords = [w.lower() for w in _phrase_re.sub('', query).split()]
+    highlight = set(stemWords(keywords))
+    text = seeker_format(text)
+    for phrase in phrases:
+        text = re.sub('(' + re.escape(phrase) + ')', r'<em>\1</em>', text, flags=re.I)
+    parts = []
+    for word in re.split(r'(\W+)', text):
+        if stemWord(word.lower()) in highlight:
+            parts.append('<em>%s</em>' % word)
+        else:
+            parts.append(word)
+    return ''.join(parts)

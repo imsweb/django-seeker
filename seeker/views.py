@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect
 from django.template import loader, Context
 from django.utils.encoding import force_text
 from django.utils.html import escape
+from django.utils.safestring import mark_safe
 from django.views.generic import View
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
@@ -15,13 +16,16 @@ import six
 import urllib
 
 class Column (object):
+    view = None
 
-    def __init__(self, field, label=None, sort=None, value_format=None, template=None):
+    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True):
         self.field = field
-        self.label = label or field.replace('_', ' ').replace('.raw', '').capitalize()
+        self.label = label if label is not None else field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
         self.template = template
         self.value_format = value_format
+        self.header_html = escape(label) if header is None else header
+        self.export = export
 
     def __str__(self):
         return self.label
@@ -29,12 +33,24 @@ class Column (object):
     def __repr__(self):
         return 'Column(%s)' % self.field
 
-    def header(self, querystring):
+    def bind(self, view):
+        self.view = view
+        search_templates = [
+            'seeker/%s/%s.html' % (view.document._doc_type.name, self.field),
+            'seeker/column.html',
+        ]
+        if self.template:
+            search_templates.insert(0, self.template)
+        self.template = loader.select_template(search_templates)
+        return self
+
+    def header(self):
+        cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         if not self.sort:
-            return '<th>%s</th>' % escape(self.label)
-        q = QueryDict(querystring, mutable=True)
+            return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
+        q = self.view.request.GET.copy()
         field = q.get('s', '')
-        cls = 'sort'
+        cls += ' sort'
         if field.lstrip('-') == self.field:
             # If the current sort field is this field, give it a class a change direction.
             cls += ' desc' if field.startswith('-') else ' asc'
@@ -42,7 +58,8 @@ class Column (object):
             q['s'] = '%s%s' % (d, self.field)
         else:
             q['s'] = self.field
-        return '<th class="%s"><a href="?%s" data-sort="%s">%s</a></th>' % (cls, q.urlencode(), q['s'], escape(self.label))
+        html = '<th class="%s"><a href="?%s" data-sort="%s">%s</a></th>' % (cls, q.urlencode(), q['s'], self.header_html)
+        return mark_safe(html)
 
     def context(self, result, **kwargs):
         return kwargs
@@ -55,21 +72,15 @@ class Column (object):
             highlight = result.meta.highlight[self.field]
         except:
             highlight = []
-        search_templates = [
-            'seeker/%s/%s.html' % (result.meta.doc_type, self.field),
-            'seeker/column.html',
-        ]
-        if self.template:
-            search_templates.insert(0, self.template)
-        t = loader.select_template(search_templates)
         params = {
             'result': result,
             'field': self.field,
             'value': value,
             'highlight': highlight,
+            'view': self.view,
         }
         params.update(self.context(result, **kwargs))
-        return t.render(Context(params))
+        return self.template.render(Context(params))
 
     def export_value(self, result):
         return getattr(result, self.field, '')
@@ -93,6 +104,11 @@ class SeekerView (View):
     columns = None
     """
     A list of Column objects, or strings representing mapping field names. If None, all mapping fields will be available.
+    """
+
+    exclude = None
+    """
+    A list of field names to exclude when generating columns.
     """
 
     display = None
@@ -122,7 +138,7 @@ class SeekerView (View):
 
     initial_facets = {}
     """
-    A list of facet fields to show by default, or a dictionary of facet field to list of initial values.
+    A dictionary of initial facets, mapping fields to lists of initial values.
     """
 
     page_size = 10
@@ -132,6 +148,7 @@ class SeekerView (View):
 
     page_spread = 7
     """
+    The number of pages (not including first and last) to show in the paginator widget.
     """
 
     can_save = True
@@ -149,6 +166,11 @@ class SeekerView (View):
     Whether or not to show a Rank column when performing keyword searches.
     """
 
+    field_columns = {}
+    """
+    A dictionary of field column overrides.
+    """
+
     field_labels = {}
     """
     A dictionary of field label overrides.
@@ -161,6 +183,7 @@ class SeekerView (View):
 
     operator = getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND')
     """
+    The query operator to use by default.
     """
 
     def normalized_querystring(self, qs=None, ignore=None):
@@ -211,6 +234,16 @@ class SeekerView (View):
                 return field_name
         return None
 
+    def make_column(self, field_name):
+        """
+        Creates a :class:`seeker.Column` instance for the given field name.
+        """
+        if field_name in self.field_columns:
+            return self.field_columns[field_name]
+        label = self.get_field_label(field_name)
+        sort = self.get_field_sort(field_name)
+        return Column(field_name, label=label, sort=sort)
+
     def get_columns(self):
         """
         Returns a list of :class:`seeker.Column` objects based on self.columns, converting any strings.
@@ -220,17 +253,19 @@ class SeekerView (View):
             # If not specified, all mapping fields will be available.
             display_sort = lambda name: self.display.index(name) if self.display and name in self.display else 9999
             for f in sorted(self.document._doc_type.mapping, key=display_sort):
-                label = self.get_field_label(f)
-                sort = self.get_field_sort(f)
-                columns.append(Column(f, label=label, sort=sort))
+                if self.exclude and f in self.exclude:
+                    continue
+                columns.append(self.make_column(f))
         else:
             # Otherwise, go through and convert any strings to Columns.
             for c in self.columns:
                 if isinstance(c, six.string_types):
-                    label = self.get_field_label(c)
-                    sort = self.get_field_sort(c)
-                    columns.append(Column(c, label=label, sort=sort))
+                    if self.exclude and c in self.exclude:
+                        continue
+                    columns.append(self.make_column(c))
                 elif isinstance(c, Column):
+                    if self.exclude and c.field in self.exclude:
+                        continue
                     columns.append(c)
         return columns
 
@@ -279,7 +314,7 @@ class SeekerView (View):
         search = self.get_search(keywords, facets)
 
         # Get all possible columns, then figure out which should be displayed.
-        columns = self.get_columns()
+        columns = [c.bind(self) for c in self.get_columns()]
         display_fields = self.request.GET.getlist('d') or self.display
         display_columns = [c for c in columns if not display_fields or c.field in display_fields]
 
@@ -295,7 +330,7 @@ class SeekerView (View):
 
         # Highlight fields.
         if self.highlight:
-            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.field for c in display_columns if c.field]
+            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.field for c in display_columns if c.field and c.field in self.document._doc_type.mapping]
             search = search.highlight(*highlight_fields)
 
         # Calculate paging information.
@@ -356,7 +391,7 @@ class SeekerView (View):
         facets = self.get_facets()
         search = self.get_search(keywords, facets, aggregate=False)
 
-        columns = self.get_columns()
+        columns = [c.bind(self) for c in self.get_columns()]
         display_fields = self.request.GET.getlist('d') or self.display
         display_columns = [c for c in columns if not display_fields or c.field in display_fields]
 

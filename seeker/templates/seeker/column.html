@@ -1,1 +1,2 @@
-<td class="{{ result.meta.doc_type }}_{{ field }}">{% if highlight %}{{ highlight.0|safe }}{% else %}{{ value }}{% endif %}</td>
+{% load seeker %}
+<td class="{{ result.meta.doc_type }}_{{ field }}">{% if highlight %}{{ highlight.0|safe }}{% else %}{{ value|seeker_format }}{% endif %}</td>
