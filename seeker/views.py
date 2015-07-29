@@ -25,7 +25,7 @@ class Column (object):
         self.sort = sort
         self.template = template
         self.value_format = value_format
-        self.header_html = escape(label) if header is None else header
+        self.header_html = escape(self.label) if header is None else header
         self.export = export
 
     def __str__(self):
@@ -249,6 +249,8 @@ class SeekerView (View):
             return self.sort_fields[field_name]
         if field_name in self.document._doc_type.mapping:
             dsl_field = self.document._doc_type.mapping[field_name]
+            if isinstance(dsl_field, (dsl.Object, dsl.Nested)):
+                return None
             if not isinstance(dsl_field, dsl.String):
                 return field_name
             if 'raw' in dsl_field.fields:
@@ -274,7 +276,8 @@ class SeekerView (View):
         columns = []
         if not self.columns:
             # If not specified, all mapping fields will be available.
-            display_sort = lambda name: self.display.index(name) if self.display and name in self.display else 9999
+            display = self.get_display()
+            display_sort = lambda name: display.index(name) if display and name in display else 9999
             for f in sorted(self.document._doc_type.mapping, key=display_sort):
                 if self.exclude and f in self.exclude:
                     continue
@@ -295,11 +298,17 @@ class SeekerView (View):
     def get_keywords(self):
         return self.request.GET.get('q', '').strip()
 
-    def get_facets(self, initial=None, exclude=None):
+    def get_facets(self):
+        return list(self.facets) if self.facets else []
+
+    def get_display(self):
+        return list(self.display) if self.display else list(self.document._doc_type.mapping)
+
+    def get_facet_data(self, initial=None, exclude=None):
         if initial is None:
             initial = {}
         facets = collections.OrderedDict()
-        for f in self.facets:
+        for f in self.get_facets():
             if f.field != exclude:
                 facets[f] = self.request.GET.getlist(f.field) or initial.get(f.field, [])
         return facets
@@ -336,12 +345,12 @@ class SeekerView (View):
 
     def render(self, initial=False):
         keywords = self.get_keywords()
-        facets = self.get_facets(initial=self.initial_facets if initial else None)
+        facets = self.get_facet_data(initial=self.initial_facets if initial else None)
         search = self.get_search(keywords, facets)
 
         # Get all possible columns, then figure out which should be displayed.
         columns = [c.bind(self) for c in self.get_columns()]
-        display_fields = self.request.GET.getlist('d') or self.display
+        display_fields = self.request.GET.getlist('d') or self.get_display()
         display_columns = [c for c in columns if not display_fields or c.field in display_fields]
 
         # Make sure we sanitize the sort fields.
@@ -396,17 +405,17 @@ class SeekerView (View):
         else:
             return JsonResponse({
                 'table_html': loader.render_to_string(self.results_template, context),
-                'facet_data': {facet.field: facet.data(results) for facet in self.facets},
+                'facet_data': {facet.field: facet.data(results) for facet in self.get_facets()},
             })
 
     def render_facet_query(self):
         keywords = self.get_keywords()
-        facet = {f.field: f for f in self.facets}.get(self.request.GET.get('_facet'))
+        facet = {f.field: f for f in self.get_facets()}.get(self.request.GET.get('_facet'))
         if not facet:
             raise Http404()
         # We want to apply all the other facet filters besides the one we're querying.
-        facet_values = self.get_facets(exclude=facet)
-        search = self.get_search(keywords, facet_values, aggregate=False)
+        facets = self.get_facet_data(exclude=facet)
+        search = self.get_search(keywords, facets, aggregate=False)
         fq = '.*' + self.request.GET.get('_query', '').strip() + '.*'
         facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
         return JsonResponse(facet.data(search.execute()))
@@ -417,11 +426,11 @@ class SeekerView (View):
         that yields CSV data for all matching results.
         """
         keywords = self.get_keywords()
-        facets = self.get_facets()
+        facets = self.get_facet_data()
         search = self.get_search(keywords, facets, aggregate=False)
 
         columns = [c.bind(self) for c in self.get_columns()]
-        display_fields = self.request.GET.getlist('d') or self.display
+        display_fields = self.request.GET.getlist('d') or self.get_display()
         display_columns = [c for c in columns if not display_fields or c.field in display_fields]
 
         def csv_escape(value):
@@ -439,15 +448,12 @@ class SeekerView (View):
         return resp
 
     def get(self, request, *args, **kwargs):
-        try:
-            if '_facet' in request.GET:
-                return self.render_facet_query()
-            elif '_export' in request.GET:
-                return self.export()
-            else:
-                return self.render(initial=not request.is_ajax())
-        except Exception, ex:
-            print ex
+        if '_facet' in request.GET:
+            return self.render_facet_query()
+        elif '_export' in request.GET:
+            return self.export()
+        else:
+            return self.render(initial=not request.is_ajax())
 
     def check_permission(self, request):
         """
