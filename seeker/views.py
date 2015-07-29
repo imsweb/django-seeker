@@ -79,6 +79,7 @@ class Column (object):
             'value': value,
             'highlight': highlight,
             'view': self.view,
+            'user': self.view.request.user,
         }
         params.update(self.context(result, **kwargs))
         return self.template.render(Context(params))
@@ -91,6 +92,16 @@ class SeekerView (View):
     document = None
     """
     A :class:`elasticsearch_dsl.DocType` class to present a view for.
+    """
+
+    using = None
+    """
+    The ES connection alias to use.
+    """
+
+    index = None
+    """
+    The ES index to use. Defaults to the SEEKER_INDEX setting.
     """
 
     template_name = 'seeker/seeker.html'
@@ -308,7 +319,10 @@ class SeekerView (View):
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
-        s = self.document.search().extra(track_scores=True)
+        using = self.using or self.document._doc_type.using or 'default'
+        index = self.index or self.document._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        # TODO: self.document.search(using=using, index=index) once new version is released
+        s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
             s = s.query('query_string', query=keywords, analyzer='snowball', fields=self.get_search_fields(),
                 auto_generate_phrase_queries=True, default_operator=self.operator)
@@ -343,7 +357,7 @@ class SeekerView (View):
         # Highlight fields.
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.field for c in display_columns if c.field and c.field in self.document._doc_type.mapping]
-            search = search.highlight(*highlight_fields)
+            search = search.highlight(*highlight_fields, number_of_fragments=0)
 
         # Calculate paging information.
         page = self.request.GET.get('p', '').strip()

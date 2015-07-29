@@ -62,13 +62,13 @@ class Indexable (dsl.DocType):
             return None
 
     @classmethod
-    def clear(cls, using=None, index=None, keep_mapping=False):
+    def clear(cls, index=None, using=None, keep_mapping=False):
         """
         Deletes the Elasticsearch mapping associated with this document type.
         """
-        if index is None:
-            index = cls._doc_type.index
-        es = connections.get_connection(using or cls._doc_type.using)
+        using = using or cls._doc_type.using or 'default'
+        index = index or cls._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        es = connections.get_connection(using)
         if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
             if keep_mapping:
                 es.delete_by_query(index=index, doc_type=cls._doc_type.name, body={'query': {'match_all': {}}})
@@ -77,11 +77,10 @@ class Indexable (dsl.DocType):
             es.indices.flush(index=index)
 
 class ModelIndex (Indexable):
-    model = None
 
     @classmethod
     def queryset(cls):
-        return cls.model.objects.all()
+        raise NotImplementedError('%s must implement a queryset classmethod.' % cls.__name__)
 
     @classmethod
     def count(cls):
@@ -106,8 +105,12 @@ class ModelIndex (Indexable):
                     yield cls.serialize(obj)
 
     @classmethod
+    def get_id(cls, obj):
+        return str(obj.pk)
+
+    @classmethod
     def serialize(cls, obj):
-        data = {'_id': str(obj.pk)}
+        data = {'_id': cls.get_id(obj)}
         data.update(serialize_object(obj, cls._doc_type.mapping, prepare=cls))
         return data
 
@@ -151,27 +154,11 @@ def deep_field_factory(field):
     else:
         return document_field(field)
 
-def document_from_model(model_class, document_class=ModelIndex, fields=None, exclude=None,
-                        index=None, using='default', doc_type=None, mapping=None, field_factory=None,
-                        extra=None):
-    meta_parent = (object,)
-    if hasattr(document_class, 'Meta'):
-        meta_parent = (document_class.Meta,)
-    if index is None:
-        index = getattr(settings, 'SEEKER_INDEX', 'seeker')
+def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
     if doc_type is None:
         doc_type = model_class.__name__.lower()
     if mapping is None:
         mapping = dsl.Mapping(doc_type)
-    attrs = {
-        'Meta': type('Meta', meta_parent, {
-            'index': index,
-            'using': using,
-            'doc_type': doc_type,
-            'mapping': mapping,
-        }),
-        'model': model_class,
-    }
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.get_fields():
@@ -181,7 +168,20 @@ def document_from_model(model_class, document_class=ModelIndex, fields=None, exc
             continue
         field = field_factory(f)
         if field is not None:
-            attrs[f.name] = field
+            mapping.field(f.name, field)
     if extra:
-        attrs.update(extra)
-    return type('%sDoc' % model_class.__name__, (document_class,), attrs)
+        for name, field in extra.items():
+            mapping.field(name, field)
+    return mapping
+
+def document_from_model(model_class, document_class=ModelIndex, fields=None, exclude=None,
+                        index=None, using='default', doc_type=None, field_factory=None,
+                        extra=None):
+    return type('%sDoc' % model_class.__name__, (document_class,), {
+        'Meta': type('Meta', (object,), {
+            'index': index or getattr(settings, 'SEEKER_INDEX', 'seeker'),
+            'using': using,
+            'mapping': build_mapping(model_class, doc_type=doc_type, fields=fields, exclude=exclude, field_factory=field_factory, extra=extra),
+        }),
+        'queryset': classmethod(lambda cls: model_class.objects.all()),
+    })
