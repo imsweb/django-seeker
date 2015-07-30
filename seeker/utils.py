@@ -1,15 +1,41 @@
 from .registry import model_documents
+from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
+from elasticsearch_dsl.connections import connections
 import elasticsearch_dsl as dsl
-import time
 import sys
+import time
 
-def index(obj):
+def index(obj, index=None, using=None):
     """
     Shortcut to index a Django object based on it's model class.
     """
-    for doc_class in model_documents.get(obj.__class__, []):
-        data = doc_class.serialize(obj)
-        doc_class(**data).save()
+    model_class = ContentType.objects.get_for_model(obj).model_class()
+    for doc_class in model_documents.get(model_class, []):
+        doc_using = using or doc_class._doc_type.using or 'default'
+        doc_index = index or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        es = connections.get_connection(doc_using)
+        es.index(
+            index=doc_index,
+            doc_type=doc_class._doc_type.name,
+            body=doc_class.serialize(obj),
+            id=doc_class.get_id(obj)
+        )
+
+def delete(obj, index=None, using=None):
+    """
+    Shortcut to delete a Django object from the ES index based on it's model class.
+    """
+    model_class = ContentType.objects.get_for_model(obj).model_class()
+    for doc_class in model_documents.get(model_class, []):
+        doc_using = using or doc_class._doc_type.using or 'default'
+        doc_index = index or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        es = connections.get_connection(doc_using)
+        es.delete(
+            index=doc_index,
+            doc_type=doc_class._doc_type.name,
+            id=doc_class.get_id(obj)
+        )
 
 def search(models=None, using='default'):
     """
