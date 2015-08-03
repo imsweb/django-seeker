@@ -11,7 +11,7 @@ def reindex(doc_class, index, using, options):
     Index all the things, using ElasticSearch's bulk API for speed.
     """
     def get_actions():
-        for doc in doc_class.documents():
+        for doc in doc_class.documents(cursor=options['cursor']):
             action = {
                 '_index': index,
                 '_type': doc_class._doc_type.name,
@@ -55,6 +55,11 @@ class Command (BaseCommand):
             default=True,
             help='Only create the mappings, do not index any data'
         )
+        parser.add_argument('--cursor',
+            action='store_true',
+            dest='cursor',
+            default=False,
+            help='Use a server-side cursor when fetching data for indexing')
 
     def handle(self, *args, **options):
         doc_classes = []

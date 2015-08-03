@@ -5,27 +5,33 @@
     <table class="table table-striped table-condensed table-seeker">
         <thead>
             <tr>
+                {% block pre-headers %}{% endblock %}
                 {% if show_rank and keywords %}
                     <th class="sort"><a href="?{{ reset_querystring }}">{% trans "Rank" %}</a></th>
                 {% endif %}
                 {% for col in display_columns %}
                     {{ col.header }}
                 {% endfor %}
+                {% block post-headers %}{% endblock %}
             </tr>
         </thead>
         <tbody>
             {% for result in results %}
                 <tr>
+                    {% block pre-columns %}{% endblock %}
                     {% if show_rank and keywords %}
                         <td>{% seeker_score result results.hits.max_score %}</td>
                     {% endif %}
                     {% for col in display_columns %}
                         {% seeker_column col result %}
                     {% endfor %}
+                    {% block post-columns %}{% endblock %}
                 </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-{% include "seeker/footer.html" %}
+{% block footer %}
+    {% include "seeker/footer.html" %}
+{% endblock %}

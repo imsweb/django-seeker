@@ -155,9 +155,9 @@ def deep_field_factory(field):
         return document_field(field)
 
 def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
-    if doc_type is None:
-        doc_type = model_class.__name__.lower()
     if mapping is None:
+        if doc_type is None:
+            doc_type = model_class.__name__.lower()
         mapping = dsl.Mapping(doc_type)
     if field_factory is None:
         field_factory = document_field
