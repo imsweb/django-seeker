@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.http import JsonResponse, StreamingHttpResponse, QueryDict, Http404
 from django.shortcuts import render, redirect
-from django.template import loader, Context
+from django.template import loader, Context, RequestContext
 from django.utils.encoding import force_text
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
@@ -378,9 +378,16 @@ class SeekerView (View):
                     facet.apply(s)
         return s
 
-    def render(self, initial=False):
+    def render(self):
+        querystring = self.normalized_querystring(ignore=['p'])
+
+        if not querystring and not self.request.is_ajax():
+            default = self.request.user.seeker_searches.filter(url=self.request.path, default=True).first()
+            if default and default.querystring:
+                return redirect(default)
+
         keywords = self.get_keywords()
-        facets = self.get_facet_data(initial=self.initial_facets if initial else None)
+        facets = self.get_facet_data(initial=self.initial_facets if not self.request.is_ajax() else None)
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
@@ -404,6 +411,14 @@ class SeekerView (View):
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * self.page_size
 
+        # Figure out the current search, and a list of any saved searches for the current user.
+        if self.request.user and self.request.user.is_authenticated():
+            current_search = self.request.user.seeker_searches.filter(url=self.request.path, querystring=querystring).first()
+            saved_searches = list(self.request.user.seeker_searches.filter(url=self.request.path))
+        else:
+            current_search = None
+            saved_searches = []
+
         # Finally, grab the results.
         results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
 
@@ -420,25 +435,27 @@ class SeekerView (View):
             'page_size': self.page_size,
             'page_spread': self.page_spread,
             'sort': sorts[0] if sorts else '',
-            'querystring': self.normalized_querystring(ignore=['p']),
+            'querystring': querystring,
             'reset_querystring': self.normalized_querystring(ignore=['p', 's']),
             'show_rank': self.show_rank,
             'export_name': self.export_name,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
             'results_template': self.results_template,
+            'current_search': current_search,
+            'saved_searches': saved_searches,
         }
 
         if self.extra_context:
             context.update(self.extra_context)
 
-        if initial:
-            return render(self.request, self.template_name, context)
-        else:
+        if self.request.is_ajax():
             return JsonResponse({
                 'querystring': self.normalized_querystring(),
-                'table_html': loader.render_to_string(self.results_template, context),
+                'table_html': loader.render_to_string(self.results_template, context, context_instance=RequestContext(self.request)),
                 'facet_data': {facet.field: facet.data(results) for facet in self.get_facets()},
             })
+        else:
+            return render(self.request, self.template_name, context)
 
     def render_facet_query(self):
         keywords = self.get_keywords()
@@ -482,7 +499,26 @@ class SeekerView (View):
         elif '_export' in request.GET:
             return self.export()
         else:
-            return self.render(initial=not request.is_ajax())
+            return self.render()
+
+    def post(self, request, *args, **kwargs):
+        if not self.can_save:
+            return redirect(request.get_full_path())
+        qs = self.normalized_querystring(request.POST.get('querystring', ''), ignore=['p'])
+        if '_save' in request.POST:
+            name = request.POST.get('name', '').strip()
+            if not name or request.user.seeker_searches.filter(url=request.path, name=name).exists():
+                messages.error(request, 'You did not provide a unique name for this search.')
+                return redirect(request.get_full_path())
+            default = request.POST.get('default', '').strip() == '1'
+            if default:
+                request.user.seeker_searches.filter(url=request.path).update(default=False)
+            search = request.user.seeker_searches.create(name=name, url=request.path, querystring=qs, default=default)
+            messages.success(request, 'Successfully saved "%s".' % search)
+            return redirect(search)
+        elif '_delete' in request.POST:
+            request.user.seeker_searches.filter(url=request.path, querystring=qs).delete()
+        return redirect(request.get_full_path())
 
     def check_permission(self, request):
         """

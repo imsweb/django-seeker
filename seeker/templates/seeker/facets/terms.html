@@ -1,7 +1,7 @@
 {% load seeker %}
 
-<label for="{{ facet.name }}">{{ facet.label|capfirst }}</label>
-<select name="{{ facet.field }}" class="form-control facet-select" multiple="multiple" id="{{ facet.name }}">
+<label for="{{ facet.name }}_select">{{ facet.label|capfirst }}</label>
+<select name="{{ facet.field }}" class="form-control facet-select" multiple="multiple" id="{{ facet.name }}_select">
     {% for b in data.buckets %}
         <option value="{{ b.key }}" data-data='{"key": "{{ b.key }}", "doc_count": {{ b.doc_count }}}'{% if b.key in selected %} selected="selected"{% endif %}>{{ b.key }} ({{ b.doc_count }})</option>
     {% endfor %}

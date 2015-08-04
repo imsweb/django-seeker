@@ -1,6 +1,17 @@
 {% load seeker %}
 {% load i18n %}
 
+{% block header %}
+    {% if current_search %}
+        <form class="pull-right" action="{{ form_action }}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="querystring" value="{{ querystring }}" />
+            <button type="submit" name="_delete" class="btn btn-default btn-xs"><i class="fa fa-times"></i> Delete</button>
+        </form>
+        <h2>{{ current_search }}</h2>
+    {% endif %}
+{% endblock %}
+
 <div class="table-responsive">
     <table class="table table-striped table-condensed table-seeker">
         <thead>
