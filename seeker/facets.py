@@ -15,10 +15,10 @@ class Facet (object):
         self.template = template or self.template
 
     def apply(self, search, **extra):
-        raise NotImplementedError('%s has not implemented an apply method.' % self.__class__.__name__)
+        return search
 
     def filter(self, search, values):
-        raise NotImplementedError('%s has not implemented a filter method.' % self.__class__.__name__)
+        return search
 
     def data(self, response):
         try:
@@ -82,3 +82,16 @@ class YearHistogram (Facet):
             }
             filters.append(F('range', **kw))
         return search.filter(functools.reduce(operator.or_, filters))
+
+class RangeFilter (Facet):
+    template = 'seeker/facets/range.html'
+
+    def filter(self, search, values):
+        if len(values) == 2:
+            r = {}
+            if values[0].isdigit():
+                r['gte'] = values[0]
+            if values[1].isdigit():
+                r['lte'] = values[1]
+            search = search.filter('range', **{self.field: r})
+        return search

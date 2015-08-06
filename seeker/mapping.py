@@ -135,6 +135,7 @@ def document_field(field):
         models.DateField: dsl.Date(),
         models.DateTimeField: dsl.Date(),
         models.IntegerField: dsl.Long(),
+        models.PositiveIntegerField: dsl.Long(),
         models.BooleanField: dsl.Boolean(),
         models.NullBooleanField: dsl.Boolean(),
         models.SlugField: dsl.String(index='not_analyzed'),
