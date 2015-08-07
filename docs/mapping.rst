@@ -8,10 +8,11 @@ For the purposes of this document, take the following models::
 
     class Author (models.Model):
         name = models.CharField(max_length=100)
-        
+        age = models.IntegerField()
+
         def __unicode__(self):
             return self.name
-    
+
     class Post (models.Model):
         author = models.ForeignKey(Author, related_name='posts')
         slug = models.SlugField()
@@ -23,88 +24,88 @@ For the purposes of this document, take the following models::
 
 .. _basic-mappings:
 
-Basic Mappings
---------------
+Basic Documents
+---------------
 
-Mappings are what translates python objects into ElasticSearch data. The simplest mapping you can define
-just takes a model class, and automatically indexes any field it can::
+Documents are analogous to Django models, but for Elasticsearch instead of a database. For the simplest cases, you can
+let seeker define the document for you, indexing any field it can::
 
     import seeker
     from .models import Post
-    
-    class PostMapping (seeker.Mapping):
-        model = Post
+
+    PostDoc = seeker.document_from_model(Post)
+    seeker.register(PostDoc)
 
 Most built-in Django field types are automatically indexed, including ``ForeignKey`` and ``ManyToManyField`` (using
-their unicode representations). Foreign keys and many-to-many relationships are also marked as being facetable,
-as are boolean fields.
+their unicode representations).
 
 
 Customizing Field Mappings
 --------------------------
 
-You can specify which model fields you want to index by setting a list of field names::
+You can specify how seeker builds the mapping for your model class in several ways::
 
-    class PostMapping (seeker.Mapping):
-        model = Post
-        fields = ('title', 'body', 'published')
-        exclude = ('slug',)
+    import elasticsearch_dsl as dsl
 
-You can also fully customize the schema by setting ``fields`` to a dictionary::
+    class PostDoc (seeker.ModelIndex):
+        # Custom field definition for existing field
+        author = dsl.Object(properties={
+            'name': seeker.RawString,
+            'age': dsl.Integer(),
+        })
+        # New field not defined by the model
+        word_count = dsl.Long()
 
-    class PostMapping (seeker.Mapping):
-        model = Post
-        fields = {
-            'title': seeker.StringType(index=False),
-            'body': seeker.StringType,
-            'word_count': seeker.IntegerType,
-        }
+        class Meta:
+            mapping = seeker.build_mapping(Post, fields=('title', 'body'), exclude=('slug',))
 
-When Seeker goes to index this mapping, it will still automatically pull data from any model field with a matching name.
-So in this example, ``title`` and ``body`` will automatically be sent for indexing, but you will need to generate ``word_count``
-yourself. To do this, you can implement a ``prepare_word_count`` mapping method::
+        @classmethod
+        def queryset(cls):
+            return Post.objects.select_related('author')
 
-    class PostMapping (seeker.Mapping):
-        ...
+Think of ``Meta.mapping`` as the "base" set of fields, which you can then customize by defining them directly on the document class.
+Any field defined on your document class will take precedence over those built in ``Meta.mapping`` with the same name, and any new fields
+will be added to the mapping.
 
-        def prepare_word_count(self, obj):
+Notice in the example above that ``author`` is overridden to use `Elasticsearch object type`_, and ``word_count`` is an extra field not
+defined by the ``Post`` model.
+
+.. _`Elasticsearch object type`: https://www.elastic.co/guide/en/elasticsearch/reference/1.7/mapping-object-type.html
+
+
+Indexing Data
+-------------
+
+When Seeker goes to index this document, it will automatically pull data from any model field (or property) with a matching name.
+So in this example, ``title``, ``body``, and ``author`` will automatically be sent for indexing, but you will need to generate ``word_count``
+yourself. To do this, you can implement a ``prepare_word_count`` class method::
+
+    class PostDoc (seeker.ModelIndex):
+        # ...
+
+        @classmethod
+        def prepare_word_count(cls, obj):
             return len(obj.body.split())
 
-
-Field Overrides
----------------
-
-You may want to override the mapping type of a specific field, without having to define mapping types for the rest of the fields
-for which the default is acceptable. To do this, you may specify an ``overrides`` dictionary. For example, to index the ``author``
-field as an object containing all its fields, rather than simply a string representation, you may do::
-
-    class PostMapping (seeker.Mapping):
-        model = Post
-        overrides = {
-            'author': seeker.ObjectType(Author),
-            'word_count': seeker.IntegerType,
-        }
-
-In addition to overriding default mapping types for existing fields, ``overrides`` allows you to specify additional fields while
-still maintaining the default fields. In the example above, the ``PostMapping`` will contain ``word_count`` in addition to all the
-indexable fields from the ``Post`` model.
+Alternatively, you could declare a ``word_count`` property on the ``Post`` model.
 
 
 Customizing The Entire Data Mapping
 -----------------------------------
 
-If, for some reason, you need to customize the entire data mapping process, you may override the ``get_data`` method::
+If, for some reason, you need to customize the entire data mapping process, you may override the ``serialize`` class method::
 
-    class PostMapping (seeker.Mapping):
-        ...
+    class PostDoc (seeker.ModelIndex):
+        # ...
 
-        def get_data(self, obj):
-            # Let Seeker grab the field values it knows about from the model.
-            data = super(PostMapping, self).get_data(obj)
+        @classmethod
+        def serialize(cls, obj):
+            # Let seeker grab the field values it knows about from the model.
+            data = super(PostDoc, cls).serialize(obj)
             # Manipulate the data from the default implementation. Or not.
             return data
 
-The default implementation of ``get_data`` calls :meth:`seeker.mapping.object_data`.
+The default implementation of ``serialize`` calls :meth:`seeker.mapping.serialize_object` and ``get_id``.
 
 
 What Gets Indexed and How
@@ -112,11 +113,11 @@ What Gets Indexed and How
 
 When re-indexing a mapping, the process is as follows:
 
-    1. :meth:`seeker.mapping.Mapping.get_objects` is called, and expected to yield a single object at a time to index
-    2. :meth:`seeker.mapping.Mapping.get_objects` calls :meth:`seeker.mapping.Mapping.queryset`, which by default returns ``self.model.objects.all()``
-    3. The resulting queryset is sliced into groups of ``batch_size`` (ordered by PK), to avoid a single large query
-    4. For each object, :meth:`seeker.mapping.Mapping.should_index` is called to determine if the object should be indexed. By default, all objects are indexed.
-    5. :meth:`seeker.mapping.Mapping.get_id` and :meth:`seeker.mapping.Mapping.get_data` are called to generate the ID and data sent to Elasticsearch for each object
+    1. :meth:`seeker.mapping.ModelIndex.documents` is called, and expected to yield a single dictionary at a time to index.
+    2. :meth:`seeker.mapping.ModelIndex.queryset` is called to get the queryset of Django objects to index.
+    3. The resulting queryset is sliced into groups of ``batch_size`` (ordered by PK), to avoid a single large query.
+    4. For each object, :meth:`seeker.mapping.ModelIndex.should_index` is called to determine if the object should be indexed. By default, all objects are indexed.
+    5. :meth:`seeker.mapping.ModelIndex.get_id` and :meth:`seeker.mapping.ModelIndex.serialize` are called to generate the ID and data sent to Elasticsearch for each object.
 
 
 Module Documentation

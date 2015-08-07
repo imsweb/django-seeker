@@ -4,29 +4,45 @@ Configuration
 Seeker Settings
 ---------------
 
-.. _setting-seeker-hosts:
+SEEKER_INDEX
+~~~~~~~~~~~~
 
-``SEEKER_HOSTS`` (default: ``None``)
-    A list of ES hosts to connect to by default. This can be overridden per mapping.
+Default: ``seeker``
 
-.. _setting-seeker-index:
+The name of the ES index that should be used by default. This can be overridden per mapping.
 
-``SEEKER_INDEX`` (default: seeker)
-    The name of the ES index that should be used by default. This can be overridden per mapping.
 
-.. _setting-seeker-default-operator:
+SEEKER_DEFAULT_OPERATOR
+~~~~~~~~~~~~~~~~~~~~~~~
 
-``SEEKER_DEFAULT_OPERATOR`` (default: ``OR``)
-    The default operator to use when performing keyword queries.
+Default: ``AND``
 
-``SEEKER_HTTP_AUTH`` (default: ``None``)
-    A colon-separated username and password to use for HTTP basic authentication.
+The default operator to use when performing keyword queries. This can be overridden per view.
 
-``SEEKER_SAVED_SEARCHES`` (default: ``True``)
-    Whether the ``SavedSearch`` model should be installed, and present the option to save searches in the default form.
 
-``SEEKER_BATCH_SIZE`` (default: 1000)
-    The default indexing batch size.
+SEEKER_BATCH_SIZE
+~~~~~~~~~~~~~~~~~
+
+Default: ``1000``
+
+The default indexing batch size.
+
+
+SEEKER_DEFAULT_FACET_TEMPLATE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Default: ``seeker/facets/terms.html``
+
+The default template to use when rendering facets. Can be overridden per facet.
+
+
+SEEKER_MAPPING_MODULE
+~~~~~~~~~~~~~~~~~~~~~
+
+Default: ``mappings``
+
+The name of the python module to try to automatically import from each app. Setting to ``False`` or ``None`` will cause
+seeker to skip doing any automatic imports.
 
 
 Model Indexing Middleware

@@ -178,6 +178,9 @@ def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude
 def document_from_model(model_class, document_class=ModelIndex, fields=None, exclude=None,
                         index=None, using='default', doc_type=None, field_factory=None,
                         extra=None):
+    """
+    Returns an instance of ``document_class`` with a ``Meta`` inner class and default ``queryset`` class method.
+    """
     return type('%sDoc' % model_class.__name__, (document_class,), {
         'Meta': type('Meta', (object,), {
             'index': index or getattr(settings, 'SEEKER_INDEX', 'seeker'),
