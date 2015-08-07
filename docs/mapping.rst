@@ -40,6 +40,12 @@ Most built-in Django field types are automatically indexed, including ``ForeignK
 their unicode representations).
 
 
+The Registry
+------------
+
+In order for seeker to know about a document for indexing purposes, you need to register it.
+
+
 Customizing Field Mappings
 --------------------------
 
@@ -118,6 +124,22 @@ When re-indexing a mapping, the process is as follows:
     3. The resulting queryset is sliced into groups of ``batch_size`` (ordered by PK), to avoid a single large query.
     4. For each object, :meth:`seeker.mapping.ModelIndex.should_index` is called to determine if the object should be indexed. By default, all objects are indexed.
     5. :meth:`seeker.mapping.ModelIndex.get_id` and :meth:`seeker.mapping.ModelIndex.serialize` are called to generate the ID and data sent to Elasticsearch for each object.
+
+
+Non-Django Documents
+--------------------
+
+It's possible to use seeker to build documents not associated with Django models. To do so, simply subclass
+``seeker.Indexable`` instead of ``seeker.ModelIndex``, and override ``seeker.ModelIndex.documents``, like so::
+
+    class OtherDoc (seeker.Indexable):
+
+        @classmethod
+        def documents(cls, **kwargs):
+            return [
+                {'name': 'Dan Watson', 'comment': 'Hello wife.'},
+                {'name': 'Alexa Watson', 'comment': 'Hello husband.'},
+            ]
 
 
 Module Documentation

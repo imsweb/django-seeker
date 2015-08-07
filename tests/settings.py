@@ -35,3 +35,6 @@ USE_L10N = True
 USE_TZ = True
 
 SEEKER_INDEX = 'seeker-tests'
+
+from elasticsearch_dsl.connections import connections
+connections.configure(default={'hosts': 'localhost'})

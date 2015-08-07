@@ -8,18 +8,22 @@ import six
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_ANALYZER = getattr(settings, 'SEEKER_DEFAULT_ANALYZER', 'snowball')
+
 def follow(obj, path, force_string=False):
     parts = path.split('__') if path else []
     for idx, part in enumerate(parts):
         if hasattr(obj, 'get_%s_display' % part):
-            # If the root object has a method to get the display value for this part, we're done (the rest of the path, if any, is ignored).
+            # If the root object has a method to get the display value for this part, we're done (the rest of the path,
+            # if any, is ignored).
             return getattr(obj, 'get_%s_display' % part)()
         else:
             # Otherwise, follow the yellow brick road.
             obj = getattr(obj, part, None)
             if isinstance(obj, models.Manager):
-                # Managers are a special case - basically, branch and recurse over all objects with the remainder of the path. This means
-                # any path with a Manager/ManyToManyField in it will always return a list, which I think makes sense.
+                # Managers are a special case - basically, branch and recurse over all objects with the remainder of the
+                # path. This means any path with a Manager/ManyToManyField in it will always return a list, which I
+                # think makes sense.
                 new_path = '__'.join(parts[idx + 1:])
                 if new_path:
                     return [follow(o, new_path, force_string=True) for o in obj.all()]
@@ -28,6 +32,10 @@ def follow(obj, path, force_string=False):
     return obj
 
 def serialize_object(obj, mapping, prepare=None):
+    """
+    Given a Django model instance and a ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.InnerObject``, returns a
+    dictionary of field data that should be indexed.
+    """
     data = {}
     for name in mapping:
         prep_func = getattr(prepare, 'prepare_%s' % name, None)
@@ -49,13 +57,24 @@ def serialize_object(obj, mapping, prepare=None):
     return data
 
 class Indexable (dsl.DocType):
+    """
+    An ``elasticsearch_dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
+    indexed.
+    """
 
     @classmethod
     def documents(cls, **kwargs):
+        """
+        Returns (or yields) a list of documents, which are dictionaries of field data. The documents may include
+        Elasticsearch metadata, such as ``_id`` or ``_parent``.
+        """
         return []
 
     @classmethod
     def count(cls):
+        """
+        Returns the number of elements returned by ``Indexable.documents``. May be overridden for performance reasons.
+        """
         try:
             return len(cls.documents())
         except:
@@ -77,17 +96,34 @@ class Indexable (dsl.DocType):
             es.indices.flush(index=index)
 
 class ModelIndex (Indexable):
+    """
+    A subclass of ``Indexable`` that returns document data based on Django models.
+    """
 
     @classmethod
     def queryset(cls):
+        """
+        Must be overridden to return a QuerySet of objects that should be indexed. Ideally, the QuerySet should have
+        select_related and prefetch_related specified for any relationships that will be traversed during indexing.
+        """
         raise NotImplementedError('%s must implement a queryset classmethod.' % cls.__name__)
 
     @classmethod
     def count(cls):
+        """
+        Overridden to return ``cls.queryset().count()``.
+        """
         return cls.queryset().count()
 
     @classmethod
     def documents(cls, **kwargs):
+        """
+        Yields document data generated from ``cls.queryset()``. Multiple queries are made, fetching
+        ``SEEKER_BATCH_SIZE`` instances at a time, to avoid memory problems with very large querysets.
+
+        :param cursor: If ``True``, a special ``CustorQuery`` will be used to yield Django objects from a server-side
+                       cursor.
+        """
         if kwargs.get('cursor', False):
             from .compiler import CursorQuery
             qs = cls.queryset().order_by()
@@ -106,27 +142,48 @@ class ModelIndex (Indexable):
 
     @classmethod
     def get_id(cls, obj):
+        """
+        Returns the Elasticsearch ``_id`` to use for the specified model instance. Defaults to ``str(obj.pk)``.
+        """
         return str(obj.pk)
 
     @classmethod
     def serialize(cls, obj):
+        """
+        Returns a dictionary of field data for the specified model instance. Also includes an ``_id`` which is returned
+        from ``cls.get_id(obj)``. Uses ``seeker.mapping.serialize_object`` to build the field data dictionary.
+        """
         data = {'_id': cls.get_id(obj)}
         data.update(serialize_object(obj, cls._doc_type.mapping, prepare=cls))
         return data
 
     @property
     def instance(self):
-        return self.queryset().get(pk=self.id)
+        """
+        Returns the Django model instance corresponding to this document, fetched using ``cls.queryset()``.
+        """
+        return self.queryset().get(pk=self.meta.id)
 
-RawString = dsl.String(analyzer='snowball', fields={
+RawString = dsl.String(analyzer=DEFAULT_ANALYZER, fields={
     'raw': dsl.String(index='not_analyzed'),
 })
+"""
+An ``elasticsearch_dsl.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
+not analyzed, suitable for aggregations, sorting, etc.
+"""
 
-RawMultiString = dsl.String(analyzer='snowball', multi=True, fields={
+RawMultiString = dsl.String(analyzer=DEFAULT_ANALYZER, multi=True, fields={
     'raw': dsl.String(index='not_analyzed'),
 })
+"""
+The same as ``RawString``, but with ``multi=True`` specified, so lists are returned.
+"""
 
 def document_field(field):
+    """
+    The default ``field_factory`` method for converting Django field instances to ``elasticsearch_dsl.Field`` instances.
+    Auto-created fields (primary keys, for example) and one-to-many fields (reverse FK relationships) are skipped.
+    """
     if field.auto_created or field.one_to_many:
         return None
     if field.many_to_many:
@@ -156,6 +213,18 @@ def deep_field_factory(field):
         return document_field(field)
 
 def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
+    """
+    Defines Elasticsearch fields for Django model fields. By default, this method will create a new
+    ``elasticsearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
+
+    :param model_class: The Django model class to build a mapping for
+    :param mapping: An ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.InnerObject`` instance to define fields on
+    :param doc_type: The doc_type to use, if no mapping is specified
+    :param fields: A list of Django model field names to include
+    :param exclude: A list of Django model field names to exclude
+    :param field_factory: A function that takes a Django model field instance, and returns a ``elasticsearch_dsl.Field``
+    :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
+    """
     if mapping is None:
         if doc_type is None:
             doc_type = model_class.__name__.lower()

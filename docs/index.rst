@@ -13,7 +13,6 @@ Contents:
 
    configuration
    mapping
-   querying
    views
    utils
    tests

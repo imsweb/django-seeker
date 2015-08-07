@@ -8,6 +8,7 @@ from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.views.generic import View
 from seeker.templatetags.seeker import seeker_format
+from .mapping import DEFAULT_ANALYZER
 import collections
 import elasticsearch_dsl as dsl
 import six
@@ -15,6 +16,9 @@ import urllib
 import re
 
 class Column (object):
+    """
+    """
+
     view = None
     visible = False
 
@@ -222,6 +226,13 @@ class SeekerView (View):
     """
 
     def normalized_querystring(self, qs=None, ignore=None):
+        """
+        Returns a querystring with empty keys removed, keys in sorted order, and values (for keys whose order does not
+        matter) in sorted order. Suitable for saving and comparing searches.
+
+        :param qs: (Optional) querystring to use; defaults to request.GET
+        :param ignore: (Optional) list of keys to ignore when building the querystring
+        """
         data = QueryDict(qs) if qs is not None else self.request.GET
         parts = []
         for key in sorted(data):
@@ -354,7 +365,7 @@ class SeekerView (View):
         elif mapping is not None:
             fields = []
             for field_name in mapping:
-                if mapping[field_name].to_dict().get('analyzer') == 'snowball':
+                if mapping[field_name].to_dict().get('analyzer') == DEFAULT_ANALYZER:
                     fields.append(prefix + field_name)
                 if hasattr(mapping[field_name], 'properties'):
                     fields.extend(self.get_search_fields(mapping=mapping[field_name].properties, prefix=prefix + field_name + '.'))
@@ -368,7 +379,7 @@ class SeekerView (View):
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
-            s = s.query('query_string', query=keywords, analyzer='snowball', fields=self.get_search_fields(),
+            s = s.query('query_string', query=keywords, analyzer=DEFAULT_ANALYZER, fields=self.get_search_fields(),
                 auto_generate_phrase_queries=True, default_operator=self.operator)
         if facets:
             for facet, values in facets.items():
