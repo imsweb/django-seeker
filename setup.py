@@ -16,8 +16,8 @@ setup(
     license='BSD',
     packages=find_packages(),
     install_requires=[
-        'elasticsearch>=1.0',
-        'elasticsearch_dsl',
+        'Django>=1.8',
+        'elasticsearch_dsl>=0.0.4',
     ],
     include_package_data=True,
     classifiers=[
