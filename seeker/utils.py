@@ -1,6 +1,5 @@
 from .registry import model_documents
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from elasticsearch_dsl.connections import connections
 import elasticsearch_dsl as dsl
 import sys
@@ -10,6 +9,7 @@ def index(obj, index=None, using=None):
     """
     Shortcut to index a Django object based on it's model class.
     """
+    from django.contrib.contenttypes.models import ContentType
     model_class = ContentType.objects.get_for_model(obj).model_class()
     for doc_class in model_documents.get(model_class, []):
         doc_using = using or doc_class._doc_type.using or 'default'
@@ -26,6 +26,7 @@ def delete(obj, index=None, using=None):
     """
     Shortcut to delete a Django object from the ES index based on it's model class.
     """
+    from django.contrib.contenttypes.models import ContentType
     model_class = ContentType.objects.get_for_model(obj).model_class()
     for doc_class in model_documents.get(model_class, []):
         doc_using = using or doc_class._doc_type.using or 'default'
