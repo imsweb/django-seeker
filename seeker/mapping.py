@@ -113,10 +113,13 @@ class StringType (MappingType):
 
     def __init__(self, *args, **kwargs):
         self.analyzer = kwargs.pop('analyzer', 'snowball')
+        self.include_raw = kwargs.pop('include_raw', True)
         super(StringType, self).__init__(*args, **kwargs)
 
     def mapping_params(self):
-        extra = {'analyzer': self.analyzer, 'fields': {'raw': {'type': 'string', 'index': 'not_analyzed'}}} if self.index else {'index': 'not_analyzed'}
+        extra = {'analyzer': self.analyzer} if self.index else {'index': 'not_analyzed'}
+        if self.include_raw:
+            extra['fields'] = {'raw': {'type': 'string', 'index': 'not_analyzed'}}
         return super(StringType, self).mapping_params(**extra)
 
 class DateType (MappingType):
@@ -222,7 +225,7 @@ class FloatType (MappingType):
 
 DEFAULT_TYPE_MAP = {
     models.CharField: StringType,
-    models.TextField: StringType,
+    models.TextField: StringType(include_raw=False),
     models.SlugField: StringType(index=False),
     models.EmailField: StringType,
     models.ForeignKey: StringType(facet=True),
