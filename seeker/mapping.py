@@ -118,7 +118,7 @@ class StringType (MappingType):
 
     def mapping_params(self):
         extra = {'analyzer': self.analyzer} if self.index else {'index': 'not_analyzed'}
-        if self.include_raw:
+        if self.index and self.include_raw:
             extra['fields'] = {'raw': {'type': 'string', 'index': 'not_analyzed'}}
         return super(StringType, self).mapping_params(**extra)
 
