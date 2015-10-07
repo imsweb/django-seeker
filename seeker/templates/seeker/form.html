@@ -7,7 +7,7 @@
     </div>
     {% for facet, values in results.facet_values %}
         {% if values %}
-            <h4>{{ facet.label|capfirst }}</h4>
+            <h3>{{ facet.label|capfirst }}</h3>
             <div class="choices">
                 {% for value in values %}
                     <div class="checkbox">
@@ -16,7 +16,7 @@
                 {% endfor %}
                 {% if facet.ranges %}
                     <div class="popover-range">
-                        <h5>Custom Range</h5>
+                        <h4>Custom Range</h4>
                         <input type="number" min="0" step="1" class="form-control input-sm range-min range-pair" placeholder="Min..." />
                         to
                         <input type="number" min="0" step="1" class="form-control input-sm range-max range-pair" placeholder="Max..." />
@@ -58,7 +58,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                    <h4 class="modal-title">Show Fields</h4>
+                    <h3 class="modal-title">Show Fields</h3>
                 </div>
                 <div class="modal-body">
                     {% for name, label in selectable_fields.iteritems %}
@@ -87,7 +87,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                    <h4 class="modal-title">Save This Search</h4>
+                    <h3 class="modal-title">Save This Search</h3>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
