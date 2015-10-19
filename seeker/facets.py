@@ -22,7 +22,7 @@ class Facet (object):
 
     def data(self, response):
         try:
-            return response.aggregations[self.name]
+            return response.aggregations[self.name].to_dict()
         except:
             return {}
 
@@ -57,7 +57,7 @@ class GlobalTermsFacet (TermsFacet):
         return search
 
     def data(self, response):
-        return response.aggregations[self.field][self.field]
+        return response.aggregations[self.field][self.field].to_dict()
 
 class YearHistogram (Facet):
 
