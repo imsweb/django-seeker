@@ -16,12 +16,12 @@ setup(
     license='BSD',
     packages=find_packages(),
     install_requires=[
-        'elasticsearch>=1.0',
+        'elasticsearch>=1.0.0,<2.0.0',
         'tqdm',
     ],
     include_package_data=True,
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
