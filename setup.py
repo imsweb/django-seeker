@@ -16,12 +16,11 @@ setup(
     license='BSD',
     packages=find_packages(),
     install_requires=[
-        'Django>=1.8',
-        'elasticsearch_dsl>=0.0.4',
+        'elasticsearch_dsl>=0.0.8',
     ],
     include_package_data=True,
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',

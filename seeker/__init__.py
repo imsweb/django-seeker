@@ -1,4 +1,4 @@
-__version__ = '0.4.0'
+__version__ = '2.0-dev'
 
 from .mapping import Indexable, ModelIndex, document_from_model, build_mapping, document_field, deep_field_factory, RawString, RawMultiString, DEFAULT_ANALYZER
 from .facets import Facet, TermsFacet, GlobalTermsFacet, YearHistogram, RangeFilter
