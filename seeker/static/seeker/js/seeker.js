@@ -1,5 +1,5 @@
 (function($) {
-	// Handle facet ranges
+    // Handle facet ranges
     $('.range-pair').change(function() {
         var q1 = $(this).val().replace(/\D/, ''); // Remove any non-digit characters
         var q2 = $(this).siblings('.range-pair').val().replace(/\D/, ''); // Remove any non-digit characters
