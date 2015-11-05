@@ -155,6 +155,12 @@ class SeekerView (View):
     A list of field names to highlight, or True/False to enable/disable highlighting for all fields.
     """
 
+    highlight_encoder = 'html'
+    """
+    An 'encoder' parameter is used when highlighting to define how highlighted text will be encoded. It can be either
+    'default' (no encoding) or 'html' (will escape html, if you use html highlighting tags).
+    """
+
     facets = []
     """
     A list of :class:`seeker.Facet` objects that are available to facet the results by.
@@ -415,7 +421,7 @@ class SeekerView (View):
         # Highlight fields.
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
-            search = search.highlight(*highlight_fields, number_of_fragments=0)
+            search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
 
         # Calculate paging information.
         page = self.request.GET.get('p', '').strip()
