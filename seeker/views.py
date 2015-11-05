@@ -2,6 +2,7 @@ from django.views.generic import TemplateView
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse, Http404
+from django.utils.encoding import force_text
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .mapping import StringType, ObjectType
@@ -255,7 +256,7 @@ class SeekerView (TemplateView):
             return '"%s"' % unicode(value).replace('"', '""')
 
         def csv_generator():
-            yield ','.join(mapping.field_label(f) for f in display_fields) + '\n'
+            yield ','.join(force_text(mapping.field_label(f)) for f in display_fields) + '\n'
             for result in scan(mapping.es, index=mapping.index_name, doc_type=mapping.doc_type, query=query):
                 yield ','.join(csv_escape(result['_source'].get(f, '')) for f in display_fields) + '\n'
 
