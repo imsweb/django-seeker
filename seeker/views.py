@@ -398,7 +398,7 @@ class SeekerView (View):
     def render(self):
         querystring = self.normalized_querystring(ignore=['p'])
 
-        if not querystring and not self.request.is_ajax():
+        if self.request.user and self.request.user.is_authenticated() and not querystring and not self.request.is_ajax():
             default = self.request.user.seeker_searches.filter(url=self.request.path, default=True).first()
             if default and default.querystring:
                 return redirect(default)
