@@ -8,7 +8,7 @@
             <input type="hidden" name="querystring" value="{{ querystring }}" />
             <button type="submit" name="_delete" class="btn btn-default btn-xs"><i class="fa fa-times"></i> Delete</button>
         </form>
-        <h2>{{ current_search }}</h2>
+        {% block current-search-header %}<h2>{{ current_search }}</h2>{% endblock current-search-header %}
     {% endif %}
 {% endblock header %}
 
@@ -17,12 +17,14 @@
         <thead>
             <tr>
                 {% block pre-headers %}{% endblock pre-headers %}
-                {% if show_rank and keywords %}
-                    <th class="sort"><a href="?{{ reset_querystring }}">{% trans "Rank" %}</a></th>
-                {% endif %}
-                {% for col in display_columns %}
-                    {{ col.header }}
-                {% endfor %}
+                {% block headers %}
+	                {% if show_rank and keywords %}
+	                    <th class="sort"><a href="?{{ reset_querystring }}">{% trans "Rank" %}</a></th>
+	                {% endif %}
+	                {% for col in display_columns %}
+	                    {{ col.header }}
+	                {% endfor %}
+	            {% endblock headers %}
                 {% block post-headers %}{% endblock post-headers %}
             </tr>
         </thead>
