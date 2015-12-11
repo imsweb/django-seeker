@@ -56,15 +56,19 @@ class Column (object):
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         q = self.view.request.GET.copy()
         field = q.get('s', '')
+        sort = None
         cls += ' sort'
         if field.lstrip('-') == self.field:
             # If the current sort field is this field, give it a class a change direction.
+            sort = 'Descending' if field.startswith('-') else 'Ascending'
             cls += ' desc' if field.startswith('-') else ' asc'
             d = '' if field.startswith('-') else '-'
             q['s'] = '%s%s' % (d, self.field)
         else:
             q['s'] = self.field
-        html = '<th class="%s"><a href="?%s" data-sort="%s">%s</a></th>' % (cls, q.urlencode(), q['s'], self.header_html)
+        next_sort = 'descending' if sort == 'Ascending' else 'ascending'
+        sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
+        html = '<th class="%s"><a href="?%s" title="Click to sort %s" data-sort="%s">%s%s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label)
         return mark_safe(html)
 
     def context(self, result, **kwargs):
