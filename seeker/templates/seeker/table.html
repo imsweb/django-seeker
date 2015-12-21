@@ -4,10 +4,10 @@
     <thead>
         <tr>
             {% if keywords %}
-                <th>{% sort_link "" label="Rank" querystring=querystring sort_overrides=sort_overrides %}</th>
+                <th scope="col">{% sort_link "" label="Rank" querystring=querystring sort_overrides=sort_overrides %}</th>
             {% endif %}
             {% for name in display_fields %}
-                <th>{% sort_link name querystring=querystring mapping=mapping sort_overrides=sort_overrides %}</th>
+                <th scope="col">{% sort_link name querystring=querystring mapping=mapping sort_overrides=sort_overrides %}</th>
             {% endfor %}
         </tr>
     </thead>
