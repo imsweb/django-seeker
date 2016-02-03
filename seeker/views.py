@@ -3,10 +3,12 @@ from django.contrib import messages
 from django.http import JsonResponse, StreamingHttpResponse, QueryDict, Http404
 from django.shortcuts import render, redirect
 from django.template import loader, Context, RequestContext
+from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.views.generic import View
+from elasticsearch_dsl.utils import AttrList
 from seeker.templatetags.seeker import seeker_format
 from .mapping import DEFAULT_ANALYZER
 import collections
@@ -101,7 +103,12 @@ class Column (object):
 
     def export_value(self, result):
         export_field = self.field if self.export is True else self.export
-        return seeker_format(getattr(result, export_field, ''))
+        if export_field:
+            value = getattr(result, export_field, '')
+            export_val = ', '.join(force_text(v.to_dict()) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+        else:
+            export_val = ''
+        return export_val
 
 class SeekerView (View):
     document = None
@@ -193,6 +200,11 @@ class SeekerView (View):
     export_name = 'seeker'
     """
     The filename (without extension, which will be .csv) to use when exporting data from this view.
+    """
+
+    export_timestamp = False
+    """
+    Whether or not to append a timestamp of the current time to the export filename when exporting data from this view.
     """
 
     show_rank = True
@@ -510,8 +522,10 @@ class SeekerView (View):
             for result in search.scan():
                 yield ','.join(csv_escape(c.export_value(result)) for c in columns if c.visible and c.export) + '\n'
 
+        export_timestamp = ('_' + timezone.now().strftime('%m-%d-%Y_%H-%M-%S')) if self.export_timestamp else ''
+        export_name = '%s%s.csv' % (self.export_name, export_timestamp)
         resp = StreamingHttpResponse(csv_generator(), content_type='text/csv; charset=utf-8')
-        resp['Content-Disposition'] = 'attachment; filename=%s.csv' % self.export_name
+        resp['Content-Disposition'] = 'attachment; filename=%s' % export_name
         return resp
 
     def get(self, request, *args, **kwargs):
