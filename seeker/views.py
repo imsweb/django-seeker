@@ -355,7 +355,7 @@ class SeekerView (View):
         display = self.get_display()
         for c in columns:
             c.bind(self, c.field in display)
-        columns.sort(key=lambda c: display.index(c.field) if c.visible else 9999)
+        columns.sort(key=lambda c: display.index(c.field) if c.visible else c.label)
         return columns
 
     def get_keywords(self):
