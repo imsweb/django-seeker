@@ -23,7 +23,7 @@ def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix='
     if filters is None:
         filters = {}
     key = facet.get_key(value)
-    return '<label><input type="checkbox" name="%(name)s" value="%(key)s"%(checked)s data-count="%(count)s" /> %(key_fmt)s (%(count_prefix)s%(count_fmt)s)</label>' % {
+    html = '<label><input type="checkbox" name="%(name)s" value="%(key)s"%(checked)s data-count="%(count)s" /> %(key_fmt)s (%(count_prefix)s%(count_fmt)s)</label>' % {
         'name': facet.field,
         'key': key or '',
         'key_fmt': key or missing,
@@ -32,6 +32,7 @@ def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix='
         'count_prefix': count_prefix,
         'checked': ' checked="checked"' if facet.field in filters and key in filters[facet.field] else '',
     }
+    return mark_safe(html)
 
 @register.simple_tag
 def facet_values(facet, filters, missing='MISSING', remove='&times;'):
@@ -41,7 +42,7 @@ def facet_values(facet, filters, missing='MISSING', remove='&times;'):
             term = missing
         html += '<li><a class="remove" data-term="%(term)s" title="Remove this term">%(remove)s</a> %(term)s</li>' % {'term': escape(term), 'remove': remove}
     html += '</ul>'
-    return html
+    return mark_safe(html)
 
 @register.filter
 def string_format(value):
@@ -182,7 +183,7 @@ def suggest_link(suggestions, querystring='', name='q'):
     for term, replacement in suggestions.iteritems():
         keywords = keywords.replace(term, replacement)
     q[name] = keywords
-    return '<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords))
+    return mark_safe('<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords)))
 
 @register.inclusion_tag('seeker/pager.html')
 def pager(total, page_size=10, page=1, param='page', querystring='', spread=7):

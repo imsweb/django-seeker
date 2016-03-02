@@ -240,6 +240,12 @@ DEFAULT_TYPE_MAP = {
     models.DecimalField: FloatType,
 }
 
+try:
+    from django.contrib.postgres import fields
+    DEFAULT_TYPE_MAP[fields.ArrayField] = StringType(index=False, multi=True)
+except ImportError:
+    pass
+
 def object_data(obj, schema, preparer=None):
     """
     Helper function for converting a Django object into a dictionary based on the specified schema (name -> MappingType).
