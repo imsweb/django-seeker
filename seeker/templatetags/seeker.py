@@ -93,7 +93,7 @@ def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None, so
         d = cur = ''
     q[name] = '%s:%s' % (sort_by, d) if d else sort_by
     sr_label = (' <span class="sr-only">(%s)</span>' % ('Ascending' if cur == 'asc' else 'Descending')) if cur else ''
-    return '<a href="?%s" class="sort %s">%s%s</a>' % (q.urlencode(), cur, escape(label), sr_label)
+    return mark_safe('<a href="?%s" class="sort %s">%s%s</a>' % (q.urlencode(), cur, escape(label), sr_label))
 
 @register.simple_tag
 def field_label(mapping, field_name):
