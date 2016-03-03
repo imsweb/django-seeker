@@ -242,7 +242,7 @@ DEFAULT_TYPE_MAP = {
 
 try:
     from django.contrib.postgres import fields
-    DEFAULT_TYPE_MAP[fields.ArrayField] = StringType(index=False, multi=True)
+    DEFAULT_TYPE_MAP[fields.ArrayField] = StringType(multi=True)
 except ImportError:
     pass
 
