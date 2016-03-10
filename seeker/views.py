@@ -542,13 +542,14 @@ class SeekerView (View):
         qs = self.normalized_querystring(request.POST.get('querystring', ''), ignore=['p'])
         if '_save' in request.POST:
             name = request.POST.get('name', '').strip()
-            if not name or request.user.seeker_searches.filter(url=request.path, name=name).exists():
-                messages.error(request, 'You did not provide a unique name for this search.')
+            if not name:
+                messages.error(request, 'You did not provide a name for this search.')
                 return redirect(request.get_full_path())
             default = request.POST.get('default', '').strip() == '1'
             if default:
                 request.user.seeker_searches.filter(url=request.path).update(default=False)
-            search = request.user.seeker_searches.create(name=name, url=request.path, querystring=qs, default=default)
+            search_values = {'url': request.path, 'querystring': qs, 'default': default}
+            search, created = request.user.seeker_searches.update_or_create(name=name, defaults=search_values)
             messages.success(request, 'Successfully saved "%s".' % search)
             return redirect(search)
         elif '_delete' in request.POST:
