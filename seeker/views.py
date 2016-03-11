@@ -350,4 +350,5 @@ class SeekerView (TemplateView):
             request.user.seeker_searches.filter(url=request.path).update(default=False)
         elif '_delete' in request.POST and saved_search_pk:
             request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path, querystring=qs).delete()
+            return redirect(request.path)
         return redirect(request.get_full_path())
