@@ -20,4 +20,4 @@ class SavedSearch (models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return '%s?%s' % (self.url, self.querystring)
+        return '%s?%s%s%s%d' % (self.url, self.querystring, ('&' if self.querystring else ''), 'saved_search=', self.pk)
