@@ -567,7 +567,7 @@ class SeekerView (View):
             name = request.POST.get('name', '').strip()
             if not name:
                 messages.error(request, 'You did not provide a name for this search. Please try again.')
-                return redirect('%s?%s' % (request.get_full_path(), redirect_qs))
+                return redirect('%s?%s' % (request.path, redirect_qs))
             default = request.POST.get('default', '').strip() == '1'
             if default:
                 request.user.seeker_searches.filter(url=request.path).update(default=False)
@@ -582,8 +582,8 @@ class SeekerView (View):
             request.user.seeker_searches.filter(url=request.path).update(default=False)
         elif '_delete' in request.POST and saved_search_pk:
             request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path, querystring=qs).delete()
-            return redirect(request.get_full_path())
-        return redirect('%s?%s%s' % (request.get_full_path(), redirect_qs, ('%s%s%s' % (('&' if redirect_qs else ''), 'saved_search=', saved_search_pk)) if saved_search_pk else ''))
+            return redirect(request.path)
+        return redirect('%s?%s%s' % (request.path, redirect_qs, ('%s%s%s' % (('&' if redirect_qs else ''), 'saved_search=', saved_search_pk)) if saved_search_pk else ''))
 
     def check_permission(self, request):
         """
