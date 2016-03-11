@@ -3,10 +3,13 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse, Http404
 from django.utils.encoding import force_text
+from .models import SavedSearch
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .mapping import StringType, ObjectType
 from elasticsearch.helpers import scan
+from urlparse import parse_qsl
+import urllib
 import re
 
 class SeekerView (TemplateView):
@@ -67,15 +70,20 @@ class SeekerView (TemplateView):
 
     def _querystring(self):
         qs = self.request.META.get('QUERY_STRING', '')
-        # If a default sort is specified for this view and a sort isn't supplied in the querystring, add the default
-        # sort to the querystring in order to have the sort direction displayed properly in the display fields header.
-        if self.sort and 'sort=' not in qs:
-            qs = 'sort=%s&%s' % (self.sort, qs)
-        qs = re.sub(r'%s=\d+' % self.page_param, '', qs).replace('&&', '&')
         if qs.startswith('&'):
             qs = qs[1:]
         if qs.endswith('&'):
             qs = qs[:-1]
+        initial_qs_parts = [part for part in parse_qsl(qs, keep_blank_values=True)]
+        saved_search = [part for part in initial_qs_parts if part[0] == 'saved_search' and part[1]]
+        qs_parts = [part for part in initial_qs_parts if part[0] not in (self.page_param, 'saved_search')]
+        # If 1) we're not viewing a saved search, 2) a default sort is specified for this view, and 3) a sort isn't supplied in the querystring,
+        # add the default sort to the querystring in order to have the sort direction displayed properly in the display fields header.
+        if (not saved_search or len(saved_search) > 1) and self.sort:
+            sort = [part for part in qs_parts if part[0] == 'sort' and part[1]]
+            if not sort:
+                qs_parts.append(('sort', self.sort))
+        qs = urllib.urlencode(qs_parts)
         return qs
 
     def get_facets(self):
@@ -137,6 +145,15 @@ class SeekerView (TemplateView):
         """
         return self.request.GET.getlist('d') or self.get_default_fields()
 
+    def get_saved_search(self):
+        """
+        Returns the "saved_search" GET parameter if it's in the proper format, otherwise returns None.
+        """
+        saved_search_vals = [val for val in self.request.GET.getlist('saved_search') if val]
+        if len(saved_search_vals) == 1 and saved_search_vals[0].isdigit():
+            return saved_search_vals[0]
+        return None
+
     def extra_filters(self):
         """
         Returns a list of seeker.query.F objects that should be included as filters.
@@ -175,7 +192,7 @@ class SeekerView (TemplateView):
                 The querystring for this request.
             can_save
                 Whether this search can be saved.
-            current_search
+            saved_search
                 The current SavedSearch object, or ``None``.
             saved_searches
                 A list of all SavedSearch objects for this view.
@@ -209,11 +226,16 @@ class SeekerView (TemplateView):
         results = mapping.query(query=keywords, filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
 
         querystring = self._querystring()
+        saved_search = None
         if self.request.user and self.request.user.is_authenticated():
-            current_search = self.request.user.seeker_searches.filter(url=self.request.path, querystring=querystring).first()
+            saved_search_pk = self.get_saved_search()
+            if saved_search_pk:
+                try:
+                    saved_search = self.request.user.seeker_searches.get(pk=saved_search_pk, url=self.request.path, querystring=querystring)
+                except SavedSearch.DoesNotExist:
+                    pass
             saved_searches = self.request.user.seeker_searches.filter(url=self.request.path)
         else:
-            current_search = None
             saved_searches = []
 
         params = super(SeekerView, self).get_context_data(**kwargs)
@@ -232,7 +254,7 @@ class SeekerView (TemplateView):
             'page_size': self.page_size,
             'querystring': querystring,
             'can_save': self.can_save,
-            'current_search': current_search,
+            'saved_search': saved_search,
             'saved_searches': saved_searches,
             'mapping': mapping,
         })
@@ -306,6 +328,9 @@ class SeekerView (TemplateView):
         if not self.can_save:
             return redirect(request.get_full_path())
         qs = request.POST.get('querystring', '').strip()
+        saved_search_pk = request.POST.get('saved_search', '').strip()
+        if not saved_search_pk.isdigit():
+            saved_search_pk = None
         if '_save' in request.POST:
             name = request.POST.get('name', '').strip()
             if not name:
@@ -317,11 +342,11 @@ class SeekerView (TemplateView):
             search = request.user.seeker_searches.create(name=name, url=request.path, querystring=qs, default=default)
             messages.success(request, 'Successfully saved "%s".' % search)
             return redirect(search)
-        elif '_default' in request.POST:
+        elif '_default' in request.POST and saved_search_pk:
             request.user.seeker_searches.filter(url=request.path).update(default=False)
-            request.user.seeker_searches.filter(url=request.path, querystring=qs).update(default=True)
-        elif '_unset' in request.POST:
+            request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path, querystring=qs).update(default=True)
+        elif '_unset' in request.POST and saved_search_pk:
             request.user.seeker_searches.filter(url=request.path).update(default=False)
-        elif '_delete' in request.POST:
-            request.user.seeker_searches.filter(url=request.path, querystring=qs).delete()
+        elif '_delete' in request.POST and saved_search_pk:
+            request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path, querystring=qs).delete()
         return redirect(request.get_full_path())

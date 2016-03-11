@@ -1,15 +1,16 @@
-{% if current_search %}
+{% if saved_search %}
     <div class="page-header">
         <form action="" method="post" class="pull-right">
             {% csrf_token %}
             <input type="hidden" name="querystring" value="{{ querystring }}" />
-            {% if current_search.default %}
+            <input type="hidden" name="saved_search" value="{{ saved_search.pk }}" />
+            {% if saved_search.default %}
                 <button type="submit" name="_unset" class="btn btn-default btn-xs">Unset Default</button>
             {% else %}
                 <button type="submit" name="_default" class="btn btn-default btn-xs">Set as Default</button>
             {% endif %}
             <button type="submit" name="_delete" class="btn btn-danger btn-xs">Delete Search</button>
         </form>
-        <h1>{{ current_search }}</h1>
+        <h1>{{ saved_search }}</h1>
     </div>
 {% endif %}
