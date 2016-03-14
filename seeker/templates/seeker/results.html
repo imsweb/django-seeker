@@ -2,14 +2,7 @@
 {% load i18n %}
 
 {% block header %}
-    {% if current_search %}
-        <form class="pull-right" action="{{ form_action }}" method="post">
-            {% csrf_token %}
-            <input type="hidden" name="querystring" value="{{ querystring }}" />
-            <button type="submit" name="_delete" class="btn btn-default btn-xs"><i class="fa fa-times"></i> Delete</button>
-        </form>
-        {% block current-search-header %}<h2>{{ current_search }}</h2>{% endblock current-search-header %}
-    {% endif %}
+    {% include "seeker/header.html" %}
 {% endblock header %}
 
 <div class="table-responsive">
@@ -19,7 +12,13 @@
                 {% block pre-headers %}{% endblock pre-headers %}
                 {% block headers %}
 	                {% if show_rank and keywords %}
-	                    <th class="sort"><a href="?{{ reset_querystring }}">{% trans "Rank" %}</a></th>
+	                    <th class="sort{% if not sort %} desc{% endif %}">
+                            {% if sort %}
+                                <a href="?{{ reset_querystring }}">{% trans "Rank" %}</a>
+                            {% else %}
+                                {% trans "Rank" %}
+                            {% endif %}
+                        </th>
 	                {% endif %}
 	                {% for col in display_columns %}
 	                    {{ col.header }}
