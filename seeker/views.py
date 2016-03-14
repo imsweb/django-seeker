@@ -474,6 +474,8 @@ class SeekerView (View):
         # Finally, grab the results.
         results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
 
+        context_querystring = self.normalized_querystring()
+        sort = sorts[0] if sorts else ''
         context = {
             'document': self.document,
             'keywords': keywords,
@@ -486,8 +488,8 @@ class SeekerView (View):
             'page': page,
             'page_size': self.page_size,
             'page_spread': self.page_spread,
-            'sort': sorts[0] if sorts else '',
-            'querystring': querystring,
+            'sort': sort,
+            'querystring': context_querystring,
             'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
             'show_rank': self.show_rank,
             'export_name': self.export_name,
@@ -502,7 +504,10 @@ class SeekerView (View):
 
         if self.request.is_ajax():
             return JsonResponse({
-                'querystring': self.normalized_querystring(ignore=['saved_search']),
+                'querystring': context_querystring,
+                'page': page,
+                'sort': sort,
+                'saved_search_pk': saved_search.pk if saved_search else '',
                 'table_html': loader.render_to_string(self.results_template, context, context_instance=RequestContext(self.request)),
                 'facet_data': {facet.field: facet.data(results) for facet in self.get_facets()},
             })
@@ -558,8 +563,8 @@ class SeekerView (View):
     def post(self, request, *args, **kwargs):
         if not self.can_save:
             return redirect(request.get_full_path())
-        redirect_qs = self.normalized_querystring(request.POST.get('querystring', ''), ignore=['p'])
-        qs = self.normalized_querystring(request.POST.get('querystring', ''), ignore=['p', 'saved_search'])
+        post_qs = request.POST.get('querystring', '')
+        qs = self.normalized_querystring(post_qs, ignore=['p', 'saved_search'])
         saved_search_pk = request.POST.get('saved_search', '').strip()
         if not saved_search_pk.isdigit():
             saved_search_pk = None
@@ -567,7 +572,7 @@ class SeekerView (View):
             name = request.POST.get('name', '').strip()
             if not name:
                 messages.error(request, 'You did not provide a name for this search. Please try again.')
-                return redirect('%s?%s' % (request.path, redirect_qs))
+                return redirect('%s?%s' % (request.path, post_qs))
             default = request.POST.get('default', '').strip() == '1'
             if default:
                 request.user.seeker_searches.filter(url=request.path).update(default=False)
@@ -583,7 +588,7 @@ class SeekerView (View):
         elif '_delete' in request.POST and saved_search_pk:
             request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path, querystring=qs).delete()
             return redirect(request.path)
-        return redirect('%s?%s%s' % (request.path, redirect_qs, ('%s%s%s' % (('&' if redirect_qs else ''), 'saved_search=', saved_search_pk)) if saved_search_pk else ''))
+        return redirect('%s?%s' % (request.path, post_qs))
 
     def check_permission(self, request):
         """
