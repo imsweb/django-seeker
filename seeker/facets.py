@@ -1,5 +1,5 @@
 from django.conf import settings
-from elasticsearch_dsl import A, F
+from elasticsearch_dsl import A, Q
 import functools
 import operator
 
@@ -11,7 +11,7 @@ class Facet (object):
     def __init__(self, field, label=None, name=None, template=None, **kwargs):
         self.field = field
         self.label = label or self.field.replace('_', ' ').replace('.raw', '').replace('.', ' ').capitalize()
-        self.name = (name or self.field).replace('.', '_')
+        self.name = (name or self.field).replace('.raw', '').replace('.', '_')
         self.template = template or self.template
 
     def apply(self, search, **extra):
@@ -30,7 +30,7 @@ class TermsFacet (Facet):
 
     def __init__(self, field, **kwargs):
         self.size = kwargs.pop('size', 10)
-        self.execution = kwargs.pop('execution', 'bool')
+        self.filter_operator = kwargs.pop('filter_operator', 'or')
         super(TermsFacet, self).__init__(field, **kwargs)
 
     def apply(self, search, **extra):
@@ -41,11 +41,13 @@ class TermsFacet (Facet):
 
     def filter(self, search, values):
         if len(values) > 1:
-            kw = {self.field: values, 'execution': self.execution}
-            return search.filter('terms', **kw)
+            if self.filter_operator.lower() == 'and':
+                filters = [Q('term', **{self.field: v}) for v in values]
+                return search.query(functools.reduce(operator.and_, filters))
+            else:
+                return search.filter('terms', **{self.field: values})
         elif len(values) == 1:
-            kw = {self.field: values[0]}
-            return search.filter('term', **kw)
+            return search.filter('term', **{self.field: values[0]})
         return search
 
 class GlobalTermsFacet (TermsFacet):
@@ -80,8 +82,8 @@ class YearHistogram (Facet):
                     'lte': '%s-12-31' % val,
                 }
             }
-            filters.append(F('range', **kw))
-        return search.filter(functools.reduce(operator.or_, filters))
+            filters.append(Q('range', **kw))
+        return search.query(functools.reduce(operator.or_, filters))
 
 class RangeFilter (Facet):
     template = 'seeker/facets/range.html'

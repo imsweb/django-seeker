@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from elasticsearch_dsl.connections import connections
 from elasticsearch_dsl.field import InnerObject
+from elasticsearch.helpers import bulk, scan
 import elasticsearch_dsl as dsl
 import logging
 import six
@@ -81,7 +82,7 @@ class Indexable (dsl.DocType):
             return None
 
     @classmethod
-    def clear(cls, index=None, using=None, keep_mapping=False):
+    def clear(cls, index=None, using=None):
         """
         Deletes the Elasticsearch mapping associated with this document type.
         """
@@ -89,11 +90,16 @@ class Indexable (dsl.DocType):
         index = index or cls._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(using)
         if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
-            if keep_mapping:
-                es.delete_by_query(index=index, doc_type=cls._doc_type.name, body={'query': {'match_all': {}}})
-            else:
-                es.indices.delete_mapping(index=index, doc_type=cls._doc_type.name)
-            es.indices.flush(index=index)
+            def get_actions():
+                for hit in scan(es, index=index, doc_type=cls._doc_type.name, query={'match_all': {}}):
+                    yield {
+                        '_op_type': 'delete',
+                        '_index': index,
+                        '_type': cls._doc_type.name,
+                        '_id': hit['_id'],
+                    }
+            bulk(es, get_actions())
+            es.indices.refresh(index=index)
 
 class ModelIndex (Indexable):
     """
