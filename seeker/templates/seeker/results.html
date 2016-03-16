@@ -11,36 +11,36 @@
             <tr>
                 {% block pre-headers %}{% endblock pre-headers %}
                 {% block headers %}
-	                {% if show_rank and keywords %}
-	                    <th class="sort{% if not sort %} desc{% endif %}">
+                    {% if show_rank and keywords %}
+                        <th class="sort{% if not sort %} desc{% endif %}">
                             {% if sort %}
                                 <a href="?{{ reset_querystring }}">{% trans "Rank" %}</a>
                             {% else %}
                                 {% trans "Rank" %}
                             {% endif %}
                         </th>
-	                {% endif %}
-	                {% for col in display_columns %}
-	                    {{ col.header }}
-	                {% endfor %}
-	            {% endblock headers %}
+                    {% endif %}
+                    {% for col in display_columns %}
+                        {{ col.header }}
+                    {% endfor %}
+                {% endblock headers %}
                 {% block post-headers %}{% endblock post-headers %}
             </tr>
         </thead>
         <tbody>
             {% block results %}
-	            {% for result in results %}
-	                <tr>
-	                    {% block pre-columns %}{% endblock pre-columns %}
-	                    {% if show_rank and keywords %}
-	                        <td>{% seeker_score result results.hits.max_score %}</td>
-	                    {% endif %}
-	                    {% for col in display_columns %}
-	                        {% seeker_column col result %}
-	                    {% endfor %}
-	                    {% block post-columns %}{% endblock post-columns %}
-	                </tr>
-	            {% endfor %}
+                {% for result in results %}
+                    <tr>
+                        {% block pre-columns %}{% endblock pre-columns %}
+                        {% if show_rank and keywords %}
+                            <td>{% seeker_score result results.hits.max_score %}</td>
+                        {% endif %}
+                        {% for col in display_columns %}
+                            {% seeker_column col result %}
+                        {% endfor %}
+                        {% block post-columns %}{% endblock post-columns %}
+                    </tr>
+                {% endfor %}
             {% endblock results %}
         </tbody>
     </table>
