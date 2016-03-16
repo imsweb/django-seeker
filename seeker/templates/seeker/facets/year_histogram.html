@@ -1,0 +1,8 @@
+{% load seeker %}
+
+<label for="{{ facet.name }}_select">{{ facet.label|capfirst }}</label>
+<select name="{{ facet.field }}" class="form-control facet-select" multiple="multiple" id="{{ facet.name }}_select">
+    {% for b in data.buckets %}
+        <option value="{{ b.key_as_string }}" data-data='{"key": "{{ b.key_as_string }}", "doc_count": {{ b.doc_count }}}'{% if b.key_as_string in selected %} selected="selected"{% endif %}>{{ b.key_as_string }} ({{ b.doc_count }})</option>
+    {% endfor %}
+</select>

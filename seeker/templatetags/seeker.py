@@ -3,6 +3,7 @@ from django.contrib.humanize.templatetags.humanize import intcomma
 from django.core.paginator import Paginator
 from django.template import loader
 from django.utils.encoding import force_text
+from django.utils.safestring import mark_safe
 from elasticsearch_dsl.utils import AttrList
 import datetime
 import re
@@ -71,6 +72,8 @@ _phrase_re = re.compile(r'"([^"]*)"')
 
 @register.simple_tag
 def seeker_highlight(text, query, algorithm='english'):
+    if not query:
+        return mark_safe(seeker_format(text))
     try:
         import snowballstemmer
         stemmer = snowballstemmer.stemmer(algorithm)
@@ -91,4 +94,4 @@ def seeker_highlight(text, query, algorithm='english'):
             parts.append('<em>%s</em>' % word)
         else:
             parts.append(word)
-    return ''.join(parts)
+    return mark_safe(''.join(parts))
