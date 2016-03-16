@@ -410,8 +410,7 @@ class SeekerView (View):
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
-            s = s.query('query_string', query=keywords, analyzer=DEFAULT_ANALYZER, fields=self.get_search_fields(),
-                auto_generate_phrase_queries=True, default_operator=self.operator)
+            s = self.get_search_query_type(search=s, keywords=keywords, analyzer=DEFAULT_ANALYZER)
         if facets:
             for facet, values in facets.items():
                 if values:
@@ -420,6 +419,9 @@ class SeekerView (View):
                     facet.apply(s)
         return s
 
+    def get_search_query_type(self, search=None, keywords=None, analyzer=None):
+        return search.query('query_string', query=keywords, analyzer=analyzer, fields=self.get_search_fields(), auto_generate_phrase_queries=True, default_operator=self.operator)
+        
     def render(self):
         from .models import SavedSearch
 
