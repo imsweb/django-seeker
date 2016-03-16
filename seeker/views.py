@@ -3,7 +3,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse, Http404
 from django.utils.encoding import force_text
-from .models import SavedSearch
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .mapping import StringType, ObjectType
@@ -230,6 +229,7 @@ class SeekerView (TemplateView):
         if self.request.user and self.request.user.is_authenticated():
             saved_search_pk = self.get_saved_search()
             if saved_search_pk:
+                from .models import SavedSearch
                 try:
                     saved_search = self.request.user.seeker_searches.get(pk=saved_search_pk, url=self.request.path, querystring=querystring)
                 except SavedSearch.DoesNotExist:
