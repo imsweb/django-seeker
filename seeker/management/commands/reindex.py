@@ -4,7 +4,7 @@ from elasticsearch.helpers import bulk
 from elasticsearch_dsl.connections import connections
 from seeker.registry import documents, app_documents
 from seeker.utils import progress
-import gc
+
 
 def reindex(doc_class, index, using, options):
     """
@@ -22,6 +22,7 @@ def reindex(doc_class, index, using, options):
     actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
     bulk(es, actions)
     es.indices.refresh(index=index)
+
 
 class Command (BaseCommand):
     args = '<app1 app2 ...>'
@@ -43,11 +44,17 @@ class Command (BaseCommand):
             dest='quiet',
             default=False,
             help='Do not produce any output while indexing')
-        parser.add_argument('--keep',
+        parser.add_argument('--drop',
             action='store_true',
-            dest='keep',
+            dest='drop',
             default=False,
-            help='Keep the existing mapping, instead of re-creating it'
+            help='Drops the index before re-indexing'
+        )
+        parser.add_argument('--clear',
+            action='store_true',
+            dest='clear',
+            default=False,
+            help='Deletes all documents before re-indexing'
         )
         parser.add_argument('--no-data',
             action='store_false',
@@ -67,14 +74,16 @@ class Command (BaseCommand):
             doc_classes.extend(app_documents.get(label, []))
         if not args:
             doc_classes.extend(documents)
+        if options['drop']:
+            index = options['index'] or getattr(settings, 'SEEKER_INDEX', 'seeker')
+            es = connections.get_connection(options['using'] or 'default')
+            if es.indices.exists(index=index):
+                es.indices.delete(index=index)
         for doc_class in doc_classes:
             using = options['using'] or doc_class._doc_type.using or 'default'
             index = options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
-            if options['keep']:
-                doc_class.clear(index=index, using=using, keep_mapping=True)
-            else:
+            if options['clear'] and not options['drop']:
                 doc_class.clear(index=index, using=using)
-                doc_class.init(index=index, using=using)
+            doc_class.init(index=index, using=using)
             if options['data']:
                 reindex(doc_class, index, using, options)
-            gc.collect()

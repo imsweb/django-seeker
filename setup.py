@@ -16,7 +16,7 @@ setup(
     license='BSD',
     packages=find_packages(),
     install_requires=[
-        'elasticsearch-dsl<2.0.0',
+        'elasticsearch-dsl>=2.0.0,<3.0.0',
     ],
     include_package_data=True,
     classifiers=[

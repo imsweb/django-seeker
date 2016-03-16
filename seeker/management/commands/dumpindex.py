@@ -32,3 +32,4 @@ class Command (BaseCommand):
                 output.write(',')
             output.write(json.dumps(doc, indent=options['indent']), ending='')
         output.write(']')
+        output.flush()
