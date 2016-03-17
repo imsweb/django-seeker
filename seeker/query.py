@@ -64,14 +64,24 @@ class ResultSet (object):
         self.mapping = mapping
         self.query = query or {}
         if isinstance(self.query, basestring):
-            self.query = {
-                'query_string': {
-                    'query': self.query,
-                    'auto_generate_phrase_queries': True,
-                    'analyze_wildcard': True,
-                    'default_operator': getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'OR'),
+            if getattr(settings, 'SEEKER_USE_SIMPLE_QUERY', False):
+                self.query = {
+                    'simple_query_string': {
+                        'query': self.query,
+                        'analyze_wildcard': True,
+                        'default_operator': getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'OR'),
+                    }
                 }
-            }
+            else:
+                self.query = {
+                    'query_string': {
+                        'query': self.query,
+                        'auto_generate_phrase_queries': True,
+                        'analyze_wildcard': True,
+                        'default_operator': getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'OR'),
+                    }
+                }
+                
         self.filters = filters or []
         if isinstance(self.filters, dict):
             self.filters = [F(**{name: values}) for name, values in self.filters.iteritems()]

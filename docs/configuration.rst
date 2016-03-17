@@ -28,6 +28,8 @@ Seeker Settings
 ``SEEKER_BATCH_SIZE`` (default: 1000)
     The default indexing batch size.
 
+``SEEKER_USE_SIMPLE_QUERY`` (default: False)
+	Decide whether to use 'simple_query_string' or 'query_string'
 
 Model Indexing Middleware
 -------------------------
