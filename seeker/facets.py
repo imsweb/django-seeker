@@ -84,8 +84,8 @@ class YearHistogram (Facet):
         for val in values:
             kw = {
                 self.field: {
-                    'gte': '%s-01-01' % val,
-                    'lte': '%s-12-31' % val,
+                    'gte': '%s-01-01T00:00:00' % val,
+                    'lte': '%s-12-31T23:59:59' % val,
                 }
             }
             filters.append(Q('range', **kw))

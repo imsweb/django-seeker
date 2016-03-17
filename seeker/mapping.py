@@ -91,7 +91,7 @@ class Indexable (dsl.DocType):
         es = connections.get_connection(using)
         if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
             def get_actions():
-                for hit in scan(es, index=index, doc_type=cls._doc_type.name, query={'match_all': {}}):
+                for hit in scan(es, index=index, doc_type=cls._doc_type.name, query={'query': {'match_all': {}}}):
                     yield {
                         '_op_type': 'delete',
                         '_index': index,
