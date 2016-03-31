@@ -576,8 +576,8 @@ class SeekerView (View):
             default = request.POST.get('default', '').strip() == '1'
             if default:
                 request.user.seeker_searches.filter(url=request.path).update(default=False)
-            search_values = {'url': request.path, 'querystring': qs, 'default': default}
-            search, created = request.user.seeker_searches.update_or_create(name=name, defaults=search_values)
+            search_values = {'querystring': qs, 'default': default}
+            search, created = request.user.seeker_searches.update_or_create(name=name, url=request.path, defaults=search_values)
             messages.success(request, 'Successfully saved "%s".' % search)
             return redirect(search)
         elif '_default' in request.POST and saved_search_pk:
