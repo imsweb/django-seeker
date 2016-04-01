@@ -28,6 +28,13 @@ class Facet (object):
         except:
             return {}
 
+    def get_key(self, bucket):
+        return bucket.get('key')
+
+    def buckets(self, response):
+        for b in self.data(response).get('buckets', []):
+            yield self.get_key(b), b.get('doc_count')
+
 class TermsFacet (Facet):
 
     def __init__(self, field, **kwargs):
@@ -90,6 +97,9 @@ class YearHistogram (Facet):
             }
             filters.append(Q('range', **kw))
         return search.query(functools.reduce(operator.or_, filters))
+
+    def get_key(self, bucket):
+        return bucket.get('key_as_string')
 
 class RangeFilter (Facet):
     template = 'seeker/facets/range.html'
