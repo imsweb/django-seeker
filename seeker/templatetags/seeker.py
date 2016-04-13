@@ -4,8 +4,8 @@ from django.core.paginator import Paginator
 from django.template import loader
 from django.utils.encoding import force_text
 from django.utils.safestring import mark_safe
-from elasticsearch_dsl.utils import AttrList
 import datetime
+import six
 import re
 
 register = template.Library()
@@ -18,12 +18,12 @@ def seeker_format(value):
     if value is None:
         return ''
     # TODO: settings for default list separator and date formats?
-    if isinstance(value, (list, tuple, AttrList)):
-        return ', '.join(force_text(v) for v in value)
     if isinstance(value, datetime.datetime):
         return value.strftime('%m/%d/%Y %H:%M:%S')
     if isinstance(value, datetime.date):
         return value.strftime('%m/%d/%Y')
+    if hasattr(value, '__iter__') and not isinstance(value, six.string_types):
+        return ', '.join(force_text(v) for v in value)
     return force_text(value)
 
 @register.simple_tag
