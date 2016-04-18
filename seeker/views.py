@@ -404,14 +404,17 @@ class SeekerView (View):
         else:
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
+    def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
+        return search.query('query_string', query=keywords, analyzer=analyzer, fields=self.get_search_fields(),
+                            auto_generate_phrase_queries=True, default_operator=self.operator)
+
     def get_search(self, keywords=None, facets=None, aggregate=True):
         using = self.using or self.document._doc_type.using or 'default'
         index = self.index or self.document._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
-            s = s.query('query_string', query=keywords, analyzer=DEFAULT_ANALYZER, fields=self.get_search_fields(),
-                auto_generate_phrase_queries=True, default_operator=self.operator)
+            s = self.get_search_query_type(s, keywords)
         if facets:
             for facet, values in facets.items():
                 if values:
