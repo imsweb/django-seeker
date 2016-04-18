@@ -232,6 +232,11 @@ class SeekerView (View):
     A dictionary of highlight field overrides.
     """
 
+    query_type = getattr(settings, 'SEEKER_QUERY_TYPE', 'query_string')
+    """
+    The query type to use when performing keyword queries (either 'query_string' (default) or 'simple_query_string').
+    """
+
     operator = getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'AND')
     """
     The query operator to use by default.
@@ -405,8 +410,13 @@ class SeekerView (View):
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
     def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
-        return search.query('query_string', query=keywords, analyzer=analyzer, fields=self.get_search_fields(),
-                            auto_generate_phrase_queries=True, default_operator=self.operator)
+        kwargs = {'query': keywords,
+                  'analyzer': analyzer,
+                  'fields': self.get_search_fields(),
+                  'default_operator': self.operator}
+        if self.query_type == 'simple_query':
+            kwargs['auto_generate_phrase_queries'] = True
+        return search.query(self.query_type, **kwargs)
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
         using = self.using or self.document._doc_type.using or 'default'
