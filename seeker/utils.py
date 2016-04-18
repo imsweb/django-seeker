@@ -22,6 +22,19 @@ def get_model_mappings(model_class):
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.model_mappings.get(model_class, [])
 
+def get_search_query_type(query):
+    query_type = getattr(settings, 'SEEKER_QUERY_TYPE', 'query_string')
+    query_type_config = {
+        query_type: {
+            'query': query,
+            'analyze_wildcard': True,
+            'default_operator': getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'OR'),
+        }
+    }
+    if query_type == 'query_string':
+        query_type_config[query_type]['auto_generate_phrase_queries'] = True
+    return query_type_config
+
 def get_facet_filters(request_data, facets, exclude=None):
     """
     Given request data (i.e. ``request.GET`` or ``request.POST``) and a list of facets (``Aggregate`` subclasses),
@@ -56,14 +69,7 @@ def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
     query = query or {}
     if isinstance(query, basestring):
         query = {
-            'query': {
-                'query_string': {
-                    'query': query,
-                    'auto_generate_phrase_queries': True,
-                    'analyze_wildcard': True,
-                    'default_operator': getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'OR'),
-                }
-            }
+            'query': get_search_query_type(query)
         }
     response = es.search(index='_all', body=query)
     max_score = response['hits']['max_score']

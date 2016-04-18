@@ -1,4 +1,5 @@
 from django.conf import settings
+from .utils import get_search_query_type
 import collections
 import operator
 import logging
@@ -64,14 +65,7 @@ class ResultSet (object):
         self.mapping = mapping
         self.query = query or {}
         if isinstance(self.query, basestring):
-            self.query = {
-                'query_string': {
-                    'query': self.query,
-                    'auto_generate_phrase_queries': True,
-                    'analyze_wildcard': True,
-                    'default_operator': getattr(settings, 'SEEKER_DEFAULT_OPERATOR', 'OR'),
-                }
-            }
+            self.query = self.get_search_query_type()
         self.filters = filters or []
         if isinstance(self.filters, dict):
             self.filters = [F(**{name: values}) for name, values in self.filters.iteritems()]
@@ -146,6 +140,9 @@ class ResultSet (object):
             logger.debug('Counting %s/%s: %s', self.mapping.index_name, self.mapping.doc_type, query)
             result = self.mapping.es.count(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query)
             return result['count']
+
+    def get_search_query_type(self):
+        return get_search_query_type(self.query)
 
     def queryset(self):
         query = self.to_elastic()

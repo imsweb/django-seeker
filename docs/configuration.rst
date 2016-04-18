@@ -16,6 +16,9 @@ Seeker Settings
 
 .. _setting-seeker-default-operator:
 
+``SEEKER_QUERY_TYPE`` (default: query_string)
+    The query type to use when performing keyword queries (either 'query_string' (default) or 'simple_query_string').
+
 ``SEEKER_DEFAULT_OPERATOR`` (default: ``OR``)
     The default operator to use when performing keyword queries.
 
