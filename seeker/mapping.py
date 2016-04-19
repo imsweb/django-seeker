@@ -63,6 +63,9 @@ class Indexable (dsl.DocType):
     indexed.
     """
 
+    class Meta:
+        index = getattr(settings, 'SEEKER_INDEX', 'seeker')
+
     @classmethod
     def documents(cls, **kwargs):
         """
