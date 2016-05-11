@@ -131,6 +131,11 @@ class SeekerView (View):
     The overall seeker template to render.
     """
 
+    header_template = 'seeker/header.html'
+    """
+    The template used to render the search results header.
+    """
+
     results_template = 'seeker/results.html'
     """
     The template used to render the search results.
@@ -507,6 +512,7 @@ class SeekerView (View):
             'show_rank': self.show_rank,
             'export_name': self.export_name,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
+            'header_template': self.header_template,
             'results_template': self.results_template,
             'saved_search': saved_search,
             'saved_searches': saved_searches,

@@ -4,8 +4,10 @@ from django.core.paginator import Paginator
 from django.template import loader
 from django.utils.encoding import force_text
 from elasticsearch_dsl.utils import AttrList
+from urlparse import parse_qsl
 import datetime
 import re
+import urllib
 
 register = template.Library()
 
@@ -24,6 +26,13 @@ def seeker_format(value):
     if isinstance(value, datetime.date):
         return value.strftime('%m/%d/%Y')
     return force_text(value)
+
+@register.filter
+def seeker_filter_querystring(qs, keep):
+    if isinstance(keep, basestring):
+        keep = [keep]
+    qs_parts = [part for part in parse_qsl(qs, keep_blank_values=True) if part[0] in keep]
+    return urllib.urlencode(qs_parts)
 
 @register.simple_tag
 def seeker_facet(facet, results, selected=None, **params):
