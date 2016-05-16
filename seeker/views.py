@@ -141,6 +141,11 @@ class SeekerView (View):
     The template used to render the search results.
     """
 
+    footer_template = 'seeker/footer.html'
+    """
+    The template used to render the search results footer.
+    """
+
     columns = None
     """
     A list of Column objects, or strings representing mapping field names. If None, all mapping fields will be available.
@@ -514,6 +519,7 @@ class SeekerView (View):
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
             'header_template': self.header_template,
             'results_template': self.results_template,
+            'footer_template': self.footer_template,
             'saved_search': saved_search,
             'saved_searches': saved_searches,
         }
