@@ -1,6 +1,7 @@
 from .registry import model_documents
 from django.conf import settings
 from elasticsearch_dsl.connections import connections
+from elasticsearch import NotFoundError
 import elasticsearch_dsl as dsl
 import sys
 import time
@@ -24,6 +25,7 @@ def index(obj, index=None, using=None):
             doc_type=doc_class._doc_type.name,
             body=body,
             id=doc_id,
+            refresh=True
         )
 
 def delete(obj, index=None, using=None):
@@ -36,11 +38,16 @@ def delete(obj, index=None, using=None):
         doc_using = using or doc_class._doc_type.using or 'default'
         doc_index = index or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(doc_using)
-        es.delete(
-            index=doc_index,
-            doc_type=doc_class._doc_type.name,
-            id=doc_class.get_id(obj)
-        )
+        try:
+            es.delete(
+                index=doc_index,
+                doc_type=doc_class._doc_type.name,
+                id=doc_class.get_id(obj),
+                refresh=True
+            )
+        except NotFoundError:
+            # If this object wasn't indexed for some reason (maybe not in the document's queryset), no big deal.
+            pass
 
 def search(models=None, using='default'):
     """

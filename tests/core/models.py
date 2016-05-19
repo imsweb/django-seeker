@@ -1,4 +1,5 @@
 from django.db import models
+import datetime
 
 class Author (models.Model):
     first_name = models.CharField(max_length=100)
@@ -16,10 +17,10 @@ class Category (models.Model):
 
 class Book (models.Model):
     title = models.CharField(max_length=200)
-    authors = models.ManyToManyField(Author, related_name='books')
-    category = models.ForeignKey(Category, related_name='books')
-    date_published = models.DateField()
-    pages = models.IntegerField()
+    authors = models.ManyToManyField(Author, related_name='books', blank=True)
+    category = models.ForeignKey(Category, related_name='books', null=True, blank=True)
+    date_published = models.DateField(default=datetime.date.today)
+    pages = models.IntegerField(default=0)
     in_print = models.BooleanField(default=True)
 
     def __str__(self):
@@ -27,7 +28,7 @@ class Book (models.Model):
 
 class Magazine (models.Model):
     name = models.CharField(max_length=200)
-    issue_date = models.DateField()
+    issue_date = models.DateField(default=datetime.date.today)
 
     def __str__(self):
         return self.name
