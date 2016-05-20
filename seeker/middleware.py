@@ -10,8 +10,8 @@ class ModelIndexingMiddleware (object):
     """
 
     def __init__(self):
-        models.signals.post_save.connect(self.handle_save)
-        models.signals.post_delete.connect(self.handle_delete)
+        models.signals.post_save.connect(self.handle_save, dispatch_uid='handle_save')
+        models.signals.post_delete.connect(self.handle_delete, dispatch_uid='handle_delete')
 
     def handle_save(self, sender, instance, **kwargs):
         try:
