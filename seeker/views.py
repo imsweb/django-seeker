@@ -11,6 +11,8 @@ from django.views.generic import View
 from elasticsearch_dsl.utils import AttrList
 from seeker.templatetags.seeker import seeker_format
 from .mapping import DEFAULT_ANALYZER
+from functools import partial
+from operator import ne
 import collections
 import elasticsearch_dsl as dsl
 import six
@@ -160,6 +162,16 @@ class SeekerView (View):
     """
     A list of field/column names to display by default.
     """
+    
+    required_display = []
+    """
+    A list of tuples, ex. ('field name', 0), representing field/column names that will always be displayed (cannot be hidden by the user).
+    """
+    
+    @property
+    def required_display_fields(self):
+        for field_name, i in self.required_display:
+            yield field_name
 
     sort = None
     """
@@ -385,7 +397,18 @@ class SeekerView (View):
         the default list is returned. If no default list is specified, all fields are displayed.
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
-        return self.request.GET.getlist('d') or default
+        display_fields = self.request.GET.getlist('d') or default
+        list_len = len(display_fields)
+        for field, i in self.required_display:
+            # Remove existing instances since this position takes precedence...
+            display_fields = filter(partial(ne, field), display_fields)
+            # If within range, insert the field appropriately...
+            if i <= list_len:
+                display_fields.insert(i, field)
+            # Otherwise, append to the end
+            else:
+                display_fields.append(field)
+        return display_fields
 
     def get_saved_search(self):
         """
@@ -503,6 +526,7 @@ class SeekerView (View):
             'document': self.document,
             'keywords': keywords,
             'columns': columns,
+            'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
             'display_columns': [c for c in columns if c.visible],
             'facets': facets,
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets.keys(),

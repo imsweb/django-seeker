@@ -19,7 +19,7 @@
             {% endfor %}
         </div>
         <div role="tabpanel" class="tab-pane" id="display">
-            {% for c in columns %}
+            {% for c in optional_columns %}
                 <div class="checkbox">
                     <label>
                         <input type="checkbox" name="d" class="display-field" value="{{ c.field }}"{% if c in display_columns %} checked="checked"{% endif %} />
