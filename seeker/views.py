@@ -11,8 +11,6 @@ from django.views.generic import View
 from elasticsearch_dsl.utils import AttrList
 from seeker.templatetags.seeker import seeker_format
 from .mapping import DEFAULT_ANALYZER
-from functools import partial
-from operator import ne
 import collections
 import elasticsearch_dsl as dsl
 import six
@@ -166,6 +164,7 @@ class SeekerView (View):
     required_display = []
     """
     A list of tuples, ex. ('field name', 0), representing field/column names that will always be displayed (cannot be hidden by the user).
+    The second value is the position of the field (used as the index in list.insert(index)).
     """
     
     @property
