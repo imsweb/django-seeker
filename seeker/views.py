@@ -170,8 +170,7 @@ class SeekerView (View):
     
     @property
     def required_display_fields(self):
-        for field_name, i in self.required_display:
-            yield field_name
+        return [t[0] for t in self.required_display]
 
     sort = None
     """
@@ -398,16 +397,9 @@ class SeekerView (View):
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
         display_fields = self.request.GET.getlist('d') or default
-        list_len = len(display_fields)
+        display_fields = [f for f in display_fields if f not in self.required_display_fields]
         for field, i in self.required_display:
-            # Remove existing instances since this position takes precedence...
-            display_fields = filter(partial(ne, field), display_fields)
-            # If within range, insert the field appropriately...
-            if i <= list_len:
-                display_fields.insert(i, field)
-            # Otherwise, append to the end
-            else:
-                display_fields.append(field)
+            display_fields.insert(i, field)
         return display_fields
 
     def get_saved_search(self):
