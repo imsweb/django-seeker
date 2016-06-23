@@ -160,13 +160,13 @@ class SeekerView (View):
     """
     A list of field/column names to display by default.
     """
-    
+
     required_display = []
     """
     A list of tuples, ex. ('field name', 0), representing field/column names that will always be displayed (cannot be hidden by the user).
-    The second value is the position of the field (used as the index in list.insert(index)).
+    The second value is the index/position of the field (used as the index in list.insert(index, 'field name')).
     """
-    
+
     @property
     def required_display_fields(self):
         return [t[0] for t in self.required_display]
