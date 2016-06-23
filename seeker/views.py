@@ -160,6 +160,16 @@ class SeekerView (View):
     """
     A list of field/column names to display by default.
     """
+    
+    required_display = []
+    """
+    A list of tuples, ex. ('field name', 0), representing field/column names that will always be displayed (cannot be hidden by the user).
+    The second value is the position of the field (used as the index in list.insert(index)).
+    """
+    
+    @property
+    def required_display_fields(self):
+        return [t[0] for t in self.required_display]
 
     sort = None
     """
@@ -385,7 +395,11 @@ class SeekerView (View):
         the default list is returned. If no default list is specified, all fields are displayed.
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
-        return self.request.GET.getlist('d') or default
+        display_fields = self.request.GET.getlist('d') or default
+        display_fields = [f for f in display_fields if f not in self.required_display_fields]
+        for field, i in self.required_display:
+            display_fields.insert(i, field)
+        return display_fields
 
     def get_saved_search(self):
         """
@@ -503,6 +517,7 @@ class SeekerView (View):
             'document': self.document,
             'keywords': keywords,
             'columns': columns,
+            'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
             'display_columns': [c for c in columns if c.visible],
             'facets': facets,
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets.keys(),
