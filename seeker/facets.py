@@ -41,11 +41,14 @@ class TermsFacet (Facet):
         self.filter_operator = kwargs.pop('filter_operator', 'or')
         super(TermsFacet, self).__init__(field, **kwargs)
 
-    def apply(self, search, **extra):
+    def _get_aggregation(self, **extra):
         params = {'field': self.field}
         params.update(self.kwargs)
         params.update(extra)
-        search.aggs[self.name] = A('terms', **params)
+        return A('terms', **params)
+
+    def apply(self, search, **extra):
+        search.aggs[self.name] = self._get_aggregation(**extra)
         return search
 
     def filter(self, search, values):
@@ -61,9 +64,9 @@ class TermsFacet (Facet):
 
 class GlobalTermsFacet (TermsFacet):
 
-    def apply(self, search):
+    def apply(self, search, **extra):
         top = A('global')
-        top[self.field] = self.aggregation
+        top[self.field] = self._get_aggregation(**extra)
         search.aggs[self.field] = top
         return search
 
