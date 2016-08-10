@@ -105,7 +105,7 @@ class Column (object):
         export_field = self.field if self.export is True else self.export
         if export_field:
             value = getattr(result, export_field, '')
-            export_val = ', '.join(force_text(v.to_dict()) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+            export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
         else:
             export_val = ''
         return export_val
