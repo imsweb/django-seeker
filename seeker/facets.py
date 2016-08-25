@@ -13,6 +13,7 @@ class Facet (object):
         self.label = label or self.field.replace('_', ' ').replace('.raw', '').replace('.', ' ').capitalize()
         self.name = (name or self.field).replace('.', '_')
         self.template = template or self.template
+        self.kwargs = kwargs
 
     def apply(self, search, **extra):
         return search
@@ -35,6 +36,7 @@ class TermsFacet (Facet):
 
     def apply(self, search, **extra):
         params = {'field': self.field, 'size': self.size}
+        params.update(self.kwargs)
         params.update(extra)
         search.aggs[self.name] = A('terms', **params)
         return search
@@ -67,6 +69,7 @@ class YearHistogram (Facet):
 
     def apply(self, search, **extra):
         params = {'field': self.field, 'interval': 'year', 'format': self.fmt, 'order': {'_key': 'desc'}}
+        params.update(self.kwargs)
         params.update(extra)
         search.aggs[self.name] = A('date_histogram', **params)
         return search
