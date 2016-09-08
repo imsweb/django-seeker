@@ -65,13 +65,24 @@ class Command (BaseCommand):
             default=True,
             help='Only reindex the mappings, not any data'
         ),
+        make_option('--drop',
+            action='store_true',
+            dest='drop',
+            default=False,
+            help='Drops the index before re-indexing'
+        ),
     )
 
     def handle(self, *args, **options):
         app_labels = args or [a.label for a in apps.get_app_configs()]
         for app_label in app_labels:
             for mapping in get_app_mappings(app_label):
-                # If the index doesn't exist, create it.
+                if options['drop']:
+                    # Drop the index before re-indexing
+                    if mapping.es.indices.exists(index=mapping.index_name):
+                        mapping.es.indices.delete(index=mapping.index_name)
+
+                # If the index doesn't exist (or has been dropped), (re-)create it.
                 if not mapping.es.indices.exists(index=mapping.index_name):
                     mapping.es.indices.create(index=mapping.index_name)
 
