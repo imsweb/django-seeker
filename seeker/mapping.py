@@ -534,11 +534,20 @@ class Mapping (object):
 
     def clear(self):
         """
-        Clears the Elasticsearch index by deleting the mapping entirely.
+         Deletes the Elasticsearch mapping associated with this document type.
         """
         if self.es.indices.exists_type(index=self.index_name, doc_type=self.doc_type):
-            self.es.indices.delete_mapping(index=self.index_name, doc_type=self.doc_type)
-            self.es.indices.flush(index=self.index_name)
+
+            def get_actions():
+                for hit in elasticsearch.helpers.scan(self.es, index=self.index_name, doc_type=self.doc_type, query={"query": {"match_all": {}}}):
+                    yield {
+                        '_op_type': 'delete',
+                        '_index': self.index_name,
+                        '_type': self.doc_type,
+                        '_id': hit['_id'],
+                    }
+            elasticsearch.helpers.bulk(self.es, get_actions())
+            self.es.indices.refresh(index=self.index_name)
 
     def query(self, **kwargs):
         """
