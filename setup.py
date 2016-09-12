@@ -16,7 +16,7 @@ setup(
     license='BSD',
     packages=find_packages(),
     install_requires=[
-        'elasticsearch>=1.0.0,<2.0.0',
+        'elasticsearch>=2.0.0,<3.0.0',
         'tqdm',
     ],
     include_package_data=True,
