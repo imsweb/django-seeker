@@ -105,7 +105,7 @@ class Column (object):
         export_field = self.field if self.export is True else self.export
         if export_field:
             value = getattr(result, export_field, '')
-            export_val = ', '.join(force_text(v.to_dict()) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+            export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
         else:
             export_val = ''
         return export_val
@@ -131,9 +131,19 @@ class SeekerView (View):
     The overall seeker template to render.
     """
 
+    header_template = 'seeker/header.html'
+    """
+    The template used to render the search results header.
+    """
+
     results_template = 'seeker/results.html'
     """
     The template used to render the search results.
+    """
+
+    footer_template = 'seeker/footer.html'
+    """
+    The template used to render the search results footer.
     """
 
     columns = None
@@ -150,6 +160,16 @@ class SeekerView (View):
     """
     A list of field/column names to display by default.
     """
+
+    required_display = []
+    """
+    A list of tuples, ex. ('field name', 0), representing field/column names that will always be displayed (cannot be hidden by the user).
+    The second value is the index/position of the field (used as the index in list.insert(index, 'field name')).
+    """
+
+    @property
+    def required_display_fields(self):
+        return [t[0] for t in self.required_display]
 
     sort = None
     """
@@ -375,7 +395,11 @@ class SeekerView (View):
         the default list is returned. If no default list is specified, all fields are displayed.
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
-        return self.request.GET.getlist('d') or default
+        display_fields = self.request.GET.getlist('d') or default
+        display_fields = [f for f in display_fields if f not in self.required_display_fields]
+        for field, i in self.required_display:
+            display_fields.insert(i, field)
+        return display_fields
 
     def get_saved_search(self):
         """
@@ -493,6 +517,7 @@ class SeekerView (View):
             'document': self.document,
             'keywords': keywords,
             'columns': columns,
+            'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
             'display_columns': [c for c in columns if c.visible],
             'facets': facets,
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets.keys(),
@@ -507,7 +532,9 @@ class SeekerView (View):
             'show_rank': self.show_rank,
             'export_name': self.export_name,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
+            'header_template': self.header_template,
             'results_template': self.results_template,
+            'footer_template': self.footer_template,
             'saved_search': saved_search,
             'saved_searches': saved_searches,
         }

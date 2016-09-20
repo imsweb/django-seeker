@@ -4,9 +4,11 @@ from django.core.paginator import Paginator
 from django.template import loader
 from django.utils.encoding import force_text
 from django.utils.safestring import mark_safe
+from urlparse import parse_qsl
 import datetime
 import six
 import re
+import urllib
 
 register = template.Library()
 
@@ -25,6 +27,13 @@ def seeker_format(value):
     if hasattr(value, '__iter__') and not isinstance(value, six.string_types):
         return ', '.join(force_text(v) for v in value)
     return force_text(value)
+
+@register.filter
+def seeker_filter_querystring(qs, keep):
+    if isinstance(keep, basestring):
+        keep = [keep]
+    qs_parts = [part for part in parse_qsl(qs, keep_blank_values=True) if part[0] in keep]
+    return urllib.urlencode(qs_parts)
 
 @register.simple_tag
 def seeker_facet(facet, results, selected=None, **params):
