@@ -507,6 +507,10 @@ class SeekerView (View):
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * self.page_size
+        results_count = search[0:0].execute().hits.total
+        if results_count < offset:
+            page = 1
+            offset = 0
 
         # Finally, grab the results.
         results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
