@@ -13,6 +13,7 @@ from seeker.templatetags.seeker import seeker_format
 from .mapping import DEFAULT_ANALYZER
 import collections
 import elasticsearch_dsl as dsl
+import inspect
 import six
 import urllib
 import re
@@ -43,12 +44,13 @@ class Column (object):
     def bind(self, view, visible):
         self.view = view
         self.visible = visible
-        search_templates = [
-            'seeker/%s/%s.html' % (view.document._doc_type.name, self.field),
-            'seeker/column.html',
-        ]
+        search_templates = []
         if self.template:
-            search_templates.insert(0, self.template)
+            search_templates.append(self.template)
+        for cls in inspect.getmro(view.document):
+            if issubclass(cls, dsl.DocType):
+                search_templates.append('seeker/%s/%s.html' % (cls._doc_type.name, self.field))
+        search_templates.append('seeker/column.html')
         self.template = loader.select_template(search_templates)
         return self
 
