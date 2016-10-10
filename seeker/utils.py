@@ -3,8 +3,14 @@ from django.conf import settings
 from elasticsearch_dsl.connections import connections
 from elasticsearch import NotFoundError
 import elasticsearch_dsl as dsl
+import importlib
 import sys
 import time
+
+def import_class(fq_name):
+    module_name, class_name = fq_name.rsplit('.', 1)
+    mod = importlib.import_module(module_name)
+    return getattr(mod, class_name)
 
 def index(obj, index=None, using=None):
     """
