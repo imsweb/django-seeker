@@ -74,13 +74,15 @@ class Command (BaseCommand):
     )
 
     def handle(self, *args, **options):
+        dropped = set()
         app_labels = args or [a.label for a in apps.get_app_configs()]
         for app_label in app_labels:
             for mapping in get_app_mappings(app_label):
-                if options['drop']:
+                if options['drop'] and mapping.index_name not in dropped:
                     # Drop the index before re-indexing
                     if mapping.es.indices.exists(index=mapping.index_name):
                         mapping.es.indices.delete(index=mapping.index_name)
+                        dropped.add(mapping.index_name)
 
                 # If the index doesn't exist (or has been dropped), (re-)create it.
                 if not mapping.es.indices.exists(index=mapping.index_name):
