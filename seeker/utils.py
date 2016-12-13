@@ -23,11 +23,13 @@ def index(obj, index=None, using=None):
         doc_using = using or doc_class._doc_type.using or 'default'
         doc_index = index or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(doc_using)
+        body = doc_class.serialize(obj)
+        doc_id = body.pop('_id', None)
         es.index(
             index=doc_index,
             doc_type=doc_class._doc_type.name,
-            body=doc_class.serialize(obj),
-            id=doc_class.get_id(obj)
+            body=body,
+            id=doc_id
         )
 
 def delete(obj, index=None, using=None):
