@@ -490,10 +490,12 @@ class SeekerView (View):
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = {c.field: c for c in columns}
-        if saved_search:
-            sorts = self.request.GET.getlist('s')
-        else:
-            sorts = self.request.GET.getlist('s') or self.sort or []
+        sorts = self.request.GET.getlist('s', None)
+        if not sorts:
+            if keywords:
+                sorts = []
+            else:
+                sorts = self.sort or []
         for s in sorts:
             # Get the column based on the field name, and use it's "sort" field, if applicable.
             c = column_lookup.get(s.lstrip('-'))
@@ -518,7 +520,7 @@ class SeekerView (View):
         results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
 
         context_querystring = self.normalized_querystring()
-        sort = sorts[0] if sorts else ''
+        sort = sorts[0] if sorts else None
         context = {
             'document': self.document,
             'keywords': keywords,
