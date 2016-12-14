@@ -4,7 +4,7 @@ from django.core.paginator import Paginator
 from django.template import loader
 from django.utils.encoding import force_text
 from django.utils.safestring import mark_safe
-from urlparse import parse_qsl
+from six.moves.urllib.parse import parse_qsl
 import datetime
 import six
 import re
