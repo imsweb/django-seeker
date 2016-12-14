@@ -3,7 +3,8 @@ from django.test import TestCase
 
 import seeker
 
-from .mappings import BookDocument, DjangoBookDocument
+from .external import BaseDocument
+from .mappings import BookDocument, DerivedDocument, DjangoBookDocument
 from .models import Book, Category
 
 
@@ -16,6 +17,11 @@ class QueryTests (TestCase):
     def test_registry(self):
         book_docs = set(seeker.model_documents[Book])
         self.assertEqual(book_docs, set([BookDocument, DjangoBookDocument]))
+        # Make sure documents defined outside "mappings" modules are ignored (by default).
+        self.assertIn(DerivedDocument, seeker.documents)
+        self.assertNotIn(BaseDocument, seeker.documents)
+        # All the documents (so far) in these tests are in the "core" app.
+        self.assertEqual(set(seeker.app_documents['core']), set(seeker.documents))
 
     def test_query(self):
         results = BookDocument.search().query('query_string', query='django').execute()

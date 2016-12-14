@@ -265,7 +265,7 @@ def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude
 
 def document_from_model(model_class, document_class=ModelIndex, fields=None, exclude=None,
                         index=None, using='default', doc_type=None, field_factory=None,
-                        extra=None):
+                        extra=None, module='seeker.mappings'):
     """
     Returns an instance of ``document_class`` with a ``Meta`` inner class and default ``queryset`` class method.
     """
@@ -276,4 +276,5 @@ def document_from_model(model_class, document_class=ModelIndex, fields=None, exc
             'mapping': build_mapping(model_class, doc_type=doc_type, fields=fields, exclude=exclude, field_factory=field_factory, extra=extra),
         }),
         'queryset': classmethod(lambda cls: model_class.objects.all()),
+        '__module__': module,
     })

@@ -1,10 +1,13 @@
+import elasticsearch_dsl as dsl
+
 import seeker
 
+from .external import BaseDocument
 from .models import Book, Magazine
 
 
-BookDocument = seeker.document_from_model(Book)
-MagazineDocument = seeker.document_from_model(Magazine)
+BookDocument = seeker.document_from_model(Book, module=__name__)
+MagazineDocument = seeker.document_from_model(Magazine, module=__name__)
 
 
 class DjangoBookDocument (seeker.ModelIndex):
@@ -17,6 +20,5 @@ class DjangoBookDocument (seeker.ModelIndex):
         return Book.objects.filter(title__icontains='django')
 
 
-seeker.register(BookDocument)
-seeker.register(MagazineDocument)
-seeker.register(DjangoBookDocument)
+class DerivedDocument (BaseDocument):
+    derived_field = dsl.Integer()

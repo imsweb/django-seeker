@@ -1,6 +1,10 @@
 from .mapping import Indexable, ModelIndex
 
+import logging
 import threading
+
+
+logger = logging.getLogger(__name__)
 
 
 documents = []
@@ -9,12 +13,11 @@ model_documents = {}
 model_doc_types = {}
 app_documents = {}
 
-current_app = threading.local()
 
-
-def register(doc_class):
+def register(doc_class, app_label=None):
     assert issubclass(doc_class, Indexable)
     if doc_class in documents:
+        logger.warning('Document class %s.%s was previously registered - skipping.', doc_class.__module__, doc_class.__name__)
         return
     documents.append(doc_class)
     if issubclass(doc_class, ModelIndex):
@@ -23,7 +26,5 @@ def register(doc_class):
         model_documents.setdefault(model_class, []).append(doc_class)
         # For doing queries across multiple document types, we'll need a mapping from doc_type back to model_class.
         model_doc_types[doc_class._doc_type.name] = model_class
-    try:
-        app_documents.setdefault(current_app.label, []).append(doc_class)
-    except:
-        pass
+    if app_label:
+        app_documents.setdefault(app_label, []).append(doc_class)
