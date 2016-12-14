@@ -1,16 +1,20 @@
-from .registry import model_documents
 from django.conf import settings
-from elasticsearch_dsl.connections import connections
 from elasticsearch import NotFoundError
+from elasticsearch_dsl.connections import connections
 import elasticsearch_dsl as dsl
+
+from .registry import model_documents
+
 import importlib
 import sys
 import time
+
 
 def import_class(fq_name):
     module_name, class_name = fq_name.rsplit('.', 1)
     mod = importlib.import_module(module_name)
     return getattr(mod, class_name)
+
 
 def index(obj, index=None, using=None):
     """
@@ -34,6 +38,7 @@ def index(obj, index=None, using=None):
             refresh=True
         )
 
+
 def delete(obj, index=None, using=None):
     """
     Shortcut to delete a Django object from the ES index based on it's model class.
@@ -55,6 +60,7 @@ def delete(obj, index=None, using=None):
             # If this object wasn't indexed for some reason (maybe not in the document's queryset), no big deal.
             pass
 
+
 def search(models=None, using='default'):
     """
     Returns a search object across the specified models.
@@ -68,6 +74,7 @@ def search(models=None, using='default'):
             indices.append(doc_class._doc_type.index)
             types.append(doc_class)
     return dsl.Search(using=using).index(*indices).doc_type(*types)
+
 
 def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.stdout, frequency=1.0):
     """

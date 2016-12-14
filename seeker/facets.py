@@ -1,7 +1,9 @@
 from django.conf import settings
 from elasticsearch_dsl import A, Q
+
 import functools
 import operator
+
 
 class Facet (object):
     field = None
@@ -35,6 +37,7 @@ class Facet (object):
         for b in self.data(response).get('buckets', []):
             yield self.get_key(b), b.get('doc_count')
 
+
 class TermsFacet (Facet):
 
     def __init__(self, field, **kwargs):
@@ -62,6 +65,7 @@ class TermsFacet (Facet):
             return search.filter('term', **{self.field: values[0]})
         return search
 
+
 class GlobalTermsFacet (TermsFacet):
 
     def apply(self, search, **extra):
@@ -72,6 +76,7 @@ class GlobalTermsFacet (TermsFacet):
 
     def data(self, response):
         return response.aggregations[self.field][self.field].to_dict()
+
 
 class YearHistogram (Facet):
     template = 'seeker/facets/year_histogram.html'
@@ -103,6 +108,7 @@ class YearHistogram (Facet):
 
     def get_key(self, bucket):
         return bucket.get('key_as_string')
+
 
 class RangeFilter (Facet):
     template = 'seeker/facets/range.html'

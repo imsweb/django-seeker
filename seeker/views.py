@@ -1,22 +1,26 @@
 from django.conf import settings
 from django.contrib import messages
-from django.http import JsonResponse, StreamingHttpResponse, QueryDict, Http404
-from django.shortcuts import render, redirect
-from django.template import loader, Context, RequestContext
+from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
+from django.shortcuts import redirect, render
+from django.template import Context, RequestContext, loader
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 from django.views.generic import View
 from elasticsearch_dsl.utils import AttrList
-from seeker.templatetags.seeker import seeker_format
-from .mapping import DEFAULT_ANALYZER
-import collections
 import elasticsearch_dsl as dsl
-import inspect
 import six
-import urllib
+
+from seeker.templatetags.seeker import seeker_format
+
+from .mapping import DEFAULT_ANALYZER
+
+import collections
+import inspect
 import re
+import urllib
+
 
 class Column (object):
     """
@@ -111,6 +115,7 @@ class Column (object):
         else:
             export_val = ''
         return export_val
+
 
 class SeekerView (View):
     document = None

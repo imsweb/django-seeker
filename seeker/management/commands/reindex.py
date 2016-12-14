@@ -2,7 +2,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from elasticsearch.helpers import bulk
 from elasticsearch_dsl.connections import connections
-from seeker.registry import documents, app_documents
+
+from seeker.registry import app_documents, documents
 from seeker.utils import progress
 
 

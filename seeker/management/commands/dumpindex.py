@@ -1,9 +1,11 @@
-from django.core.management.base import BaseCommand
 from django.apps import apps
+from django.core.management.base import BaseCommand
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
+
 from optparse import make_option
 import json
+
 
 class Command (BaseCommand):
     args = '<doc_type>'

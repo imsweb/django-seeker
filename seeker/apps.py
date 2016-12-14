@@ -1,13 +1,17 @@
+from django.apps import AppConfig, apps
+from django.conf import settings
+
 from .mapping import Indexable
 from .registry import current_app, register
 from .utils import import_class
-from django.apps import AppConfig, apps
-from django.conf import settings
+
 import importlib
 import inspect
 import logging
 
+
 logger = logging.getLogger(__name__)
+
 
 class SeekerConfig (AppConfig):
     name = 'seeker'

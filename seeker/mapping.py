@@ -1,15 +1,18 @@
 from django.conf import settings
 from django.db import models
+from elasticsearch.helpers import bulk, scan
 from elasticsearch_dsl.connections import connections
 from elasticsearch_dsl.field import InnerObject
-from elasticsearch.helpers import bulk, scan
 import elasticsearch_dsl as dsl
-import logging
 import six
+
+import logging
+
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ANALYZER = getattr(settings, 'SEEKER_DEFAULT_ANALYZER', 'snowball')
+
 
 def follow(obj, path, force_string=False):
     parts = path.split('__') if path else []
@@ -31,6 +34,7 @@ def follow(obj, path, force_string=False):
     if force_string and isinstance(obj, models.Model):
         return six.text_type(obj)
     return obj
+
 
 def serialize_object(obj, mapping, prepare=None):
     """
@@ -56,6 +60,7 @@ def serialize_object(obj, mapping, prepare=None):
                 else:
                     data[name] = value
     return data
+
 
 class Indexable (dsl.DocType):
     """
@@ -103,6 +108,7 @@ class Indexable (dsl.DocType):
                     }
             bulk(es, get_actions())
             es.indices.refresh(index=index)
+
 
 class ModelIndex (Indexable):
     """
@@ -188,6 +194,7 @@ RawMultiString = dsl.String(analyzer=DEFAULT_ANALYZER, multi=True, fields={
 The same as ``RawString``, but with ``multi=True`` specified, so lists are returned.
 """
 
+
 def document_field(field):
     """
     The default ``field_factory`` method for converting Django field instances to ``elasticsearch_dsl.Field`` instances.
@@ -210,6 +217,7 @@ def document_field(field):
     }
     return defaults.get(field.__class__, RawString)
 
+
 def deep_field_factory(field):
     if field.is_relation and (field.many_to_one or field.one_to_one):
         props = {}
@@ -220,6 +228,7 @@ def deep_field_factory(field):
         return dsl.Object(properties=props)
     else:
         return document_field(field)
+
 
 def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
@@ -252,6 +261,7 @@ def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude
         for name, field in extra.items():
             mapping.field(name, field)
     return mapping
+
 
 def document_from_model(model_class, document_class=ModelIndex, fields=None, exclude=None,
                         index=None, using='default', doc_type=None, field_factory=None,

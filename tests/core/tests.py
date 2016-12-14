@@ -1,14 +1,17 @@
-from .mappings import BookDocument, DjangoBookDocument
-from .models import Book, Category
 from django.core.management import call_command
 from django.test import TestCase
+
 import seeker
+
+from .mappings import BookDocument, DjangoBookDocument
+from .models import Book, Category
+
 
 class QueryTests (TestCase):
     fixtures = ('books',)
 
     def setUp(self):
-        call_command('reindex', quiet=True)
+        call_command('reindex', quiet=True, drop=True)
 
     def test_registry(self):
         book_docs = set(seeker.model_documents[Book])

@@ -5,15 +5,18 @@ from django.template import loader
 from django.utils.encoding import force_text
 from django.utils.safestring import mark_safe
 from six.moves.urllib.parse import parse_qsl
-import datetime
 import six
+
+import datetime
 import re
 import urllib
+
 
 register = template.Library()
 
 # Convenience so people don't need to install django.contrib.humanize
 register.filter(intcomma)
+
 
 @register.filter
 def seeker_format(value):
@@ -28,12 +31,14 @@ def seeker_format(value):
         return ', '.join(force_text(v) for v in value)
     return force_text(value)
 
+
 @register.filter
 def seeker_filter_querystring(qs, keep):
     if isinstance(keep, basestring):
         keep = [keep]
     qs_parts = [part for part in parse_qsl(qs, keep_blank_values=True) if part[0] in keep]
     return urllib.urlencode(qs_parts)
+
 
 @register.simple_tag
 def seeker_facet(facet, results, selected=None, **params):
@@ -44,9 +49,11 @@ def seeker_facet(facet, results, selected=None, **params):
     })
     return loader.render_to_string(facet.template, params)
 
+
 @register.simple_tag
 def seeker_column(column, result, **kwargs):
     return column.render(result, **kwargs)
+
 
 @register.simple_tag
 def seeker_score(result, max_score=None, template='seeker/score.html'):
@@ -56,6 +63,7 @@ def seeker_score(result, max_score=None, template='seeker/score.html'):
         'max_score': max_score,
         'percentile': pct * 100.0,
     })
+
 
 @register.simple_tag
 def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html'):
@@ -78,6 +86,7 @@ def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=
     })
 
 _phrase_re = re.compile(r'"([^"]*)"')
+
 
 @register.simple_tag
 def seeker_highlight(text, query, algorithm='english'):

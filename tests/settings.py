@@ -1,5 +1,8 @@
-import sys
+from elasticsearch_dsl.connections import connections
+
 import os
+import sys
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -36,5 +39,4 @@ USE_TZ = True
 
 SEEKER_INDEX = 'seeker-tests'
 
-from elasticsearch_dsl.connections import connections
 connections.configure(default={'hosts': 'localhost'})

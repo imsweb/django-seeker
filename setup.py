@@ -1,6 +1,8 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
+
 import os
 import re
+
 
 def get_version():
     with open(os.path.join(os.path.dirname(__file__), 'seeker', '__init__.py')) as fp:

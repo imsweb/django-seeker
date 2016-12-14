@@ -1,9 +1,12 @@
 __version__ = '3.0-dev'
 
-from .mapping import Indexable, ModelIndex, document_from_model, build_mapping, document_field, deep_field_factory, RawString, RawMultiString, DEFAULT_ANALYZER
-from .facets import Facet, TermsFacet, GlobalTermsFacet, YearHistogram, RangeFilter
-from .views import SeekerView, Column
-from .utils import search, index, delete
-from .registry import register, documents, model_documents, app_documents
+from .facets import Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram
+from .mapping import (
+    DEFAULT_ANALYZER, Indexable, ModelIndex, RawMultiString, RawString, build_mapping, deep_field_factory,
+    document_field, document_from_model)
+from .registry import app_documents, documents, model_documents, register
+from .utils import delete, index, search
+from .views import Column, SeekerView
+
 
 default_app_config = 'seeker.apps.SeekerConfig'

@@ -1,5 +1,7 @@
 from .mapping import Indexable, ModelIndex
+
 import threading
+
 
 documents = []
 
@@ -8,6 +10,7 @@ model_doc_types = {}
 app_documents = {}
 
 current_app = threading.local()
+
 
 def register(doc_class):
     assert issubclass(doc_class, Indexable)

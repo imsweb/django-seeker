@@ -1,8 +1,12 @@
-from .utils import index, delete
 from django.db import models
+
+from .utils import delete, index
+
 import logging
 
+
 logger = logging.getLogger(__name__)
+
 
 class ModelIndexingMiddleware (object):
     """

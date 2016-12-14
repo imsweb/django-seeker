@@ -1,10 +1,13 @@
-from django.core.management.base import BaseCommand, CommandError
 from django.apps import apps
-from elasticsearch_dsl.connections import connections
+from django.core.management.base import BaseCommand, CommandError
 from elasticsearch.helpers import bulk
-from optparse import make_option
+from elasticsearch_dsl.connections import connections
+
 from seeker.registry import model_doc_types
+
+from optparse import make_option
 import json
+
 
 class Command (BaseCommand):
     args = '<app1 app2 ...>'
