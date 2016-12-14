@@ -1,8 +1,11 @@
-from .mappings import BookDocument
 from .models import Book
 from django.core.management import call_command
 from django.test import TestCase
 import seeker
+
+from .external import BaseDocument
+from .mappings import BookDocument, DerivedDocument
+from .models import Book, Category
 
 class QueryTests (TestCase):
     fixtures = ('books',)
@@ -10,6 +13,13 @@ class QueryTests (TestCase):
     def setUp(self):
         call_command('reindex', quiet=True)
         self.document = seeker.model_documents[Book][0]
+
+    def test_registry(self):
+        # Make sure documents defined outside "mappings" modules are ignored (by default).
+        self.assertIn(DerivedDocument, seeker.documents)
+        self.assertNotIn(BaseDocument, seeker.documents)
+        # All the documents (so far) in these tests are in the "core" app.
+        self.assertEqual(set(seeker.app_documents['core']), set(seeker.documents))
 
     def test_query(self):
         results = self.document.search().query('query_string', query='django').execute()
