@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='savedsearch',
             name='user',
-            field=models.ForeignKey(related_name='seeker_searches', to=settings.AUTH_USER_MODEL),
+            field=models.ForeignKey(related_name='seeker_searches', to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE),
         ),
     ]
