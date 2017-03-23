@@ -55,7 +55,7 @@ class Column (object):
             if issubclass(cls, dsl.DocType):
                 search_templates.append('seeker/%s/%s.html' % (cls._doc_type.name, self.field))
         search_templates.append('seeker/column.html')
-        self.template = loader.select_template(search_templates)
+        self.template_obj = loader.select_template(search_templates)
         return self
 
     def header(self):
@@ -105,7 +105,7 @@ class Column (object):
             'query': self.view.get_keywords(),
         }
         params.update(self.context(result, **kwargs))
-        return self.template.render(Context(params))
+        return self.template_obj.render(Context(params))
 
     def export_value(self, result):
         export_field = self.field if self.export is True else self.export
