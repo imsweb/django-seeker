@@ -57,7 +57,10 @@ class Column (object):
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         q = self.view.request.GET.copy()
-        field = q.get('s', '')
+        if self.view.sort and not q.get('q', ''):
+            field = q.get('s', self.view.sort[0])
+        else:
+            field = q.get('s', '')
         sort = None
         cls += ' sort'
         if field.lstrip('-') == self.field:
