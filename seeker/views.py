@@ -6,6 +6,7 @@ from django.template import loader, Context, RequestContext
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
+from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.views.generic import View
 from elasticsearch_dsl.utils import AttrList
@@ -14,7 +15,6 @@ from .mapping import DEFAULT_ANALYZER
 import collections
 import elasticsearch_dsl as dsl
 import six
-import urllib
 import re
 
 class Column (object):
@@ -296,7 +296,7 @@ class SeekerView (View):
             # Make sure display/facet/sort fields maintain their order. Everything else can be sorted alphabetically for consistency.
             if key not in ('d', 'f', 's'):
                 values = sorted(values)
-            parts.extend(urllib.urlencode({key: val}) for val in values)
+            parts.extend(urlencode({key: val}) for val in values)
         return '&'.join(parts)
 
     def get_field_label(self, field_name):
