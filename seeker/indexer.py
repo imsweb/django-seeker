@@ -11,9 +11,9 @@ class ModelIndexer(object):
     Class that automatically indexes any new or deleted mapped model objects.
     """
 
-    def register_signal_handlers(self):
+    def connect_signal_handlers(self):
         """
-        Register save and delete signal handler for mapped models. Also checks each ModelIndex for any additional signal handling that may be needed. 
+        Connects save and delete signal handler for mapped models. Also checks each ModelIndex for any additional signal handling that may be needed. 
         """
 
         for model_class, document_classes in model_documents.items():
@@ -21,7 +21,15 @@ class ModelIndexer(object):
             signals.post_delete.connect(self.handle_delete, sender=model_class, weak=False)
 
             for document_class in document_classes:
-                document_class.register_additional_signal_handlers(self)
+                document_class.connect_additional_signal_handlers(self)
+
+    def disconnect_signal_handlers(self):
+        for model_class, document_classes in model_documents.items():
+            signals.post_save.disconnect(self.handle_save, sender=model_class, weak=False)
+            signals.post_delete.disconnect(self.handle_delete, sender=model_class, weak=False)
+
+            for document_class in document_classes:
+                document_class.disconnect_additional_signal_handlers(self)
 
     def handle_save(self, sender, instance, **kwargs):
         try:

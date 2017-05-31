@@ -53,4 +53,4 @@ class SeekerConfig (AppConfig):
                 indexer_cls = import_class(indexer)
             except ImportError:
                 logger.error("Error importing indexer '{}' specified in settings.SEEKER_INDEXER".format(indexer))
-            indexer_cls().register_signal_handlers()
+            indexer_cls().connect_signal_handlers()
