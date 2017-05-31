@@ -172,6 +172,15 @@ class ModelIndex (Indexable):
         data.update(serialize_object(obj, cls._doc_type.mapping, prepare=cls))
         return data
 
+    @classmethod
+    def register_additional_signal_handlers(cls, indexer):
+        """
+            Override to register additional signal handlers to work in conjunction with ``SEEKER_INDEXER`` 
+            (e.g. if a mapping includes related data such as a ManyToManyField, a signal could be registered to index 
+            on the ManyToManyField save). 
+        """
+        pass
+
     @property
     def instance(self):
         """

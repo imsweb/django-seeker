@@ -46,3 +46,11 @@ class SeekerConfig (AppConfig):
                         register(cls, app_label=app.label)
                 except ImportError:
                     pass
+
+        indexer = getattr(settings, 'SEEKER_INDEXER', 'seeker.indexer.ModelIndexer')
+        if indexer is not None:
+            try:
+                indexer_cls = import_class(indexer)
+            except ImportError:
+                logger.error("Error importing indexer '{}' specified in settings.SEEKER_INDEXER".format(indexer))
+            indexer_cls().register_signal_handlers()
