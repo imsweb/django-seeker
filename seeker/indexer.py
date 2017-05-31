@@ -36,7 +36,7 @@ class ModelIndexer(object):
             logger.exception('Error deleting %s instance: %s', sender, instance)
 
     def handle_m2m_changed(self, sender, instance, action, **kwargs):
-        if action == 'post_add' or action == 'post_clear' or action == 'post_clear':
+        if action == 'post_add' or action == 'post_remove' or action == 'post_clear':
             try:
                 index(instance)
             except:
