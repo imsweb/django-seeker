@@ -105,7 +105,7 @@ class Column (object):
             'query': self.view.get_keywords(),
         }
         params.update(self.context(result, **kwargs))
-        return self.template_obj.render(Context(params))
+        return self.template_obj.render(params)
 
     def export_value(self, result):
         export_field = self.field if self.export is True else self.export
