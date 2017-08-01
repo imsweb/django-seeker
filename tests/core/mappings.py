@@ -1,8 +1,12 @@
-from .models import Book, Magazine
+import elasticsearch_dsl as dsl
+
 import seeker
 
-BookDocument = seeker.document_from_model(Book)
-MagazineDocument = seeker.document_from_model(Magazine)
+from .external import BaseDocument
+from .models import Book, Magazine
 
-seeker.register(BookDocument)
-seeker.register(MagazineDocument)
+BookDocument = seeker.document_from_model(Book, module=__name__)
+MagazineDocument = seeker.document_from_model(Magazine, module=__name__)
+
+class DerivedDocument (BaseDocument):
+    derived_field = dsl.Integer()
