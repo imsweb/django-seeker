@@ -48,14 +48,15 @@ class Column (object):
     def bind(self, view, visible):
         self.view = view
         self.visible = visible
-        search_templates = []
-        if self.template:
-            search_templates.append(self.template)
-        for cls in inspect.getmro(view.document):
-            if issubclass(cls, dsl.DocType):
-                search_templates.append('seeker/%s/%s.html' % (cls._doc_type.name, self.field))
-        search_templates.append('seeker/column.html')
-        self.template_obj = loader.select_template(search_templates)
+        if self.visible:
+            search_templates = []
+            if self.template:
+                search_templates.append(self.template)
+            for cls in inspect.getmro(view.document):
+                if issubclass(cls, dsl.DocType):
+                    search_templates.append('seeker/%s/%s.html' % (cls._doc_type.name, self.field))
+            search_templates.append('seeker/column.html')
+            self.template_obj = loader.select_template(search_templates)
         return self
 
     def header(self):
