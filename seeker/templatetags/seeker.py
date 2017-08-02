@@ -1,6 +1,5 @@
 from django import template
 from django.template import loader
-from django.template.base import Context
 from django.utils.html import escape
 from django.http import QueryDict
 from django.conf import settings
@@ -155,11 +154,11 @@ def result_value(result, field_name, highlight=True, template=None):
         search_templates.insert(0, template)
     try:
         t = loader.select_template(search_templates)
-        return t.render(Context({
+        return t.render({
             'result': result,
             'value': value,
             'highlighted': was_highlighted,
-        }))
+        })
     except:
         pass
     # Otherwise, do our best to render the value as a string.
