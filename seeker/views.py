@@ -16,6 +16,7 @@ import six
 from seeker.templatetags.seeker import seeker_format
 
 from .mapping import DEFAULT_ANALYZER
+from .registry import mapping_field_templates
 
 import collections
 import inspect
@@ -49,14 +50,12 @@ class Column (object):
         self.view = view
         self.visible = visible
         if self.visible:
-            search_templates = []
+            field_templates = self.view.get_field_templates(self.field)
+            self.template_obj = field_templates.get('template_obj', None)
             if self.template:
-                search_templates.append(self.template)
-            for cls in inspect.getmro(view.document):
-                if issubclass(cls, dsl.DocType):
-                    search_templates.append('seeker/%s/%s.html' % (cls._doc_type.name, self.field))
-            search_templates.append('seeker/column.html')
-            self.template_obj = loader.select_template(search_templates)
+                search_templates = [self.template,]
+                search_templates.extend(field_templates.get('search_templates', []))
+                self.template_obj = loader.select_template(search_templates)
         return self
 
     def header(self):
@@ -340,6 +339,12 @@ class SeekerView (View):
             elif getattr(dsl_field, 'index', None) == 'not_analyzed':
                 return field_name
         return None
+
+    def get_field_templates(self, field_name):
+        """
+        Returns a dictionary of default field templates.
+        """
+        return mapping_field_templates.get(self.document._doc_type.name, {}).get(field_name, {})
 
     def get_field_highlight(self, field_name):
         if field_name in self.highlight_fields:
