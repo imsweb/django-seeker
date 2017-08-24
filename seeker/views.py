@@ -314,8 +314,8 @@ class SeekerView (View):
             return self.field_labels[field_name]
         try:
             # If the document is a ModelIndex, try to get the verbose_name of the Django field.
-            f = self.document.queryset().model._meta.get_field(field_name)
-            return f.verbose_name.capitalize()
+            f = self.document.queryset().model._meta.get_field(field_name)            
+            return f.verbose_name[0].upper() + f.verbose_name[1:]
         except:
             # Otherwise, just make the field name more human-readable.
             return field_name.replace('_', ' ').capitalize()
