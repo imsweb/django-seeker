@@ -352,27 +352,27 @@ class SeekerView (View):
         try:
             return self._field_templates[field_name]
         except KeyError:
-            return self.set_field_template(field_name)
+            return self.find_field_template(field_name)
 
     @classmethod
-    def set_field_template(cls, field_name):
+    def find_field_template(cls, field_name):
         """
-        sets the default template instance for the given field name with the given template.
+        finds and sets the default template instance for the given field name with the given template.
         """
         search_templates = []
         for _cls in inspect.getmro(cls.document):
             if issubclass(_cls, dsl.DocType):
                 search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))
-            search_templates.append('seeker/column.html')
-            template = loader.select_template(search_templates)
-            existing_templates = list(set(cls._field_templates.itervalues()))
-            for existing_template in existing_templates:
-                #If the template object already exists just re-use the existing one.
-                if template.template.name == existing_template.template.name:
-                    template = existing_template
-                    break
-            cls._field_templates.update({field_name: template})
-            return template
+        search_templates.append('seeker/column.html')
+        template = loader.select_template(search_templates)
+        existing_templates = list(set(cls._field_templates.itervalues()))
+        for existing_template in existing_templates:
+            #If the template object already exists just re-use the existing one.
+            if template.template.name == existing_template.template.name:
+                template = existing_template
+                break
+        cls._field_templates.update({field_name: template})
+        return template
 
     @classmethod
     def update_field_template(cls, field_name, template):
