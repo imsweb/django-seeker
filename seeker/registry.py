@@ -31,15 +31,5 @@ def register(doc_class, app_label=None):
         model_documents.setdefault(model_class, []).append(doc_class)
         # For doing queries across multiple document types, we'll need a mapping from doc_type back to model_class.
         model_doc_types[doc_class._doc_type.name] = model_class
-        mapping_field_templates[doc_class._doc_type.name] = {}
-        for key, properties in doc_class._doc_type.mapping.properties._params.items():
-            for field in properties:
-                search_templates = []
-                for cls in inspect.getmro(doc_class):
-                    if issubclass(cls, dsl.DocType):
-                        search_templates.append('seeker/%s/%s.html' % (cls._doc_type.name, field))
-                search_templates.append('seeker/column.html')
-                mapping_field_templates[doc_class._doc_type.name].update({field: {'search_templates': search_templates,
-                                                                                  'template_obj': loader.select_template(search_templates)}})
     if app_label:
         app_documents.setdefault(app_label, []).append(doc_class)
