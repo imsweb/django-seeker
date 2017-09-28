@@ -1,9 +1,5 @@
-from django.template import loader
-
 from .mapping import Indexable, ModelIndex
 
-import elasticsearch_dsl as dsl
-import inspect
 import logging
 import threading
 
@@ -16,7 +12,6 @@ documents = []
 model_documents = {}
 model_doc_types = {}
 app_documents = {}
-mapping_field_templates = {}
 
 
 def register(doc_class, app_label=None):
