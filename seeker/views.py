@@ -2,8 +2,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
 from django.shortcuts import redirect, render
-from django.template import Context, RequestContext, loader
-from django.template.base import TemplateDoesNotExist
+from django.template import Context, RequestContext, loader, TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
