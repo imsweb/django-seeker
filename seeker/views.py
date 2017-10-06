@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
 from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, loader
+from django.template.base import TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
@@ -49,14 +50,12 @@ class Column (object):
         self.view = view
         self.visible = visible
         if self.visible:
-            search_templates = []
+            self.template_obj = self.view.get_field_template(self.field)
             if self.template:
-                search_templates.append(self.template)
-            for cls in inspect.getmro(view.document):
-                if issubclass(cls, dsl.DocType):
-                    search_templates.append('seeker/%s/%s.html' % (cls._doc_type.name, self.field))
-            search_templates.append('seeker/column.html')
-            self.template_obj = loader.select_template(search_templates)
+                try:
+                    self.template_obj = loader.get_template(self.template)
+                except TemplateDoesNotExist:
+                    pass
         return self
 
     def header(self):
@@ -279,6 +278,11 @@ class SeekerView (View):
     """
     Extra context variables to use when rendering. May be passed via as_view(), or overridden as a property.
     """
+    
+    _field_templates = {}
+    """
+    A dictionary of default templates for each field
+    """
 
     def normalized_querystring(self, qs=None, ignore=None):
         """
@@ -340,6 +344,42 @@ class SeekerView (View):
             elif getattr(dsl_field, 'index', None) == 'not_analyzed':
                 return field_name
         return None
+
+    def get_field_template(self, field_name):
+        """
+        Returns the default template instance for the given field name.
+        """
+        try:
+            return self._field_templates[field_name]
+        except KeyError:
+            return self.find_field_template(field_name)
+
+    @classmethod
+    def find_field_template(cls, field_name):
+        """
+        finds and sets the default template instance for the given field name with the given template.
+        """
+        search_templates = []
+        for _cls in inspect.getmro(cls.document):
+            if issubclass(_cls, dsl.DocType):
+                search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))
+        search_templates.append('seeker/column.html')
+        template = loader.select_template(search_templates)
+        existing_templates = list(set(cls._field_templates.itervalues()))
+        for existing_template in existing_templates:
+            #If the template object already exists just re-use the existing one.
+            if template.template.name == existing_template.template.name:
+                template = existing_template
+                break
+        cls._field_templates.update({field_name: template})
+        return template
+
+    @classmethod
+    def update_field_template(cls, field_name, template):
+        """
+        Updates the _field_template instance of field_name with template object for the entire class
+        """
+        cls._field_templates.update({field_name: template})
 
     def get_field_highlight(self, field_name):
         if field_name in self.highlight_fields:
