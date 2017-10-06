@@ -278,6 +278,11 @@ class SeekerView (View):
     Extra context variables to use when rendering. May be passed via as_view(), or overridden as a property.
     """
     
+    field_templates = {}
+    """
+    A dictionary of field template overrides.
+    """
+    
     _field_templates = {}
     """
     A dictionary of default templates for each field
@@ -359,6 +364,8 @@ class SeekerView (View):
         finds and sets the default template instance for the given field name with the given template.
         """
         search_templates = []
+        if field_name in cls.field_templates:
+            search_templates.append(cls.field_templates[field_name])
         for _cls in inspect.getmro(cls.document):
             if issubclass(_cls, dsl.DocType):
                 search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))
