@@ -249,6 +249,11 @@ class SeekerView (View):
     A dictionary of field label overrides.
     """
 
+    field_templates = {}
+    """
+    A dictionary of field template overrides.
+    """
+
     sort_fields = {}
     """
     A dictionary of sort field overrides.
@@ -397,10 +402,11 @@ class SeekerView (View):
         """
         if field_name in self.field_columns:
             return self.field_columns[field_name]
+        template = self.field_templates.get(field_name)
         label = self.get_field_label(field_name)
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
-        return Column(field_name, label=label, sort=sort, highlight=highlight)
+        return Column(field_name, label=label, sort=sort, highlight=highlight, template=template)
 
     def get_columns(self):
         """
