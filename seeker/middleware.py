@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from django.utils.deprecation import MiddlewareMixin
 from .utils import get_mappings, get_model_mappings
 import operator
 import logging
@@ -45,13 +46,14 @@ def index_related(model_class, instance, delete=False):
                 else:
                     mapping.index(obj)
 
-class ModelIndexingMiddleware (object):
+class ModelIndexingMiddleware (MiddlewareMixin):
     """
     Middleware class that automatically indexes any new or deleted model objects. ContentTypes are used
     in order to allow proper indexing of proxied models.
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super(ModelIndexingMiddleware, self).__init__(*args, **kwargs)
         models.signals.post_save.connect(self.handle_save)
         models.signals.post_delete.connect(self.handle_delete)
 
