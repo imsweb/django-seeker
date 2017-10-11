@@ -1,7 +1,7 @@
 Requirements
 ============
 
-  * Django 1.7 or later
+  * Django 1.8 or later
 
 
 Documentation
