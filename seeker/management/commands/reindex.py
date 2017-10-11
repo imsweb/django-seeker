@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand
 from django.apps import apps
 from seeker.utils import get_app_mappings
 from elasticsearch.helpers import bulk
-from optparse import make_option
 import StringIO
 import sys
 import gc
@@ -46,32 +45,32 @@ def reindex(mapping, options):
 class Command (BaseCommand):
     args = '<app1 app2 ...>'
     help = 'Re-indexes the specified applications'
-    option_list = BaseCommand.option_list + (
-        make_option('--quiet',
+
+    def add_arguments(self, parser):
+        parser.add_argument('--quiet',
             action='store_true',
             dest='quiet',
             default=False,
             help='Suppress all output to stdout'
-        ),
-        make_option('--cursor',
+        )
+        parser.add_argument('--cursor',
             action='store_true',
             dest='cursor',
             default=False,
             help='Use a server-side cursor when fetching objects'
-        ),
-        make_option('--no-data',
+        )
+        parser.add_argument('--no-data',
             action='store_false',
             dest='data',
             default=True,
             help='Only reindex the mappings, not any data'
-        ),
-        make_option('--drop',
+        )
+        parser.add_argument('--drop',
             action='store_true',
             dest='drop',
             default=False,
             help='Drops the index before re-indexing'
-        ),
-    )
+        )
 
     def handle(self, *args, **options):
         dropped = set()
