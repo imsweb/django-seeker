@@ -5,10 +5,14 @@ from elasticsearch.helpers import scan
 import json
 
 class Command (BaseCommand):
-    args = '<app1 app2 ...>'
     help = 'Dumps out data from the specified applications'
 
     def add_arguments(self, parser):
+        parser.add_argument('app_labels',
+            nargs='*',
+            default=[],
+            help='Optional (space delimited) list of apps: <app1 app2 ...>'
+        )
         parser.add_argument('--indent',
             type='int',
             dest='indent',
@@ -17,7 +21,7 @@ class Command (BaseCommand):
         )
 
     def handle(self, *args, **options):
-        app_labels = args or [a.label for a in apps.get_app_configs()]
+        app_labels = options['app_labels'] or [a.label for a in apps.get_app_configs()]
         output = self.stdout
         output.write('[')
         for app_label in app_labels:

@@ -43,10 +43,14 @@ def reindex(mapping, options):
     output.flush()
 
 class Command (BaseCommand):
-    args = '<app1 app2 ...>'
     help = 'Re-indexes the specified applications'
 
     def add_arguments(self, parser):
+        parser.add_argument('app_labels',
+            nargs='*',
+            default=[],
+            help='Optional (space delimited) list of apps: <app1 app2 ...>'
+        )
         parser.add_argument('--quiet',
             action='store_true',
             dest='quiet',
@@ -74,7 +78,7 @@ class Command (BaseCommand):
 
     def handle(self, *args, **options):
         dropped = set()
-        app_labels = args or [a.label for a in apps.get_app_configs()]
+        app_labels = options['app_labels'] or [a.label for a in apps.get_app_configs()]
         for app_label in app_labels:
             for mapping in get_app_mappings(app_label):
                 if options['drop'] and mapping.index_name not in dropped:
