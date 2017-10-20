@@ -3,12 +3,13 @@ from __future__ import unicode_literals
 
 from django.conf import settings
 from django.db import migrations, models
+from seeker import get_app_label
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('seeker', '0001_initial'),
+        (get_app_label(), '0001_initial'),
     ]
 
     operations = [
