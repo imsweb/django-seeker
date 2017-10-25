@@ -4,6 +4,7 @@ from django.conf import settings
 from .mapping import Indexable
 from .registry import register
 from .utils import import_class
+from seeker import get_app_name, get_app_label
 
 import importlib
 import inspect
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class SeekerConfig (AppConfig):
-    name = 'seeker'
+    name = get_app_name()
+    label = get_app_label()
 
     def ready(self):
         mapping_module = getattr(settings, 'SEEKER_MAPPING_MODULE', 'mappings')
