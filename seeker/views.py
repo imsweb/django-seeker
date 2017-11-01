@@ -371,7 +371,7 @@ class SeekerView (View):
                 search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
-        existing_templates = list(set(cls._field_templates.itervalues()))
+        existing_templates = list(set(cls._field_templates.values()))
         for existing_template in existing_templates:
             #If the template object already exists just re-use the existing one.
             if template.template.name == existing_template.template.name:
@@ -432,9 +432,19 @@ class SeekerView (View):
                     columns.append(c)
         # Make sure the columns are bound and ordered based on the display fields (selected or default).
         display = self.get_display()
+        visible_columns = []
+        non_visible_columns=[]
         for c in columns:
             c.bind(self, c.field in display)
-        columns.sort(key=lambda c: display.index(c.field) if c.visible else c.label)
+            if c.visible:
+                visible_columns.append(c)
+            else:
+                non_visible_columns.append(c)
+        visible_columns.sort(key=lambda  c: display.index(c.field))
+        non_visible_columns.sort(key=lambda c: c.label)
+        visible_columns.extend(non_visible_columns)
+        columns=visible_columns[:]
+        
         return columns
 
     def get_keywords(self):
