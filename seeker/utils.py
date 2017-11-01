@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from django.conf import settings
 from elasticsearch import NotFoundError
 from elasticsearch_dsl.connections import connections
@@ -83,7 +84,7 @@ def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.std
     """
     assert len(chars) >= 2
     if label:
-        label = unicode(label) + ' '
+        label = str(label) + ' '
 
     try:
         count = len(iterator)
