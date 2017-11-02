@@ -442,10 +442,8 @@ class SeekerView (View):
                 non_visible_columns.append(c)
         visible_columns.sort(key=lambda  c: display.index(c.field))
         non_visible_columns.sort(key=lambda c: c.label)
-        visible_columns.extend(non_visible_columns)
-        columns=visible_columns[:]
         
-        return columns
+        return visible_columns + non_visible_columns
 
     def get_keywords(self):
         return self.request.GET.get('q', '').strip()
