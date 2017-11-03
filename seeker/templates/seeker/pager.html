@@ -1,17 +1,13 @@
 {% load i18n %}
-{% load seeker %}
-
 
 <ul class="pagination">
     {% if 1 not in page_range %}
         <li><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}=1" class="page-link" data-page="1">1 &hellip;</a></li>
     {% endif %}
     {% for p in page_range %}
-        <li{% if p == page.number %} class="active"{% endif %}><a href="?{{ querystring|remove_p }}{% if querystring|remove_p %}&amp;{% endif %}{{ param }}={{ p }}" class="page-link" data-page="{{ p }}">{{ p }}</a></li>
+        <li{% if p == page.number %} class="active"{% endif %}><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ p }}" class="page-link" data-page="{{ p }}">{{ p }}</a></li>
     {% endfor %}
     {% if paginator.num_pages not in page_range %}
-        <li><a href="?{{ querystring|remove_p }}{% if querystring|remove_p %}&amp;{% endif %}{{ param }}={{ paginator.num_pages }}" class="page-link" data-page="{{ paginator.num_pages }}">&hellip; {{ paginator.num_pages }}</a></li>
+        <li><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ paginator.num_pages }}" class="page-link" data-page="{{ paginator.num_pages }}">&hellip; {{ paginator.num_pages }}</a></li>
     {% endif %}
 </ul>
-
-{# make change to querystring so it doesnt contain the old p=number  #}

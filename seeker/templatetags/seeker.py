@@ -19,12 +19,6 @@ register.filter(intcomma)
 
 
 @register.filter
-def remove_p(value):
-    if value is None:
-        return ''
-    return re.sub(r'(?:^|\&)(p\=\d+)','', value)
-
-@register.filter
 def seeker_format(value):
     if value is None:
         return ''
