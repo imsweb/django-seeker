@@ -571,7 +571,7 @@ class SeekerView (View):
         # Finally, grab the results.
         results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
 
-        context_querystring = self.normalized_querystring()
+        context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
             'document': self.document,
