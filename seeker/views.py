@@ -21,6 +21,7 @@ import collections
 import inspect
 import re
 
+seekerview_field_templates = {}
 
 class Column (object):
     """
@@ -353,39 +354,45 @@ class SeekerView (View):
         """
         Returns the default template instance for the given field name.
         """
+        if not self._field_templates:
+            try:
+                self._field_templates = seekerview_field_templates[self.document._doc_type.name]
+            except KeyError:
+                seekerview_field_templates.update({self.document._doc_type.name: {}})
+                self._field_templates = seekerview_field_templates[self.document._doc_type.name]
         try:
             return self._field_templates[field_name]
         except KeyError:
             return self.find_field_template(field_name)
 
-    @classmethod
-    def find_field_template(cls, field_name):
+    def find_field_template(self, field_name):
         """
         finds and sets the default template instance for the given field name with the given template.
         """
+
         search_templates = []
-        if field_name in cls.field_templates:
-            search_templates.append(cls.field_templates[field_name])
-        for _cls in inspect.getmro(cls.document):
+        if field_name in self.field_templates:
+            search_templates.append(self.field_templates[field_name])
+        for _cls in inspect.getmro(self.document):
             if issubclass(_cls, dsl.DocType):
                 search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
-        existing_templates = list(set(cls._field_templates.values()))
+        existing_templates = list(set(self._field_templates.values()))
         for existing_template in existing_templates:
             #If the template object already exists just re-use the existing one.
             if template.template.name == existing_template.template.name:
                 template = existing_template
                 break
-        cls._field_templates.update({field_name: template})
+        self._field_templates.update({field_name: template})
         return template
 
-    @classmethod
-    def update_field_template(cls, field_name, template):
+
+    def update_field_template(self, field_name, template):
         """
         Updates the _field_template instance of field_name with template object for the entire class
         """
-        cls._field_templates.update({field_name: template})
+        self._field_templates.update({field_name: template})
 
     def get_field_highlight(self, field_name):
         if field_name in self.highlight_fields:
