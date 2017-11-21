@@ -289,6 +289,20 @@ class SeekerView (View):
     A dictionary of default templates for each field
     """
 
+    view_name = None
+    """
+    An optional name to call this view, used to differentiate two views using the same mapping and class.
+    """
+
+    def get_view_name(self):
+        """
+        Returns the view_name if set, otherwise return the class name and document name.
+        """
+        if self.view_name:
+            return self.view_name
+        else:
+            return self.__class__.__name__ + self.document._doc_type.name
+
     def normalized_querystring(self, qs=None, ignore=None):
         """
         Returns a querystring with empty keys removed, keys in sorted order, and values (for keys whose order does not
@@ -356,10 +370,10 @@ class SeekerView (View):
         """
         if not self._field_templates:
             try:
-                self._field_templates = seekerview_field_templates[self.document._doc_type.name]
+                self._field_templates = seekerview_field_templates[self.get_view_name()]
             except KeyError:
-                seekerview_field_templates.update({self.document._doc_type.name: {}})
-                self._field_templates = seekerview_field_templates[self.document._doc_type.name]
+                seekerview_field_templates.update({self.get_view_name(): {}})
+                self._field_templates = seekerview_field_templates[self.get_view_name()]            
         try:
             return self._field_templates[field_name]
         except KeyError:
@@ -369,7 +383,6 @@ class SeekerView (View):
         """
         finds and sets the default template instance for the given field name with the given template.
         """
-
         search_templates = []
         if field_name in self.field_templates:
             search_templates.append(self.field_templates[field_name])
