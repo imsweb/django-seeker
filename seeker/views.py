@@ -218,6 +218,12 @@ class SeekerView (View):
     The number of pages (not including first and last) to show in the paginator widget.
     """
 
+    max_results = 10000
+    """
+    The number of results seeker can show. Most elasticsearch instances default to 10000.
+    Set it to avoid TransportError pages for large result sets
+    """
+
     can_save = True
     """
     Whether searches for this view can be saved.
@@ -564,6 +570,12 @@ class SeekerView (View):
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * self.page_size
         results_count = search[0:0].execute().hits.total
+        
+        #check to see if the page is greater than the results in set or greater than the max_results seeker returns for a search
+        #if it is change page to first page.
+        if self.max_results and offset + self.page_size > self.max_results:
+            page = 1
+            offset = 0
         if results_count < offset:
             page = 1
             offset = 0
@@ -586,6 +598,7 @@ class SeekerView (View):
             'page': page,
             'page_size': self.page_size,
             'page_spread': self.page_spread,
+            'max_results': self.max_results,
             'sort': sort,
             'querystring': context_querystring,
             'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
