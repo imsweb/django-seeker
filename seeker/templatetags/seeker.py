@@ -67,7 +67,6 @@ def seeker_score(result, max_score=None, template='seeker/score.html'):
 
 @register.simple_tag
 def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html', max_results=None):
-    print total
     if max_results:
         paginator = Paginator(range(min(total,(max_results//page_size * page_size))), page_size)
     else:
