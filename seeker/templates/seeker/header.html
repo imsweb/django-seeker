@@ -6,9 +6,8 @@
             {% csrf_token %}
             <input type="hidden" name="querystring" value="{{ querystring }}" />
             <input type="hidden" name="p" value="{{ page }}" />
-            {% if sort %}
-                <input type="hidden" name="s" value="{{ sort }}" />
-            {% endif %}
+            <input type="hidden" name="s" value="{% if sort %}{{ sort }}{% endif %}" />
+
             <input type="hidden" name="saved_search" value="{{ saved_search.pk }}" />
             {% if saved_search.default %}
                 <button type="submit" name="_unset" class="btn btn-default btn-xs">{% trans "Unset Default" %}</button>
