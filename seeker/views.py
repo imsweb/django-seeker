@@ -400,13 +400,6 @@ class SeekerView (View):
         self._field_templates.update({field_name: template})
         return template
 
-
-    def update_field_template(self, field_name, template):
-        """
-        Updates the _field_template instance of field_name with template object for the entire class
-        """
-        self._field_templates.update({field_name: template})
-
     def get_field_highlight(self, field_name):
         if field_name in self.highlight_fields:
             return self.highlight_fields[field_name]
