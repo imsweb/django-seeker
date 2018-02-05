@@ -16,6 +16,7 @@ import six
 from seeker.templatetags.seeker import seeker_format
 
 from .mapping import DEFAULT_ANALYZER
+from .signals import search_complete
 
 import collections
 import inspect
@@ -610,6 +611,7 @@ class SeekerView (View):
         if self.extra_context:
             context.update(self.extra_context)
 
+        search_complete.send(sender=self, context=context)
         if self.request.is_ajax():
             return JsonResponse({
                 'querystring': context_querystring,
