@@ -17,7 +17,6 @@ class SeekerConfig (AppConfig):
     name = 'seeker'
 
     def ready(self):
-        import seeker.signals
         mapping_module = getattr(settings, 'SEEKER_MAPPING_MODULE', 'mappings')
         mappings = getattr(settings, 'SEEKER_MAPPINGS', [])
         module_only = getattr(settings, 'SEEKER_MODULE_ONLY', True)
