@@ -50,12 +50,10 @@ class Column (object):
         self.view = view
         self.visible = visible
         if self.visible:
-            self.template_obj = self.view.get_field_template(self.field)
             if self.template:
-                try:
-                    self.template_obj = loader.get_template(self.template)
-                except TemplateDoesNotExist:
-                    pass
+                self.template_obj = loader.get_template(self.template)
+            else:
+                self.template_obj = self.view.get_field_template(self.field)
         return self
 
     def header(self):
@@ -379,7 +377,7 @@ class SeekerView (View):
         except KeyError:
             return self.find_field_template(field_name)
 
-    def find_field_template(self, field_name):
+    def _find_field_template(self, field_name):
         """
         finds and sets the default template instance for the given field name with the given template.
         """
