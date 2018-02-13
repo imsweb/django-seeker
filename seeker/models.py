@@ -10,6 +10,8 @@ class SavedSearch (models.Model):
     name = models.CharField(max_length=100)
     url = models.CharField(max_length=200, db_index=True)
     querystring = models.TextField(blank=True)
+    data = models.TextField(blank=True)
+    user_saved = models.BooleanField(default=False, help_text=u'This saved search was marked "saved" by the user.')
     default = models.BooleanField(default=False)
     date_created = models.DateTimeField(default=timezone.now, editable=False)
 
@@ -21,4 +23,9 @@ class SavedSearch (models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return '%s?%s%s%s%d' % (self.url, self.querystring, ('&' if self.querystring else ''), 'saved_search=', self.pk)
+        if self.querystring:
+            return '%s?%s%s%s%d' % (self.url, self.querystring, ('&' if self.querystring else ''), 'saved_search=', self.pk)
+        elif self.data:
+            return '{}/{}'.format(self.url, str(self.pk))
+        else:
+            return self.url

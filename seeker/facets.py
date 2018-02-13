@@ -6,6 +6,12 @@ import operator
 
 
 class Facet (object):
+    bool_operators = {
+        'not_equal': 'must_not',
+    }
+    special_operators = {
+        'begins_with': "prefix" 
+    }
     field = None
     label = None
     template = getattr(settings, 'SEEKER_DEFAULT_FACET_TEMPLATE', 'seeker/facets/terms.html')
@@ -17,12 +23,32 @@ class Facet (object):
         self.template = template or self.template
         self.description = description
         self.kwargs = kwargs
+        
+    @property
+    def valid_operators(self):
+        return [
+            'equal',
+            'not_equal',
+            'begins_with'
+        ]
 
     def apply(self, search, **extra):
         return search
 
     def filter(self, search, values):
         return search
+    
+    def es_query(self, operator, value):
+        """
+        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value, multiple values
+        will need to be combined together outside of this function.
+        """
+        if operator not in self.valid_operators:
+            raise ValueError(u"'{}' is not a valid operator for the {} facet.".format(operator, self.label))
+        
+        if operator in self.bool_operators:
+            return Q('bool', **{self.bool_operators[operator]: [Q('match', **{self.field: value})]})
+        return Q(self.special_operators.get(operator, 'match'), **{self.field: value})
 
     def data(self, response):
         try:
@@ -54,6 +80,18 @@ class TermsFacet (Facet):
         search.aggs[self.name] = self._get_aggregation(**extra)
         return search
 
+    def es_query(self, operator, value):
+        """
+        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        'complex query' functionality.
+        """
+        if operator not in self.valid_operators:
+            raise ValueError(u"'{}' is not a valid operator for a TermsFacet object.".format(operator))
+        
+        if operator in BOOL_OPERATORS:
+            return Q('bool', **{BOOL_OPERATORS[operator]: [Q('term', **{self.field: value})]})
+        return Q(SPECIAL_OPERATORS.get(operator, 'term'), **{self.field: value})
+    
     def filter(self, search, values):
         if len(values) > 1:
             if self.filter_operator.lower() == 'and':
