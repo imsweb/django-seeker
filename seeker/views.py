@@ -631,8 +631,8 @@ class SeekerView (View):
         default_search = get_default_search()
         if default_search:
             return self.load_saved_search(default_search)
-        # Fall back to loading all results (no filters applied)
-        self.all_results_search()
+        # Fall back to loading all results using the simple search method (no filters applied)
+        self.simple_search()
         
     def get_default_search(self, request):
         filters = { 'url': request.path, 'default': True }
@@ -643,10 +643,6 @@ class SeekerView (View):
     def load_saved_search(self, saved_search):
         data = json.load(saved_search.data)
         return self.advanced_search(data)
-    
-    def all_results_search(self):
-        # TODO - Build way to get all results cleanly
-        pass
     
     def simple_search(self):
         """
@@ -666,7 +662,7 @@ class SeekerView (View):
             columns = self.get_columns(display)
             
             if '_export' in request.GET:
-                return self.export(request, keywords, facets, search, display, columns)
+                return self.export(keywords, facets, search, display, columns)
             
             return self.render(keywords, search, columns, sorts, page, facets, selected_facets)
         
@@ -794,7 +790,7 @@ class SeekerView (View):
         columns = self.get_columns(display)
         
         if '_export' in data:
-            return self.export(request, keywords, facets, search, display, columns)
+            return self.export(keywords, facets, search, display, columns)
         
         return self.render(keywords, search, columns, sorts, page, facets)
         
@@ -824,7 +820,7 @@ class SeekerView (View):
         else:
             raise ValueError(u"The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(query_dict)))
 
-    def export(self, request, keywords, facets, search, display, columns):
+    def export(self, keywords, facets, search, display, columns):
         """
         A helper method called when ``_export`` is present in ``request.GET``. Returns a ``StreamingHttpResponse``
         that yields CSV data for all matching results.
