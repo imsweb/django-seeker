@@ -17,6 +17,7 @@ import six
 from seeker.templatetags.seeker import seeker_format
 
 from .mapping import DEFAULT_ANALYZER
+from .signals import saved_search_modified, search_performed, search_saved
 
 import collections
 import inspect
@@ -118,11 +119,6 @@ class Column (object):
         return export_val
 
 class SeekerView (View):
-    is_advanced_search = False
-    """
-    Flag to indicate if this SeekerView is an advanced search which allows complex boolean queries.
-    """
-    
     boolean_translations = {
         'AND': 'must',
         'OR': 'should'
@@ -469,6 +465,7 @@ class SeekerView (View):
         the default list is returned. If no default list is specified, all fields are displayed.
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
+        # TODO - .get won't work for GET, needs to be .getlist Will that work for POST?
         display_fields = [f for f in data_dict.get('d', default) if f not in self.required_display_fields]
         for field, i in self.required_display:
             display_fields.insert(i, field)
@@ -566,7 +563,6 @@ class SeekerView (View):
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
-            'is_advanced_search': self.is_advanced_search,
             'document': self.document,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
             'columns': columns,
@@ -582,7 +578,6 @@ class SeekerView (View):
             'page_spread': self.page_spread,
             'page_size': self.page_size,
             'querystring': context_querystring,
-            'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
             'results': results,
             'results_template': self.results_template,
             'saved_search': saved_search,
@@ -591,9 +586,16 @@ class SeekerView (View):
             'show_rank': self.show_rank,
             'sort': sort,
         }
+        
+        # The following context objects will likely be deprecated in the future
+        context.update({
+            'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
+        })
 
         if self.extra_context:
             context.update(self.extra_context)
+            
+        search_performed.send(sender=self.__class__, request=self.request, context=context)
 
         if self.request.is_ajax():
             return JsonResponse({
@@ -693,19 +695,34 @@ class SeekerView (View):
             except SavedSearch.DoesNotExist:
                 return HttpResponseBadRequest('Saved search could not be found.')
             
-            if request.POST.get('mark_default', False):
+            # Used to store all the changes to the SavedSearch object
+            changes = []
+            
+            # Check if we should change the 'default' field for this SavedSearch
+            if request.POST.get('mark_default', False) and not saved_search.default:
                 saved_search.default = True
                 SavedSearch.objects.filter(user=request.user, url=saved_search.url).update(default=False)
-            elif request.POST.get('unmark_default', False):
+                changes.append({'field': 'default', 'old_value': False, 'new_value': True})
+            elif request.POST.get('unmark_default', False) and saved_search.default:
                 saved_search.default = False
+                changes.append({'field': 'default', 'old_value': True, 'new_value': False})
                 
-            if request.POST.get('mark_saved', False):
+            # Check if we should change the 'saved' field for this SavedSearch
+            if request.POST.get('mark_saved', False) and not saved_search.saved:
                 saved_search.saved = True
-            elif request.POST.get('unmark_saved', False):
-                saved_search.default = False
+                changes.append({'field': 'saved', 'old_value': False, 'new_value': True})
+            elif request.POST.get('unmark_saved', False) and saved_search.saved:
                 saved_search.saved = False
-                
-            saved_search.save()
+                changes.append({'field': 'saved', 'old_value': True, 'new_value': False})
+                # If the search is no longer marked as "saved" it shouldn't be marked as "default" either
+                if saved_search.default:
+                    saved_search.default = False
+                    changes.append({'field': 'default', 'old_value': True, 'new_value': False})
+                    
+            # If something changed we save and fire the signal
+            if changes:
+                saved_search.save()
+                saved_search_modified.send(sender=self.__class__, request=self.request, saved_search=saved_search, changes=changes)
         else:
             name = request.POST.get('name', None).strip()
             if not name:
@@ -716,8 +733,12 @@ class SeekerView (View):
                 name = name,
                 url = request.path
             )
-            
-        return self.load_saved_search(saved_search)
+            search_saved.send(sender=self.__class__, request=self.request, saved_search=saved_search)
+        
+        # If this is an ajax call we don't want to return a redirect. Instead we call the load function directly, which in turn will return JSON data.
+        if request.is_ajax():
+            return self.load_saved_search(saved_search)
+        return redirect(saved_search)
         
     def advanced_search(self, data):
         """

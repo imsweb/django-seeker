@@ -11,7 +11,7 @@ class SavedSearch (models.Model):
     url = models.CharField(max_length=200, db_index=True)
     querystring = models.TextField(blank=True)
     data = models.TextField(blank=True)
-    user_saved = models.BooleanField(default=False, help_text=u'This saved search was marked "saved" by the user.')
+    saved = models.BooleanField(default=False, help_text=u'This saved search was marked "saved" by the user.')
     default = models.BooleanField(default=False)
     date_created = models.DateTimeField(default=timezone.now, editable=False)
 
