@@ -88,9 +88,9 @@ class TermsFacet (Facet):
         if operator not in self.valid_operators:
             raise ValueError(u"'{}' is not a valid operator for a TermsFacet object.".format(operator))
         
-        if operator in BOOL_OPERATORS:
-            return Q('bool', **{BOOL_OPERATORS[operator]: [Q('term', **{self.field: value})]})
-        return Q(SPECIAL_OPERATORS.get(operator, 'term'), **{self.field: value})
+        if operator in self.bool_operators:
+            return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
+        return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
     
     def filter(self, search, values):
         if len(values) > 1:

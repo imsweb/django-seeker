@@ -104,7 +104,7 @@ class Column (object):
             'highlight': highlight,
             'view': self.view,
             'user': self.view.request.user,
-            'query': self.view.get_keywords(request.GET),
+            'query': self.view.get_keywords(self.view.request.GET),
         }
         params.update(self.context(result, **kwargs))
         return self.template_obj.render(params)
@@ -261,6 +261,11 @@ class SeekerView (View):
     @property
     def required_display_fields(self):
         return [t[0] for t in self.required_display]
+    
+    restrict_to_user = True
+    """
+    If True, users can only view and update saved requests that are associated with them.
+    """
 
     results_template = 'seeker/results.html'
     """
@@ -459,14 +464,19 @@ class SeekerView (View):
     def get_facets(self):
         return list(self.facets) if self.facets else []
 
-    def get_display(self, data_dict):
+    def get_display(self, data):
         """
         Returns a list of display field names. If the user has selected display fields, those are used, otherwise
         the default list is returned. If no default list is specified, all fields are displayed.
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
-        # TODO - .get won't work for GET, needs to be .getlist Will that work for POST?
-        display_fields = [f for f in data_dict.get('d', default) if f not in self.required_display_fields]
+        try:
+            # Data is either a QueryDict (GET or POST)...
+            all_selected_fields = data.getlist('d', default)
+        except AttributeError:
+            # ...or a regular dictionary
+            all_selected_fields = data.get('d', default)
+        display_fields = [f for f in all_selected_fields if f not in self.required_display_fields]
         for field, i in self.required_display:
             display_fields.insert(i, field)
         return display_fields
@@ -613,6 +623,8 @@ class SeekerView (View):
         return render(self.request, self.template_name, context)
 
     def get(self, request, *args, **kwargs):
+        # TODO - Putting this import at the top of the file leads to AppRegisteryNotReady error???
+        from .models import SavedSearch
         saved_search_id = kwargs.get('saved_search_id', None)
         # Check if a saved search id is passed in via the URL
         if saved_search_id:
@@ -628,27 +640,29 @@ class SeekerView (View):
         elif len(request.GET):
             return self.simple_search()
         # Check for a default search
-        default_search = get_default_search()
+        default_search = self.get_default_search()
         if default_search:
             return self.load_saved_search(default_search)
         # Fall back to loading all results using the simple search method (no filters applied)
-        self.simple_search()
+        return self.simple_search()
         
-    def get_default_search(self, request):
-        filters = { 'url': request.path, 'default': True }
+    def get_default_search(self):
+        # TODO - Putting this import at the top of the file leads to AppRegisteryNotReady error???
+        from .models import SavedSearch
+        filters = { 'url': self.request.path, 'default': True }
         if self.restrict_to_user:
-            filters['user'] = request.user
-        return SavedSearch.object.filter(**filters).first()
+            filters['user'] = self.request.user
+        return SavedSearch.objects.filter(**filters).first()
         
     def load_saved_search(self, saved_search):
-        data = json.load(saved_search.data)
+        data = json.loads(saved_search.data)
         return self.advanced_search(data)
     
     def simple_search(self):
         """
         This function performs a search based on the GET query string parameters.
         """
-        if '_facet' in request.GET:
+        if '_facet' in self.request.GET:
             return self.render_facet_query()
         else:
             sorts = self.request.GET.getlist('s', None)
@@ -661,7 +675,7 @@ class SeekerView (View):
             display = self.get_display(self.request.GET)
             columns = self.get_columns(display)
             
-            if '_export' in request.GET:
+            if '_export' in self.request.GET:
                 return self.export(keywords, facets, search, display, columns)
             
             return self.render(keywords, search, columns, sorts, page, facets, selected_facets)
@@ -679,6 +693,8 @@ class SeekerView (View):
         return JsonResponse(facet.data(search.execute()))
 
     def post(self, request, *args, **kwargs):
+        # TODO - Putting this import at the top of the file leads to AppRegisteryNotReady error???
+        from .models import SavedSearch
         saved_search_id = kwargs.get('saved_search_id', None)
         if saved_search_id:
             # Saved searches are separated by the root URL of the seeker instance so we strip off the saved_search_id parameter
@@ -720,16 +736,17 @@ class SeekerView (View):
                 saved_search.save()
                 saved_search_modified.send(sender=self.__class__, request=self.request, saved_search=saved_search, changes=changes)
         else:
-            name = request.POST.get('name', None).strip()
-            if not name:
+            name = request.POST.get('name', '').strip()
+            # If this search is to be marked as saved, it must have a name
+            if not name and request.POST.get('mark_saved', False):
                 return HttpResponseBadRequest('No name specified for save search.')
             saved_search = SavedSearch.objects.create(
-                user = self.request.user, 
-                data = json.dump(request.POST),
+                user = request.user, 
+                data = json.dumps(request.POST),
                 name = name,
                 url = request.path
             )
-            search_saved.send(sender=self.__class__, request=self.request, saved_search=saved_search)
+            search_saved.send(sender=self.__class__, request=request, saved_search=saved_search)
         
         # If this is an ajax call we don't want to return a redirect. Instead we call the load function directly, which in turn will return JSON data.
         if request.is_ajax():
