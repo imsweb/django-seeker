@@ -105,7 +105,7 @@ class Column (object):
             'highlight': highlight,
             'view': self.view,
             'user': self.view.request.user,
-            'query': self.view.get_keywords(),
+            'query': self.view.get_keywords(self.view.request.GET),
         }
         params.update(self.context(result, **kwargs))
         return self.template_obj.render(params)
@@ -448,8 +448,8 @@ class SeekerView (View):
         
         return visible_columns + non_visible_columns
 
-    def get_keywords(self):
-        return self.request.GET.get('q', '').strip()
+    def get_keywords(self, data_dict):
+        return data_dict.get('q', '').strip()
 
     def get_facets(self):
         return list(self.facets) if self.facets else []
@@ -545,7 +545,7 @@ class SeekerView (View):
         else:
             saved_searches = []
 
-        keywords = self.get_keywords()
+        keywords = self.get_keywords(self.request.GET)
         facets = self.get_facet_data(initial=self.initial_facets if not self.request.is_ajax() else None)
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
@@ -626,7 +626,7 @@ class SeekerView (View):
             return render(self.request, self.template_name, context)
 
     def render_facet_query(self):
-        keywords = self.get_keywords()
+        keywords = self.get_keywords(self.request.GET)
         facet = {f.field: f for f in self.get_facets()}.get(self.request.GET.get('_facet'))
         if not facet:
             raise Http404()
@@ -642,7 +642,7 @@ class SeekerView (View):
         A helper method called when ``_export`` is present in ``request.GET``. Returns a ``StreamingHttpResponse``
         that yields CSV data for all matching results.
         """
-        keywords = self.get_keywords()
+        keywords = self.get_keywords(self.request.GET)
         facets = self.get_facet_data()
         search = self.get_search(keywords, facets, aggregate=False)
         columns = self.get_columns()
