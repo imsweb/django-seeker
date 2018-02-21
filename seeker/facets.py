@@ -33,6 +33,9 @@ class Facet (object):
         ]
 
     def apply(self, search, **extra):
+        """
+        This function applies an aggregation to the 'search' parameter for this facet.
+        """
         return search
 
     def filter(self, search, values):
@@ -49,6 +52,18 @@ class Facet (object):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('match', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'match'), **{self.field: value})
+    
+    def build_filter_dict(self, results):
+        """
+        This function returns a dictionary that represents this facet.
+        The dictionary this returns is designed to be compatible with the JQuery Querybuilder plugin (http://querybuilder.js.org/index.html#filters).
+        When overwriting this function please pass all applicable values defined in that plugin.
+        """
+        return {
+            'id': self.field,
+            'label': self.label,
+            'type': 'string'
+        }
 
     def data(self, response):
         try:
@@ -91,6 +106,18 @@ class TermsFacet (Facet):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
+    
+    def build_filter_dict(self, results):
+        from collections import OrderedDict
+        filter_dict = super(TermsFacet, self).build_filter_dict(results)
+        data = self.data(results)
+        values = OrderedDict(sorted([(bucket['key'],bucket['key']) for bucket in data['buckets']], key=lambda tup: tup[1].lower()))
+        filter_dict.update({
+            'input': 'select',
+            'values': values,
+            'operators': self.valid_operators
+        })
+        return filter_dict
     
     def filter(self, search, values):
         if len(values) > 1:
@@ -150,6 +177,31 @@ class YearHistogram (Facet):
 
 class RangeFilter (Facet):
     template = 'seeker/facets/range.html'
+    
+    @property
+    def valid_operators(self):
+        return [
+            'between',
+            'not between',
+            'less',
+            'less or equal',
+            'greater',
+            'greater or equal'
+            'equal',
+            'not equal'
+        ]
+    
+    def es_query(self, operator, value):
+        """
+        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        'complex query' functionality.
+        """
+        if operator not in self.valid_operators:
+            raise ValueError(u"'{}' is not a valid operator for a TermsFacet object.".format(operator))
+        
+        if operator in self.bool_operators:
+            return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
+        return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
 
     def filter(self, search, values):
         if len(values) == 2:
