@@ -105,7 +105,7 @@ class Column (object):
             'highlight': highlight,
             'view': self.view,
             'user': self.view.request.user,
-            'query': self.view.get_keywords(self.view.request.GET),
+            'query': self.view.get_keywords(),
         }
         params.update(self.context(result, **kwargs))
         return self.template_obj.render(params)
