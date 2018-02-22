@@ -623,7 +623,10 @@ class SeekerView (View):
                 'facet_data': {facet.field: facet.data(results) for facet in self.get_facets()},
             })
         else:
-            return render(self.request, self.template_name, context)
+            return self.render_to_response(context)
+        
+    def render_to_response(self, context):
+        return render(self.request, self.template_name, context)
 
     def render_facet_query(self):
         keywords = self.get_keywords(self.request.GET)
