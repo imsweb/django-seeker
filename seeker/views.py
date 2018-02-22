@@ -376,7 +376,7 @@ class SeekerView (View):
         try:
             return self._field_templates[field_name]
         except KeyError:
-            return self.find_field_template(field_name)
+            return self._find_field_template(field_name)
 
     def _find_field_template(self, field_name):
         """
