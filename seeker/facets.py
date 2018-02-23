@@ -108,10 +108,9 @@ class TermsFacet (Facet):
         return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
     
     def build_filter_dict(self, results):
-        from collections import OrderedDict
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
         data = self.data(results)
-        values = OrderedDict(sorted([(bucket['key'],bucket['key']) for bucket in data['buckets']], key=lambda tup: tup[1].lower()))
+        values = [''] + sorted([bucket['key'] for bucket in data['buckets']], key=lambda item: item.lower())
         filter_dict.update({
             'input': 'select',
             'values': values,
