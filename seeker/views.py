@@ -1018,9 +1018,6 @@ class AdvancedSeekerView (SeekerView):
             return self.advanced_search(saved_search, all_saved_searches)
         
         all_saved_searches = self.get_saved_searches(url, request.user)
-        # Check if parameters are passed in (indicating a stateless simple search)
-        if len(request.GET):
-            return self.simple_search()
         # Check for a default search
         default_search = all_saved_searches.filter(default=True).first()
         if default_search:
@@ -1160,7 +1157,7 @@ class AdvancedSeekerView (SeekerView):
         for facet in facets:
             facet.apply(search)
         
-        sorts = data.get('s', None)
+        sorts = data.getlist('s', []) if isinstance(data, QueryDict) else data.get('s', [])
         page = data.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
             
@@ -1234,42 +1231,3 @@ class AdvancedSeekerView (SeekerView):
         resp['Content-Disposition'] = 'attachment; filename=%s' % export_name
         return resp
     
-    def simple_search(self):
-        """
-        This function performs a search based on the GET query string parameters.
-        """
-        if '_facet' in self.request.GET:
-            return self.render_facet_query()
-        else:
-            sorts = self.request.GET.getlist('s', None)
-            page = self.request.GET.get('p', '').strip()
-            page = int(page) if page.isdigit() else 1
-            keywords = self.get_keywords(self.request.GET)
-            facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if not self.request.is_ajax() else None)
-            selected_facets = self.request.GET.getlist('f') or self.initial_facets.keys()
-            search = self.get_search(keywords, facets)
-            display = self.get_display(self.request.GET)
-            columns = self.get_columns(display)
-            
-            if '_export' in self.request.GET:
-                return self.export(search, columns)
-            return self.render(keywords=keywords, 
-                               search=search, 
-                               columns=columns, 
-                               sorts=sorts, 
-                               page=page, 
-                               facets=facets, 
-                               selected_facets=selected_facets, 
-                               advanced_search=False)
-        
-    def render_facet_query(self):
-        keywords = self.get_keywords(self.request.GET)
-        facet = {f.field: f for f in self.get_facets()}.get(self.request.GET.get('_facet'))
-        if not facet:
-            raise Http404()
-        # We want to apply all the other facet filters besides the one we're querying.
-        facets = self.get_facet_data(self.request.GET, exclude=facet)
-        search = self.get_search(keywords, facets, aggregate=False)
-        fq = '.*' + self.request.GET.get('_query', '').strip() + '.*'
-        facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
-        return JsonResponse(facet.data(search.execute()))
