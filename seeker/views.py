@@ -1015,16 +1015,16 @@ class AdvancedSeekerView (SeekerView):
             saved_search = all_saved_searches.filter(pk=saved_search_id).first()
             if not saved_search:
                 return HttpResponseBadRequest("Saved search could not be found.")
-            return self.advanced_search(saved_search, all_saved_searches)
+            return self.advanced_search(saved_search, all_saved_searches, request.GET)
         
         all_saved_searches = self.get_saved_searches(url, request.user)
         # Check for a default search
         default_search = all_saved_searches.filter(default=True).first()
         if default_search:
-            return self.advanced_search(default_search, all_saved_searches)
+            return self.advanced_search(default_search, all_saved_searches, request.GET)
         # Fall back to loading all results using the simple search method (no filters applied)
         # TODO - add saved searches here? Maybe we do need a function that does an advanced search with all results
-        return self.advanced_search(None, all_saved_searches)
+        return self.advanced_search(None, all_saved_searches, request.GET)
         
     def post(self, request, *args, **kwargs):
         SavedSearchModel = self.get_saved_search_model()
@@ -1072,7 +1072,7 @@ class AdvancedSeekerView (SeekerView):
         
         # If this is an ajax call we don't want to return a redirect. Instead we call the load function directly, which in turn will return JSON data.
         if request.is_ajax():
-            return self.advanced_search(saved_search, all_saved_searches)
+            return self.advanced_search(saved_search, all_saved_searches, request.POST)
         return redirect(saved_search)
     
     def save_search(self):
@@ -1093,10 +1093,10 @@ class AdvancedSeekerView (SeekerView):
             url = self.request.path
         )
     
-    def advanced_search(self, saved_search, all_saved_searches):
+    def advanced_search(self, saved_search, all_saved_searches, query_dict):
         """
         This function will process a advanced query and return the results.
-        The query_dict is a dictionary representation of the advanced query. The following is an example of the accepted format:
+        The advanced_query is a dictionary representation of the advanced query. The following is an example of the accepted format:
         {
             "condition": "<boolean operator>",
             "rules": [
@@ -1130,25 +1130,25 @@ class AdvancedSeekerView (SeekerView):
             - rules: A list of dictionaries containing either groups or rules.
             - not: A boolean (true/false) to indicate if this group should be additive or subtractive to the search.
         """
-        facets = self.get_facet_data(self.request.POST, initial=self.initial_facets if not self.request.is_ajax() else None)
+        facets = self.get_facet_data(query_dict, initial=self.initial_facets if not self.request.is_ajax() else None)
         if saved_search:
             # Inflate the data associated with this saved search
             data = json.loads(saved_search.data)
             query = data.get('query', '')
-            query_dict = json.loads(query)
-            if not query_dict:
+            advanced_query = json.loads(query)
+            if not advanced_query:
                 return HttpResponseBadRequest(u'POST must include a JSON dictionary (representing the advanced query) passed in via "query".')
             
             facets_by_field = { facet.field: facet for facet in facets }
-            advanced_query = self.build_query(query_dict, facets_by_field)
+            advanced_query = self.build_query(advanced_query, facets_by_field)
         else:
             # TODO - Make this more flexible (currently only GET will get here)
-            data = self.request.GET
+            data = query_dict
             query = ''
             advanced_query = Q('match_all')
             
         # If there are any keywords passed in, we combine the advanced query with the keyword query
-        keywords = self.get_keywords(data)
+        keywords = self.get_keywords(query_dict)
         if keywords:
             advanced_query = Q('bool', should=[advanced_query, self.get_keyword_query(keywords)])
         
@@ -1157,8 +1157,9 @@ class AdvancedSeekerView (SeekerView):
         for facet in facets:
             facet.apply(search)
         
-        sorts = data.getlist('s', []) if isinstance(data, QueryDict) else data.get('s', [])
-        page = data.get('p', '').strip()
+        # We pull these from the current POST/GET because changing them does not constitute a 'new' search (and thus won't be update in the saved search data)
+        sorts = query_dict.getlist('s', [])
+        page = query_dict.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
             
         display = self.get_display(data)
@@ -1179,36 +1180,36 @@ class AdvancedSeekerView (SeekerView):
                            saved_searches=all_saved_searches,
                            query=query)
         
-    def build_query(self, query_dict, facets_by_field):
+    def build_query(self, advanced_query, facets_by_field):
         # Check if all required keys are present for an individual rule
-        if all(k in query_dict for k in ('id', 'operator', 'value')):
-            facet = facets_by_field.get(query_dict['id'])
+        if all(k in advanced_query for k in ('id', 'operator', 'value')):
+            facet = facets_by_field.get(advanced_query['id'])
             # TODO - Not sure this is needed anymore
-            if not query_dict['value']:
+            if not advanced_query['value']:
                 return None
-            return facet.es_query(query_dict['operator'], query_dict['value'])
+            return facet.es_query(advanced_query['operator'], advanced_query['value'])
         
         # Check if all required keys are present for a group   
-        elif all(k in query_dict for k in ('condition', 'rules')):
-            group_operator = self.boolean_translations.get(query_dict.get('condition'), None)
+        elif all(k in advanced_query for k in ('condition', 'rules')):
+            group_operator = self.boolean_translations.get(advanced_query.get('condition'), None)
             if not group_operator:
                 raise ValueError(u"'{}' is not a valid boolean operator.".format(v))
             
             queries = []
             # The central portion of the recursion, we iterate over all rules inside this group
-            for dict in query_dict.get('rules'):
+            for dict in advanced_query.get('rules'):
                 query = self.build_query(dict, facets_by_field)
                 if query:
                     queries.append(query)
                 
-            if query_dict.get('not', False):
+            if advanced_query.get('not', False):
                 return ~Q('bool', **{group_operator: queries})
             else:
                 return Q('bool', **{group_operator: queries})
             
-        # The query_dict must have been missing something, so we cannot create this query
+        # The advanced_query must have been missing something, so we cannot create this query
         else:
-            raise ValueError(u"The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(query_dict)))
+            raise ValueError(u"The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(advanced_query)))
 
     def export(self, search, columns):
         """
