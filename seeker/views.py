@@ -89,7 +89,7 @@ class Column (object):
             if '*' in self.highlight:
                 # If highlighting was requested for multiple fields, grab any matching fields as a dictionary.
                 r = self.highlight.replace('*', r'\w+').replace('.', r'\.')
-                highlight = {f: result.meta.highlight[f] for f in result.meta.highlight if re.match(r, f)}
+                highlight = {f.replace('.', '_'): result.meta.highlight[f] for f in result.meta.highlight if re.match(r, f)}
             else:
                 highlight = result.meta.highlight[self.highlight]
         except:
@@ -524,14 +524,14 @@ class SeekerView (View):
 
         querystring = self.normalized_querystring(ignore=['p', 'saved_search'])
 
-        if self.request.user and self.request.user.is_authenticated() and not querystring and not self.request.is_ajax():
+        if self.request.user and self.request.user.is_authenticated and not querystring and not self.request.is_ajax():
             default = self.request.user.seeker_searches.filter(url=self.request.path, default=True).first()
             if default and default.querystring:
                 return redirect(default)
 
         # Figure out if this is a saved search, and grab the current user's saved searches.
         saved_search = None
-        if self.request.user and self.request.user.is_authenticated():
+        if self.request.user and self.request.user.is_authenticated:
             saved_search_pk = self.get_saved_search()
             if saved_search_pk:
                 try:
@@ -599,7 +599,7 @@ class SeekerView (View):
             'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
             'show_rank': self.show_rank,
             'export_name': self.export_name,
-            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
+            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated,
             'header_template': self.header_template,
             'results_template': self.results_template,
             'footer_template': self.footer_template,
