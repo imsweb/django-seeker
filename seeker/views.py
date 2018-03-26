@@ -17,7 +17,7 @@ import six
 from seeker.templatetags.seeker import seeker_format
 
 from .mapping import DEFAULT_ANALYZER
-from .signals import saved_search_modified, search_performed, search_saved
+from .signals import search_complete, advanced_search_performed
 
 import abc
 import collections
@@ -107,7 +107,7 @@ class Column (object):
             'highlight': highlight,
             'view': self.view,
             'user': self.view.request.user,
-            'query': self.view.get_keywords(),
+            'query': self.view.get_keywords(self.view.request.GET),
         }
         params.update(self.context(result, **kwargs))
         return self.template_obj.render(params)
@@ -1069,7 +1069,7 @@ class AdvancedSeekerView (SeekerView):
         }
         self.modify_results_context(context)
             
-        search_performed.send(sender=self.__class__, request=self.request, context=context)
+        advanced_search_performed.send(sender=self.__class__, request=self.request, context=context)
         json_response = {
             'filters': [facet.build_filter_dict(results) for facet in facets], # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),

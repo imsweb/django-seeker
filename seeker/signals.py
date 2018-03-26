@@ -1,5 +1,6 @@
 from django.dispatch import Signal
 
+# TODO - let's rename this and make the sender the objects class (not instance)
 search_complete = Signal(providing_args=('context'))
 """
 Sent after a search is performed within a SeekerView object
