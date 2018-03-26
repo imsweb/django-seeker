@@ -28,6 +28,8 @@ import warnings
 from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.views.generic.edit import FormView, CreateView
 
+seekerview_field_templates = {}
+
 class Column (object):
     """
     """
@@ -55,12 +57,10 @@ class Column (object):
         self.view = view
         self.visible = visible
         if self.visible:
-            self.template_obj = self.view.get_field_template(self.field)
             if self.template:
-                try:
-                    self.template_obj = loader.get_template(self.template)
-                except TemplateDoesNotExist:
-                    pass
+                self.template_obj = loader.get_template(self.template)
+            else:
+                self.template_obj = self.view.get_field_template(self.field)
         return self
 
     def header(self):
@@ -95,7 +95,7 @@ class Column (object):
             if '*' in self.highlight:
                 # If highlighting was requested for multiple fields, grab any matching fields as a dictionary.
                 r = self.highlight.replace('*', r'\w+').replace('.', r'\.')
-                highlight = {f: result.meta.highlight[f] for f in result.meta.highlight if re.match(r, f)}
+                highlight = {f.replace('.', '_'): result.meta.highlight[f] for f in result.meta.highlight if re.match(r, f)}
             else:
                 highlight = result.meta.highlight[self.highlight]
         except:
@@ -107,7 +107,7 @@ class Column (object):
             'highlight': highlight,
             'view': self.view,
             'user': self.view.request.user,
-            'query': self.view.get_keywords(self.view.request.GET),
+            'query': self.view.get_keywords(),
         }
         params.update(self.context(result, **kwargs))
         return self.template_obj.render(params)
@@ -308,6 +308,20 @@ class SeekerView (View):
         """
         pass
     
+    view_name = None
+    """
+    An optional name to call this view, used to differentiate two views using the same mapping and class.
+    """
+
+    def get_view_name(self):
+        """
+        Returns the view_name if set, otherwise return the class name and document name.
+        """
+        if self.view_name:
+            return self.view_name
+        else:
+            return self.__class__.__name__ + self.document._doc_type.name
+
     def normalized_querystring(self, qs=None, ignore=None):
         """
         Returns a querystring with empty keys removed, keys in sorted order, and values (for keys whose order does not
@@ -373,39 +387,37 @@ class SeekerView (View):
         """
         Returns the default template instance for the given field name.
         """
+        if not self._field_templates:
+            try:
+                self._field_templates = seekerview_field_templates[self.get_view_name()]
+            except KeyError:
+                seekerview_field_templates.update({self.get_view_name(): {}})
+                self._field_templates = seekerview_field_templates[self.get_view_name()]            
         try:
             return self._field_templates[field_name]
         except KeyError:
-            return self.find_field_template(field_name)
+            return self._find_field_template(field_name)
 
-    @classmethod
-    def find_field_template(cls, field_name):
+    def _find_field_template(self, field_name):
         """
         finds and sets the default template instance for the given field name with the given template.
         """
         search_templates = []
-        if field_name in cls.field_templates:
-            search_templates.append(cls.field_templates[field_name])
-        for _cls in inspect.getmro(cls.document):
+        if field_name in self.field_templates:
+            search_templates.append(self.field_templates[field_name])
+        for _cls in inspect.getmro(self.document):
             if issubclass(_cls, dsl.DocType):
                 search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
-        existing_templates = list(set(cls._field_templates.values()))
+        existing_templates = list(set(self._field_templates.values()))
         for existing_template in existing_templates:
             #If the template object already exists just re-use the existing one.
             if template.template.name == existing_template.template.name:
                 template = existing_template
                 break
-        cls._field_templates.update({field_name: template})
+        self._field_templates.update({field_name: template})
         return template
-
-    @classmethod
-    def update_field_template(cls, field_name, template):
-        """
-        Updates the _field_template instance of field_name with template object for the entire class
-        """
-        cls._field_templates.update({field_name: template})
 
     def get_field_highlight(self, field_name):
         if field_name in self.highlight_fields:
@@ -548,14 +560,14 @@ class SeekerView (View):
 
         querystring = self.normalized_querystring(ignore=['p', 'saved_search'])
 
-        if self.request.user and self.request.user.is_authenticated() and not querystring and not self.request.is_ajax():
+        if self.request.user and self.request.user.is_authenticated and not querystring and not self.request.is_ajax():
             default = self.request.user.seeker_searches.filter(url=self.request.path, default=True).first()
             if default and default.querystring:
                 return redirect(default)
 
         # Figure out if this is a saved search, and grab the current user's saved searches.
         saved_search = None
-        if self.request.user and self.request.user.is_authenticated():
+        if self.request.user and self.request.user.is_authenticated:
             saved_search_pk = self.get_saved_search()
             if saved_search_pk:
                 try:
@@ -623,7 +635,7 @@ class SeekerView (View):
             'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
             'show_rank': self.show_rank,
             'export_name': self.export_name,
-            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
+            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated,
             'header_template': self.header_template,
             'results_template': self.results_template,
             'footer_template': self.footer_template,
@@ -636,6 +648,7 @@ class SeekerView (View):
             
         self.modify_context(context)
 
+        search_complete.send(sender=self, context=context)
         if self.request.is_ajax():
             return JsonResponse({
                 'querystring': context_querystring,

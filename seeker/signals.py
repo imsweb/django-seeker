@@ -1,30 +1,17 @@
 from django.dispatch import Signal
 
-saved_search_modified = Signal(providing_args=['request', 'saved_search', 'changes'])
+search_complete = Signal(providing_args=('context'))
 """
-Sent when a SavedSearch object is modified. The following arguments will be provided:
-- sender = The seeker view class that performed the updated.
-- request = The http request.
-- saved_search = The SavedSearch object that was updated.
-- changes = A list of dictionaries in the following format:
-    [{ 'field': <SavedSearch field>,
-       'old_value': <value it was>,
-       'new_value': <value it changed to> },]
+Sent after a search is performed within a SeekerView object
+The "sender" will be the instance of the SeekerView that was involved.
+The "context" will be the context dictionary passed to the template. 
 """
 
-search_performed = Signal(providing_args=['request', 'context'])
+advanced_search_performed = Signal(providing_args=['request', 'context'])
 """
-Sent when a search is executed. The following arguments will be provided:
+Sent when an advanced search is executed. The following arguments will be provided:
 - sender = The seeker view class that performed the search.
 - request = The http request.
 - context = The context dictionary that will be used to render this search. 
             Among many other things, this includes 'saved_search' which holds the SavedSearch object if one was used to load this search.
-"""
-
-search_saved = Signal(providing_args=['request', 'saved_search'])
-"""
-Sent when a search is saved. The following arguments will be provided:
-- sender = The seeker view class that saved the search.
-- request = The http request.
-- saved_search = The SavedSearch object used to perform the search. This is None for querystring searches.
 """
