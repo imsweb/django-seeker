@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Seeker</title>
+        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" />
+        <style>
+            body { padding-top: 20px; }
+            .table-responsive { overflow: auto; }
+            th { white-space: nowrap; }
+            th.sort.asc, th.sort.desc { background-color: #ffe; }
+            th.sort.asc:before { padding-right: 5px; content: '\25B3'; }
+            th.sort.desc:before { padding-right: 5px; content: '\25BD'; }
+            .table-seeker em { background-color: #ffd; padding: 1px 3px; border-radius: 4px; border: 1px solid #eee; }
+            #criteria { padding-top: 10px; }
+        </style>
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-3" style="padding-bottom:10px;">
+                    {% include "seeker/form.html" %}
+                </div>
+                {% block results-container %}
+                    <div class="col-md-9" id="results"></div>
+                {% endblock results-container %}
+            </div>
+        </div>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    </body>
+</html>

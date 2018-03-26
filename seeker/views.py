@@ -19,12 +19,14 @@ from seeker.templatetags.seeker import seeker_format
 from .mapping import DEFAULT_ANALYZER
 from .signals import saved_search_modified, search_performed, search_saved
 
+import abc
 import collections
 import inspect
 import re
 import json
 import warnings
 from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
+from django.views.generic.edit import FormView, CreateView
 
 class Column (object):
     """
@@ -294,7 +296,14 @@ class SeekerView (View):
         
     def modify_context(self, context):
         """
-        This function allows modifications to the context that will be used to render. 
+        This function allows modifications to the context that will be used to render the initial seeker page. 
+        NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
+        """
+        pass
+    
+    def modify_results_context(self, context):
+        """
+        This function allows modifications to the context that will be used to render the results table. 
         NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
@@ -739,21 +748,20 @@ class AdvancedColumn (Column):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
-        q = self.view.request.GET.copy()
-        field = q.get('s', '')
+        current_sort = self.view.search_object['sort']
         sort = None
         cls += ' sort'
-        if field.lstrip('-') == self.field:
+        if current_sort.lstrip('-') == self.field:
             # If the current sort field is this field, give it a class a change direction.
-            sort = 'Descending' if field.startswith('-') else 'Ascending'
-            cls += ' desc' if field.startswith('-') else ' asc'
-            d = '' if field.startswith('-') else '-'
-            q['s'] = '{}{}'.format(d, self.field)
+            sort = 'Descending' if current_sort.startswith('-') else 'Ascending'
+            cls += ' desc' if current_sort.startswith('-') else ' asc'
+            d = '' if current_sort.startswith('-') else '-'
+            data_sort = '{}{}'.format(d, self.field)
         else:
-            q['s'] = self.field
+            data_sort = self.field
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
-        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{}</a></th>'.format(cls, next_sort, q['s'], self.header_html, sr_label)
+        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label)
         return mark_safe(html)
 
 class AdvancedSeekerView (SeekerView):
@@ -775,11 +783,6 @@ class AdvancedSeekerView (SeekerView):
     The template used to render the search results header.
     """
     
-    restrict_to_user = True
-    """
-    If True, users can only view and update saved requests that are associated with them.
-    """
-
     results_template = 'seeker/results.html'
     """
     The template used to render the search results.
@@ -790,12 +793,47 @@ class AdvancedSeekerView (SeekerView):
     The overall seeker template to render.
     """
     
+    @abc.abstractproperty
+    def save_search_url(self):
+        pass
+    """
+    This property should return the url of the associated AdvancedSavedSearchView.
+    It is set to abstract because it needs to be defined on a site by site basis. None is a valid value if saved searches are not being used.
+    """
+    
+    @abc.abstractproperty
+    def search_url(self):
+        pass
+    """
+    This property should return the url of this seeker view.
+    It is set to abstract because it needs to be defined on a site by site basis.
+    Generally, this will be a 'reverse' call to the URL associated with this view.
+    """
+    
+    sort = ''
+    """
+    Default field to sort by. Prepend '-' to reverse sort.
+    """
+    
+    add_facets_to_display = True
+    """
+    Facet fields with selected values will automatically be added to the 'display' list (shown on the results table).
+    """
+    
     def __init__(self):
         if getattr(SeekerView, 'get_search_query_type').__func__ != getattr(self, 'get_search_query_type').__func__:
             warnings.warn(
                 "'get_search_query_type' function is deprecated, please use 'get_keyword_query' instead.",
                 DeprecationWarning
             )
+    
+    def modify_json_response(self, json_response, context):
+        """
+        This function allows modifications to the json data that will be returned when rendering results.
+        The context used to render the results template is passed in as a convenience.
+        NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
+        """
+        pass
         
     def get_columns(self, display):
         """
@@ -833,33 +871,24 @@ class AdvancedSeekerView (SeekerView):
         
         return visible_columns + non_visible_columns
 
-    def get_keywords(self, data_dict):
-        return data_dict.get('q', '').strip()
-
-    def get_display(self, data):
+    def get_display(self, display_list, facets_searched):
         """
-        Returns a list of display field names. If the user has selected display fields, those are used, otherwise
+        Returns a list of display field names. If the user has selected display fields and display_list is not empty those are used otherwise
         the default list is returned. If no default list is specified, all fields are displayed.
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
-        try:
-            # Data is either a QueryDict (GET or POST)...
-            all_selected_fields = data.getlist('d', default)
-        except AttributeError:
-            # ...or a regular dictionary
-            all_selected_fields = data.get('d', default)
-        display_fields = [f for f in all_selected_fields if f not in self.required_display_fields]
+        display_list = display_list or default
+        
+        if self.add_facets_to_display:
+            for field in facets_searched:
+                if field not in display_list + self.required_display:
+                    display_list.append(field)
+                    
+        display_fields = [f for f in display_list if f not in self.required_display_fields]
         for field, i in self.required_display:
             display_fields.insert(i, field)
         return display_fields
     
-    def get_saved_searches(self, url, user):
-        SavedSearchModel = self.get_saved_search_model()
-        filters = { 'url': url }
-        if self.restrict_to_user:
-            filters['user'] = user
-        return SavedSearchModel.objects.filter(**filters)
-
     def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
         """
         This function is deprecated. Please use 'get_keyword_query' directly.
@@ -876,7 +905,7 @@ class AdvancedSeekerView (SeekerView):
         return Q(self.query_type, **kwargs)
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
-        s = self.get_search_object()
+        s = self.get_dsl_search()
         if keywords:
             # TODO - Once 'get_search_query_type' is removed this can be cleaned up to:
             # s.query(self.get_keyword_query(keywords))
@@ -889,7 +918,7 @@ class AdvancedSeekerView (SeekerView):
                     facet.apply(s)
         return s
     
-    def get_search_object(self):
+    def get_dsl_search(self):
         using = self.using or self.document._doc_type.using or 'default'
         index = self.index or self.document._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
         # TODO: self.document.search(using=using, index=index) once new version is released
@@ -905,197 +934,170 @@ class AdvancedSeekerView (SeekerView):
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
         return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight)
-
-    def render(self, keywords, search, columns, sorts, page, facets, selected_facets, saved_search=None, 
-               saved_searches=None, advanced_search=True, query=None):
+    
+    def get_sort_field(self, columns, sort, display):
+        """
+        Returns the appropriate sort field for a given sort value.
+        """
         # Make sure we sanitize the sort fields.
-        sort_fields = []
-        column_lookup = {c.field: c for c in columns}
-        if not sorts:
-            if keywords:
-                sorts = []
-            else:
-                sorts = self.sort or []
-        for s in sorts:
-            # Get the column based on the field name, and use it's "sort" field, if applicable.
-            c = column_lookup.get(s.lstrip('-'))
-            if c and c.sort:
-                sort_fields.append('-%s' % c.sort if s.startswith('-') else c.sort)
-
+        column_lookup = { c.field: c for c in columns }
+        # Order of precedence for sort is: parameter, the default from the view, and then the first displayed column (if any are displayed)
+        sort = sort or self.sort or display[0] if len(display) else ''
+        # Get the column based on the field name, and use it's "sort" field, if applicable.
+        c = column_lookup.get(sort.lstrip('-'))
+        if c and c.sort:
+            return '-{}'.format(c.sort) if sort.startswith('-') else c.sort
+        return sort
+        
+    def get(self, request, *args, **kwargs):
+        facets = self.get_facets()
+        context = {
+            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
+            'facets': facets,
+#             'selected_facets': self.initial_facets.keys(),
+            'search_url': self.search_url,
+            'save_search_url': self.save_search_url
+        }
+         
+        if self.extra_context:
+            context.update(self.extra_context)
+             
+        self.modify_context(context)
+        return self.render_to_response(context)
+    
+    def post(self, request, *args, **kwargs):
+        """
+        Parameters:
+            'search_object' - A json string representing a dictionary in the following format:
+                {
+                    'query': (dictionary) The boolean query to be performed (see 'advanced_search' for format),
+                    'keywords': (string) Used to search the specified fields (see 'search' attr). NOTE: This is SUBTRACTIVE ONLY!
+                    'page': (integer) The page of the search,
+                    'sort': (string) The field name to be used when sorting (prepend '-' for reverse),
+                    'display': (list) The string field names to be displayed in the result table. NOTE: This is ordered!
+                }
+            '_export' - If present, the return value will be a CSV file of the results.
+        NOTE: The 'search_object' parameter key values listed here are the only fields that are required.
+              Since it will be passed back in the response extra values can be added to give the site context as to what search is being loaded.
+        """
+        if request.is_ajax():
+            try:
+                string_search_object = request.POST.get('search_object')
+                # We attach this to self so AdvancedColumn can have access to it
+                self.search_object = json.loads(string_search_object)
+            except KeyError:
+                return HttpResponseBadRequest("No 'search_object' found in the request data.")
+            except ValueError:
+                return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
+            export = request.POST.get('_export', False)
+            
+            # Sanity check that the search object has all of it's required components
+            if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
+                return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
+            return self.render_results(export)
+        else:
+            return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
+    
+    def render_results(self, export):
+        facets = self.get_facets()
+        facet_lookup = { facet.field: facet for facet in facets }
+        search = self.get_dsl_search()
+        query = self.search_object.get('query')
+        
+        # Hook to allow the search to be filtered before seeker begins it's work
+        self.additional_query_filters(search)
+        
+        # Hook to allow the search to be aggregated
+        self.apply_aggregations(search, query, facet_lookup)
+        
+        # Build the actual query that will be applied via post_filter
+        advanced_query, facets_searched = self.build_query(query, facet_lookup)
+        
+        # If there are any keywords passed in, we combine the advanced query with the keyword query
+        keywords = self.search_object['keywords'].strip()
+        if keywords:
+            advanced_query = Q('bool', should=[advanced_query, self.get_keyword_query(keywords)])
+        search = search.post_filter(advanced_query)
+         
+        page, offset = self.calculate_page_and_offset(self.search_object['page'], search)
+        
+        display = self.get_display(self.search_object['display'], facets_searched)
+        columns = self.get_columns(display)
+        if export:
+            return self.export(search, columns)
+        
         # Highlight fields.
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
             search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
-
-        # Calculate paging information.
+        
+        # Finally, grab the results.
+        sort = self.get_sort_field(columns, self.search_object['sort'], display)
+        if sort:
+            results = search.sort(sort)[offset:offset + self.page_size].execute()
+        else:
+            results = search[offset:offset + self.page_size].execute()
+            
+        # TODO clean this up (may not need everything)
+        context = {
+            'columns': columns,
+            'display_columns': [c for c in columns if c.visible],
+            'facet_lookup': facet_lookup,
+            'footer_template': self.footer_template,
+            'header_template': self.header_template,
+            'optional_columns': sorted([c for c in columns if c.field not in self.required_display_fields], key=lambda col: col.label),
+            'page': page,
+            'page_spread': self.page_spread,
+            'page_size': self.page_size,
+            'query': query,
+            'results': results,
+            'show_rank': self.show_rank,
+            'sort': sort,
+        }
+        self.modify_results_context(context)
+            
+        search_performed.send(sender=self.__class__, request=self.request, context=context)
+        json_response = {
+            'filters': [facet.build_filter_dict(results) for facet in facets], # Relies on the default 'apply_aggregations' being applied.
+            'table_html': loader.render_to_string(self.results_template, context, request=self.request),
+            'search_object': self.search_object
+        }
+        self.modify_json_response(json_response, context)
+        return JsonResponse(json_response)
+        
+    def calculate_page_and_offset(self, page, search):
         offset = (page - 1) * self.page_size
         results_count = search[0:0].execute().hits.total
         if results_count < offset:
             page = 1
             offset = 0
-
-        # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
-        
-        sort = sorts[0] if sorts else None
-        context = {
-            'document': self.document,
-            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
-            'columns': columns,
-            'display_columns': [c for c in columns if c.visible],
-            'export_name': self.export_name,
-            'facets': facets,
-            'footer_template': self.footer_template,
-            'form_action': self.request.path,
-            'header_template': self.header_template,
-            'keywords': keywords,
-            'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
-            'page': page,
-            'page_spread': self.page_spread,
-            'page_size': self.page_size,
-            'results': results,
-            'results_template': self.results_template,
-            'saved_search': saved_search,
-            'user_saved_searches': saved_searches.filter(saved=True),
-            'selected_facets': selected_facets,
-            'show_rank': self.show_rank,
-            'sort': sort,
-        }
-        
-        if advanced_search:
-            # Advanced search context
-            context.update({
-                'query': query or '{}',
-                'filters': json.dumps([facet.build_filter_dict(results) for facet in facets]),
-            })
-        else:
-            context_querystring = self.normalized_querystring(ignore=['p'])
-            # Simple search context
-            context.update({
-                'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
-                'querystring': context_querystring,
-            })
-
-        if self.extra_context:
-            context.update(self.extra_context)
-            
-        self.modify_context(context)
-            
-        search_performed.send(sender=self.__class__, request=self.request, context=context)
-
-        if self.request.is_ajax():
-            ajax_context = {
-                'page': page,
-                'sort': sort,
-                'table_html': loader.render_to_string(self.results_template, context, request=self.request),
-            }
-            if advanced_search:
-                # Advanced search ajax context
-                ajax_context.update({
-                    'query': context['query'],
-                    'filters': context['filters']
-                })
-            else:
-                # Simple search ajax context
-                ajax_context.update({
-                    'facet_data': {facet.field: facet.data(results) for facet in self.get_facets()},
-                    'querystring': context_querystring,
-                })
-            return JsonResponse(ajax_context)
-        else:
-            return self.render_to_response(context)
-        
-    def get(self, request, *args, **kwargs):
-        url = request.path
-        saved_search_id = kwargs.get('saved_search_id', None)
-        if saved_search_id:
-            # Saved searches are separated by the root URL of the seeker instance so we strip off the saved_search_id parameter
-            url = '/' + '/'.join([item.strip() for item in request.path.split('/') if item.strip()][:-1]) + '/'
-            all_saved_searches = self.get_saved_searches(url, request.user)
-            saved_search = all_saved_searches.filter(pk=saved_search_id).first()
-            if not saved_search:
-                return HttpResponseBadRequest("Saved search could not be found.")
-            return self.advanced_search(saved_search, all_saved_searches, request.GET)
-        
-        all_saved_searches = self.get_saved_searches(url, request.user)
-        # Check for a default search
-        default_search = all_saved_searches.filter(default=True).first()
-        if default_search:
-            return self.advanced_search(default_search, all_saved_searches, request.GET)
-        # Fall back to loading all results using the simple search method (no filters applied)
-        # TODO - add saved searches here? Maybe we do need a function that does an advanced search with all results
-        return self.advanced_search(None, all_saved_searches, request.GET)
-        
-    def post(self, request, *args, **kwargs):
-        SavedSearchModel = self.get_saved_search_model()
-        saved_search_id = kwargs.get('saved_search_id', None)
-        if saved_search_id:
-            # Saved searches are separated by the root URL of the seeker instance so we strip off the saved_search_id parameter
-            url = '/' + '/'.join([item.strip() for item in request.path.split('/') if item.strip()][:-1]) + '/'
-            all_saved_searches = self.get_saved_searches(url, request.user)
-            saved_search = all_saved_searches.filter(pk=saved_search_id)
-            if not saved_search:
-                return HttpResponseBadRequest("Saved search could not be found.")
-            
-            # Used to store all the changes
-            changes = []
-            
-            # Check if we should change the 'default' field
-            if request.POST.get('mark_default', False) and not saved_search.default:
-                saved_search.default = True
-                SavedSearchModel.objects.filter(user=request.user, url=saved_search.url).update(default=False)
-                changes.append({'field': 'default', 'old_value': False, 'new_value': True})
-            elif request.POST.get('unmark_default', False) and saved_search.default:
-                saved_search.default = False
-                changes.append({'field': 'default', 'old_value': True, 'new_value': False})
-                
-            # Check if we should change the 'saved' field
-            if request.POST.get('mark_saved', False) and not saved_search.saved:
-                saved_search.saved = True
-                changes.append({'field': 'saved', 'old_value': False, 'new_value': True})
-            elif request.POST.get('unmark_saved', False) and saved_search.saved:
-                saved_search.saved = False
-                changes.append({'field': 'saved', 'old_value': True, 'new_value': False})
-                # If the search is no longer marked as "saved" it shouldn't be marked as "default" either
-                if saved_search.default:
-                    saved_search.default = False
-                    changes.append({'field': 'default', 'old_value': True, 'new_value': False})
-                    
-            # If something changed we save and fire the signal
-            if changes:
-                saved_search.save()
-                saved_search_modified.send(sender=self.__class__, request=self.request, saved_search=saved_search, changes=changes)
-        else:
-            saved_search = self.save_search()
-            search_saved.send(sender=self.__class__, request=request, saved_search=saved_search)
-            all_saved_searches = self.get_saved_searches(request.path, request.user)
-        
-        # If this is an ajax call we don't want to return a redirect. Instead we call the load function directly, which in turn will return JSON data.
-        if request.is_ajax():
-            return self.advanced_search(saved_search, all_saved_searches, request.POST)
-        return redirect(saved_search)
+        return page, offset
     
-    def save_search(self):
+    def apply_aggregations(self, search, query, facet_lookup):
         """
-        This method saves the basic information to the saved search model.
-        It can be overridden to allow for more custom save functionality.
+        Applies the desired aggregations to the search.
+        By default this function applies each facet individually.
+        NOTE: This function makes the modification of the search object in place, there is no return value.
+        NOTE: It is recommended that any function overwriting this should call super (or replicate the aggregations done here).
+              If that doesn't happen then the 'filters' dictionary may not be build appropriately.
         """
-        # TODO - Is this more appropriate to put in the model itself??
-        SavedSearchModel = self.get_saved_search_model()
-        name = self.request.POST.get('name', '').strip()
-        # If this search is to be marked as saved, it must have a name
-        if not name and self.request.POST.get('mark_saved', False):
-            return HttpResponseBadRequest('No name specified for save search.')
-        return SavedSearchModel.objects.create(
-            user = self.request.user, 
-            data = json.dumps(self.request.POST),
-            name = name,
-            url = self.request.path
-        )
+        for facet in facet_lookup.values():
+            facet.apply(search)
     
-    def advanced_search(self, saved_search, all_saved_searches, query_dict):
+    def additional_query_filters(self, search):
         """
-        This function will process a advanced query and return the results.
+        Allows additional search filters (Q objects) to be applied to the search.
+        Nothing is passed to this function except the search because it is meant for hard rules (e.g. Only ever display results that have ____).
+        NOTE: This function makes the modification of the search object in place, there is no return value.
+        """
+        pass
+        
+    def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
+        """
+        Returns two values:
+        1) The ES DSL Q object representing the 'advanced_query' dictionary passed in
+        2) A list of the selected fields for this query
+        
         The advanced_query is a dictionary representation of the advanced query. The following is an example of the accepted format:
         {
             "condition": "<boolean operator>",
@@ -1119,7 +1121,7 @@ class AdvancedSeekerView (SeekerView):
             ],
             "not": <flag to negate sibling rules>
         }
-        
+         
         NOTES:
         Each 'rule' is a dictionary containing single rules and groups of rules. The value for each rule field are as follows:
             - id:     The name of the field in the elasticsearch document being searched.
@@ -1130,64 +1132,12 @@ class AdvancedSeekerView (SeekerView):
             - rules: A list of dictionaries containing either groups or rules.
             - not: A boolean (true/false) to indicate if this group should be additive or subtractive to the search.
         """
-        facets = self.get_facet_data(query_dict, initial=self.initial_facets if not self.request.is_ajax() else None)
-        if saved_search:
-            # Inflate the data associated with this saved search
-            data = json.loads(saved_search.data)
-            query = data.get('query', '')
-            advanced_query = json.loads(query)
-            if not advanced_query:
-                return HttpResponseBadRequest(u'POST must include a JSON dictionary (representing the advanced query) passed in via "query".')
-            
-            facets_by_field = { facet.field: facet for facet in facets }
-            advanced_query = self.build_query(advanced_query, facets_by_field)
-        else:
-            # TODO - Make this more flexible (currently only GET will get here)
-            data = query_dict
-            query = ''
-            advanced_query = Q('match_all')
-            
-        # If there are any keywords passed in, we combine the advanced query with the keyword query
-        keywords = self.get_keywords(query_dict)
-        if keywords:
-            advanced_query = Q('bool', should=[advanced_query, self.get_keyword_query(keywords)])
-        
-        search = self.get_search_object().query(advanced_query)
-    
-        for facet in facets:
-            facet.apply(search)
-        
-        # We pull these from the current POST/GET because changing them does not constitute a 'new' search (and thus won't be update in the saved search data)
-        sorts = query_dict.getlist('s', [])
-        page = query_dict.get('p', '').strip()
-        page = int(page) if page.isdigit() else 1
-            
-        display = self.get_display(data)
-        columns = self.get_columns(display)
-        
-        if '_export' in data:
-            return self.export(search, columns)
-        
-        return self.render(keywords, 
-                           search, 
-                           columns, 
-                           sorts, 
-                           page, 
-                           facets=facets,
-                           # TODO - This needs to be tweaked as well (since not guaranteed to be POST)
-                           selected_facets=self.request.POST.get('selected_facets') or self.initial_facets.keys(),
-                           saved_search=saved_search, 
-                           saved_searches=all_saved_searches,
-                           query=query)
-        
-    def build_query(self, advanced_query, facets_by_field):
         # Check if all required keys are present for an individual rule
         if all(k in advanced_query for k in ('id', 'operator', 'value')):
-            facet = facets_by_field.get(advanced_query['id'])
-            # TODO - Not sure this is needed anymore
-            if not advanced_query['value']:
-                return None
-            return facet.es_query(advanced_query['operator'], advanced_query['value'])
+            if advanced_query['id'] not in excluded_facets:
+                facet = facet_lookup.get(advanced_query['id'])
+                return facet.es_query(advanced_query['operator'], advanced_query['value']), [facet.field]
+            return None, None
         
         # Check if all required keys are present for a group   
         elif all(k in advanced_query for k in ('condition', 'rules')):
@@ -1196,16 +1146,18 @@ class AdvancedSeekerView (SeekerView):
                 raise ValueError(u"'{}' is not a valid boolean operator.".format(v))
             
             queries = []
+            selected_facets = []
             # The central portion of the recursion, we iterate over all rules inside this group
             for dict in advanced_query.get('rules'):
-                query = self.build_query(dict, facets_by_field)
+                query, facet_field = self.build_query(dict, facet_lookup, excluded_facets)
                 if query:
                     queries.append(query)
+                    selected_facets += facet_field
                 
             if advanced_query.get('not', False):
-                return ~Q('bool', **{group_operator: queries})
+                return ~Q('bool', **{group_operator: queries}), list(set(selected_facets))
             else:
-                return Q('bool', **{group_operator: queries})
+                return Q('bool', **{group_operator: queries}), list(set(selected_facets))
             
         # The advanced_query must have been missing something, so we cannot create this query
         else:
@@ -1231,4 +1183,214 @@ class AdvancedSeekerView (SeekerView):
         resp = StreamingHttpResponse(csv_generator(), content_type='text/csv; charset=utf-8')
         resp['Content-Disposition'] = 'attachment; filename=%s' % export_name
         return resp
+
+class SearchFailed(Exception):
+    """ Thrown when a search fails """
+    pass
+
+class AdvancedSavedSearchView(View):
+    pk_parameter = 'saved_search_pk'
+    """
+    The parameter to check for to get the saved search id (either via URL or request GET/POST)
+    """
     
+    url_parameter = 'url'
+    """
+    The parameter to check for to get the url associated with the desired saved searches.
+    """
+    
+    restrict_to_user = True
+    """
+    If users should only be able to view their own saved searches.
+    """
+    
+    form_template = 'advanced_seeker/save_form.html'
+    """
+    The form template used to display the save search form.
+    """
+    
+    unique_name_enforcement = 'delete'
+    """
+    The system will enforce the unique name requirement. How it is enforced depends on the value of this field.
+    The three options are:
+        - 'delete': All previously existing saved searches with the same name as the new one will be deleted.
+        - 'error': If a previously existing saved search shares the same name as the new one an error will be thrown.
+        - None: This enforcement is ignored, no restrictions on saved search names.
+    """
+        
+    def get(self, request, *args, **kwargs):
+        if self.request.is_ajax():
+            try:
+                url = request.GET.get(self.url_parameter)
+            except KeyError:
+                return JsonResponse({ 'error': 'No URL provided.' }, 400)
+            
+            SavedSearchModel = self.get_saved_search_model()
+            filter_kwargs = { 'url': url }
+            if self.restrict_to_user:
+                filter_kwargs['user'] = request.user
+            saved_searches = SavedSearchModel.objects.filter(**filter_kwargs).all()
+            
+            search_pk = kwargs.get(self.pk_parameter, request.GET.get(self.pk_parameter, None))
+            if search_pk:
+                try:
+                    saved_search = saved_searches.get(pk=search_pk)
+                except SavedSearchModel.DoesNotExist:
+                    return JsonResponse({ 'error': 'Saved search not found.' }, 400)
+            else:
+                # By design this will return None if there are no default searches found
+                saved_search = saved_searches.filter(default=True).first()
+                
+            SavedSearchForm = self.get_saved_search_form()
+                
+            data = { 
+                'current_search': None,
+            }
+            if saved_search:
+                data.update({ 'current_search': saved_search.get_details_dict() })
+            if saved_searches:
+                # We don't need to manually include the current search (like we do in post)
+                # because nothing is being modified (it should already be in there)
+                data.update({ 'all_searches': self.sort_searches([saved_search.get_details_dict() for saved_search in saved_searches]) })
+                
+            self.update_GET_response_data(data, saved_search)  
+            
+            # Binding the saved search to a form causes issues with the saved_search object (removes string data)
+            # So we do this at the very end
+            # TODO - figure out why the data is removed from the object itself when binding it to a form
+            form_kwargs = {}
+            if saved_search:
+                form_kwargs['instance'] = saved_search
+            form = SavedSearchForm(request.GET, **form_kwargs)
+            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            return JsonResponse(data)
+        else:
+            return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
+        
+    def post(self, request, *args, **kwargs):
+        if self.request.is_ajax():
+            try:
+                url = request.POST.get(self.url_parameter)
+            except KeyError:
+                return JsonResponse({'error': 'No URL provided.'}, 400)
+            
+            form_kwargs = {}
+            search_pk = kwargs.get(self.pk_parameter, request.POST.get(self.pk_parameter, None))
+            SavedSearchModel = self.get_saved_search_model()
+            filter_kwargs = { 'url': url }
+            if self.restrict_to_user:
+                filter_kwargs['user'] = request.user
+            saved_searches = SavedSearchModel.objects.filter(**filter_kwargs)
+            
+            # These are used to determine alternate paths
+            delete = request.POST.get('delete', False)
+            modify_default = request.POST.get('modify_default', '')
+            form_kwargs = {}
+            
+            if search_pk:
+                try:
+                    instance = saved_searches.get(pk=search_pk)
+                    if delete:
+                        instance.delete()
+                    else: 
+                        # This will be used to build the form =
+                        # We put it in KWARGS so it doesn't have to be passed in for a new object (no search_pk)
+                        form_kwargs['instance'] = instance
+                except SavedSearchModel.DoesNotExist:
+                    # If we are deleting the search anyway, we can pass if it wasn't found.
+                    # Otherwise (not deleting), throw the exception
+                    if not delete:
+                        return JsonResponse({'error': 'Saved search not found.'}, 400)
+            
+            # Collect all the saved searches information here
+            all_searches = [search.get_details_dict() for search in saved_searches]
+            data = {}
+
+            # We have three paths: delete, modify_default, or save
+            status = 200
+            if delete:
+                saved_search = None
+            elif modify_default:
+                if modify_default == 'set':
+                    instance.default = True
+                    saved_searches.update(default = False)
+                    instance.save()
+                    saved_search = instance
+                elif modify_default == 'unset':
+                    instance.default = False
+                    instance.save()
+                    saved_search = instance
+                else:
+                    data["error"] = 'Invalid value for "modify_default" field'
+                    saved_search = None
+                    status = 400
+            else:
+                SavedSearchForm = self.get_saved_search_form()
+                form = SavedSearchForm(request.POST, **form_kwargs)
+                if form.is_valid():
+                    saved_search = form.save(commit=False)
+                    saved_search.user = request.user
+                    
+                    # We can only have one default in the group, so set the others to false
+                    # This queryset does not include the saved_search about to be saved
+                    if saved_search.default:
+                        saved_searches.update(default=False)
+                    
+                    # We enforce the naming restrictions here (depending on the setting)
+                    same_name_searches = saved_searches.filter(name=saved_search.name)
+                    if self.unique_name_enforcement == 'delete' and same_name_searches.count():
+                        same_name_searches.delete()
+                    if self.unique_name_enforcement == 'error' and same_name_searches.count():
+                        return JsonResponse({'error': 'A search already exists with the name provided.'}, 400)
+                    
+                    saved_search.save()
+                    current_search = saved_search.get_details_dict()
+                    
+                    # Pass the current search details along to be returned
+                    # This happens both directly and in the list of all searches
+                    all_searches.append(current_search)
+                    data['current_search'] = current_search
+                else:
+                    # This error message is likely redundant
+                    data["error"] = 'Invalid form submitted'
+                    saved_search = None
+                    status = 400
+                # We add the form here because we want to return it rendered even if the form was not valid
+                data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            
+            data['all_searches'] = self.sort_searches(all_searches)
+            
+            self.update_POST_response_data(data, saved_search)
+            return JsonResponse(data, status=status)
+        else:
+            return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
+    
+    def update_GET_response_data(self, data, saved_search=None):
+        """
+        This function allows modifications to the json data that will be returned with a GET request.
+        The 'saved_search' being loaded may be passed in for convenience (it may be None).
+        NOTE: The changes to data should be done in place. This function does not have a return (similar to 'dict.update()').
+        """
+        pass
+    
+    def update_POST_response_data(self, data, saved_search=None):
+        """
+        This function allows modifications to the json data that will be returned with a POST request.
+        The 'saved_search' being loaded may be passed in for convenience (it may be None).
+        NOTE: The changes to data should be done in place. This function does not have a return (similar to 'dict.update()').
+        """
+        pass
+    
+    def sort_searches(self, all_searches):
+        """
+        This function sorts the list of searches that will be returned.
+        """
+        return sorted(all_searches, key=lambda search: search.get('name'))
+                
+    def get_saved_search_model(self):
+        from .models import SavedSearch
+        return SavedSearch
+    
+    def get_saved_search_form(self):
+        from .forms import AdvancedSavedSearchForm
+        return AdvancedSavedSearchForm

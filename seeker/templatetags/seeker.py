@@ -49,6 +49,16 @@ def seeker_facet(facet, results, selected=None, **params):
     })
     return loader.render_to_string(facet.template, params)
 
+@register.simple_tag
+def advanced_seeker_facet(facet, **params):
+    """
+    Renders an empty facet (no options/selections involved).
+    The options/selected values should be set via AJAX.
+    """
+    params.update({
+        'facet': facet,
+    })
+    return loader.render_to_string(facet.advanced_template, params)
 
 @register.simple_tag
 def seeker_column(column, result, **kwargs):

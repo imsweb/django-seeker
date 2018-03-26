@@ -10,8 +10,6 @@ class SavedSearch (models.Model):
     name = models.CharField(max_length=100, blank=True)
     url = models.CharField(max_length=200, db_index=True)
     querystring = models.TextField(blank=True)
-    data = models.TextField(blank=True)
-    saved = models.BooleanField(default=False, help_text=u'This saved search was marked "saved" by the user.')
     default = models.BooleanField(default=False)
     date_created = models.DateTimeField(default=timezone.now, editable=False)
 
@@ -25,7 +23,20 @@ class SavedSearch (models.Model):
     def get_absolute_url(self):
         if self.querystring:
             return '%s?%s%s%s%d' % (self.url, self.querystring, ('&' if self.querystring else ''), 'saved_search=', self.pk)
-        elif self.data:
-            return '{}/{}'.format(self.url, str(self.pk))
         else:
             return self.url
+        
+    def get_details_dict(self):
+        return { 'pk': self.pk, 'name': self.name, 'url': self.url, 'default': self.default }
+        
+@python_2_unicode_compatible
+class AdvancedSavedSearch (SavedSearch):
+    search_object = models.TextField()
+    
+    def __str__(self):
+        return self.name
+    
+    def get_details_dict(self):
+        details_dict = super(AdvancedSavedSearch, self).get_details_dict()
+        details_dict.update({ 'search_object': self.search_object })
+        return details_dict

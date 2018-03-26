@@ -15,6 +15,7 @@ class Facet (object):
     field = None
     label = None
     template = getattr(settings, 'SEEKER_DEFAULT_FACET_TEMPLATE', 'seeker/facets/terms.html')
+    advanced_template = getattr(settings, 'ADVANCED_SEEKER_DEFAULT_FACET_TEMPLATE', 'advanced_seeker/facets/terms.html')
 
     def __init__(self, field, label=None, name=None, description=None, template=None, **kwargs):
         self.field = field
@@ -110,7 +111,7 @@ class TermsFacet (Facet):
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
         data = self.data(results)
-        values = [''] + sorted([bucket['key'] for bucket in data['buckets']], key=lambda item: item.lower())
+        values = [''] + sorted([str(bucket['key']) for bucket in data['buckets']], key=lambda item: str(item).lower())
         filter_dict.update({
             'input': 'select',
             'values': values,
@@ -144,6 +145,7 @@ class GlobalTermsFacet (TermsFacet):
 
 class YearHistogram (Facet):
     template = 'seeker/facets/year_histogram.html'
+    advanced_template = 'advanced_seeker/facets/year_histogram.html'
 
     def apply(self, search, **extra):
         params = {
@@ -176,6 +178,7 @@ class YearHistogram (Facet):
 
 class RangeFilter (Facet):
     template = 'seeker/facets/range.html'
+    advanced_template = 'advanced_seeker/facets/range.html'
     
     @property
     def valid_operators(self):

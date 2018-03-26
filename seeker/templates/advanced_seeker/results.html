@@ -9,8 +9,8 @@
     <table class="table table-striped table-condensed table-seeker">
         <thead>
             <tr>
-                {% block pre-headers %}{% endblock pre-headers %}
-                {% block headers %}
+                {% block pre-table-headers %}{% endblock pre-table-headers %}
+                {% block table-headers %}
                     {% if show_rank and keywords %}
                         <th class="sort{% if not sort %} desc{% endif %}">
                             {% if sort %}
@@ -23,8 +23,8 @@
                     {% for col in display_columns %}
                         {{ col.header }}
                     {% endfor %}
-                {% endblock headers %}
-                {% block post-headers %}{% endblock post-headers %}
+                {% endblock table-headers %}
+                {% block post-table-headers %}{% endblock post-table-headers %}
             </tr>
         </thead>
         <tbody>
@@ -45,10 +45,6 @@
         </tbody>
     </table>
 </div>
-<input type="hidden" name="p" value="{{ page }}" id="page" />
-<input type="hidden" name="s" value="{{ sort }}" id="sort" />
-<input type="hidden" name="query" value="{{ query }}" id="query" />
-<input type="hidden" name="saved-search-id" value="{{ saved_search.pk }}" id="saved-search-id" />
 
 {% block footer %}
     {% include footer_template %}
