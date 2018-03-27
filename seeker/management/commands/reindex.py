@@ -1,3 +1,5 @@
+import argparse
+
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from elasticsearch.helpers import bulk
@@ -68,6 +70,7 @@ class Command (BaseCommand):
             dest='cursor',
             default=False,
             help='Use a server-side cursor when fetching data for indexing')
+        parser.add_argument('args', nargs=argparse.REMAINDER)
 
     def handle(self, *args, **options):
         doc_classes = []
