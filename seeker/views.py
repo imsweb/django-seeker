@@ -1056,6 +1056,7 @@ class AdvancedSeekerView (SeekerView):
             'columns': columns,
             'display_columns': [c for c in columns if c.visible],
             'facet_lookup': facet_lookup,
+            'facets_searched': facets_searched,
             'footer_template': self.footer_template,
             'header_template': self.header_template,
             'optional_columns': sorted([c for c in columns if c.field not in self.required_display_fields], key=lambda col: col.label),
