@@ -1030,6 +1030,8 @@ class AdvancedSeekerView (SeekerView):
         keywords = self.search_object['keywords'].strip()
         if keywords:
             advanced_query = Q('bool', should=[advanced_query, self.get_keyword_query(keywords)])
+            
+        # We use post_filter to allow the aggregations to be run before applying the filter
         search = search.post_filter(advanced_query)
          
         page, offset = self.calculate_page_and_offset(self.search_object['page'], search)
@@ -1101,7 +1103,8 @@ class AdvancedSeekerView (SeekerView):
     def additional_query_filters(self, search):
         """
         Allows additional search filters (Q objects) to be applied to the search.
-        Nothing is passed to this function except the search because it is meant for hard rules (e.g. Only ever display results that have ____).
+        Ideally, filters applied by this function will be applied for every search.
+        For that reason nothing is passed to this function except the search.
         NOTE: This function makes the modification of the search object in place, there is no return value.
         """
         pass
