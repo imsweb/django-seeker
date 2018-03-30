@@ -902,20 +902,20 @@ class AdvancedSeekerView (SeekerView):
             display_fields.insert(i, field)
         return display_fields
     
-    def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
-        """
-        This function is deprecated. Please use 'get_keyword_query' directly.
-        """
-        return search.query(self.get_keyword_query(keywords, analyzer))
-    
-    def get_keyword_query(self, keywords, analyzer=DEFAULT_ANALYZER):
-        kwargs = {'query': keywords,
-                  'analyzer': analyzer,
-                  'fields': self.get_search_fields(),
-                  'default_operator': self.operator}
-        if self.query_type == 'simple_query':
-            kwargs['auto_generate_phrase_queries'] = True
-        return Q(self.query_type, **kwargs)
+#     def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
+#         """
+#         This function is deprecated. Please use 'get_keyword_query' directly.
+#         """
+#         return search.query(self.get_keyword_query(keywords, analyzer))
+#     
+#     def get_keyword_query(self, keywords, analyzer=DEFAULT_ANALYZER):
+#         kwargs = {'query': keywords,
+#                   'analyzer': analyzer,
+#                   'fields': self.get_search_fields(),
+#                   'default_operator': self.operator}
+#         if self.query_type == 'simple_query':
+#             kwargs['auto_generate_phrase_queries'] = True
+#         return Q(self.query_type, **kwargs)
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.get_dsl_search()
@@ -1029,7 +1029,7 @@ class AdvancedSeekerView (SeekerView):
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
         if keywords:
-            advanced_query = Q('bool', should=[advanced_query, self.get_keyword_query(keywords)])
+            search = search.query(self.get_search_query_type(keywords))
             
         # We use post_filter to allow the aggregations to be run before applying the filter
         search = search.post_filter(advanced_query)
