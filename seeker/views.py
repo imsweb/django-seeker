@@ -1300,7 +1300,7 @@ class AdvancedSavedSearchView(View):
             saved_searches = SavedSearchModel.objects.filter(**filter_kwargs)
             
             # These are used to determine alternate paths
-            delete = request.POST.get('delete', False)
+            delete = request.POST.get('_delete', False)
             modify_default = request.POST.get('modify_default', '')
             form_kwargs = {}
             
