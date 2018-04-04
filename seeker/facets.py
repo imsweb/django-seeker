@@ -1,5 +1,6 @@
 from django.conf import settings
 from elasticsearch_dsl import A, Q
+from elasticsearch_dsl.aggs import Terms, Nested
 
 import functools
 import operator
@@ -199,7 +200,7 @@ class RangeFilter (Facet):
         'complex query' functionality.
         """
         if operator not in self.valid_operators:
-            raise ValueError(u"'{}' is not a valid operator for a TermsFacet object.".format(operator))
+            raise ValueError(u"'{}' is not a valid operator for a RangeFilter object.".format(operator))
         
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
@@ -213,4 +214,34 @@ class RangeFilter (Facet):
             if values[1].isdigit():
                 r['lte'] = values[1]
             search = search.filter('range', **{self.field: r})
+        return search
+
+class NestedFacet (Facet):
+    template = 'seeker/facets/nested.html'
+
+    @property
+    def valid_operators(self):
+        return [
+            'equal',
+            'not_equal',
+        ]
+
+    def __init__(self, path, field, **kwargs):
+        self.path = path
+        super(NestedFacet, self).__init__(field, **kwargs)
+
+    def _get_nested_bucket(self):
+        return Nested(path=self.path)
+
+    def _get_aggregation(self):
+        return Terms(field=self.field)
+
+    def apply(self, search):
+        search.aggs.bucket(self.name, self._get_nested_bucket()).bucket(self.name, self._get_aggregation())
+        return search
+
+    def filter(self, search, values):
+        if values:
+            nested_kwargs = {'query': Q("terms", **{self.field: values}), "path": self.path}
+            return search.filter("nested", **nested_kwargs)
         return search

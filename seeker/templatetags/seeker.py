@@ -123,3 +123,8 @@ def seeker_highlight(text, query, algorithm='english'):
         else:
             parts.append(word)
     return mark_safe(''.join(parts))
+
+@register.filter
+def dict_lookup(d, key):
+    return d.get(key)
+

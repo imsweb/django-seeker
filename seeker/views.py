@@ -293,6 +293,11 @@ class SeekerView (View):
     """
     A dictionary of default templates for each field
     """
+
+    nested_field_search_lookup = {}
+    """
+    A dictionary of nested fields used by the keyword search.
+    """
         
     def modify_context(self, context):
         """
@@ -517,6 +522,15 @@ class SeekerView (View):
         from .models import SavedSearch
         return SavedSearch
 
+    def format_search_fields(self, fields):
+        formatted_fields = {"nested": [], "non_nested": []}
+        if fields:
+            for field in fields:
+                parent_field = field.split(".")[0]
+                key = "nested" if isinstance(self.document._doc_type.mapping[parent_field], dsl.Nested) else "non_nested"
+                formatted_fields[key].append(field)
+        return formatted_fields
+
     def get_search_fields(self, mapping=None, prefix=''):
         if self.search:
             return self.search
@@ -531,14 +545,34 @@ class SeekerView (View):
         else:
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
-    def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
-        kwargs = {'query': keywords,
-                  'analyzer': analyzer,
-                  'fields': self.get_search_fields(),
-                  'default_operator': self.operator}
+    def get_non_nested_query(self, search_fields, keywords, analyzer=DEFAULT_ANALYZER):
+        non_nested_kwargs = {'query': keywords,
+                             'analyzer': analyzer,
+                             'fields': search_fields,
+                             'default_operator': self.operator}
         if self.query_type == 'simple_query':
-            kwargs['auto_generate_phrase_queries'] = True
-        return search.query(self.query_type, **kwargs)
+            non_nested_kwargs['auto_generate_phrase_queries'] = True
+        return Q(self.query_type, **non_nested_kwargs)
+
+    def get_nested_queries(self, search_fields, keywords):
+        queries = []
+        if not search_fields:
+            # If search_fields is empty, we default to all fields in the lookup dictionary
+            search_fields = self.nested_field_search_lookup.keys()
+        for nested_field in search_fields:
+            if nested_field in self.nested_field_search_lookup and isinstance(self.document._doc_type.mapping[nested_field], dsl.Nested):
+                term = "{}__{}".format(nested_field, self.nested_field_search_lookup[nested_field])
+                nested_kwargs = {'query': Q("match", **{term: keywords}), "path": nested_field}
+                nested_query = Q("nested", **nested_kwargs)
+                queries.append(nested_query)
+        return queries
+
+    def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
+        search_fields = self.format_search_fields(self.get_search_fields())
+        should = []
+        should.append(self.get_non_nested_query(search_fields["non_nested"], keywords, analyzer))
+        should += self.get_nested_queries(search_fields["nested"], keywords)
+        return search.query("bool", should=should)
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
         using = self.using or self.document._doc_type.using or 'default'
@@ -1052,7 +1086,7 @@ class AdvancedSeekerView (SeekerView):
             results = search.sort(sort)[offset:offset + self.page_size].execute()
         else:
             results = search[offset:offset + self.page_size].execute()
-            
+
         # TODO clean this up (may not need everything)
         context = {
             'columns': columns,
