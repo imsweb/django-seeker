@@ -1001,7 +1001,6 @@ class AdvancedSeekerView (SeekerView):
         context = {
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
             'facets': facets,
-#             'selected_facets': self.initial_facets.keys(),
             'search_url': self.search_url,
             'save_search_url': self.save_search_url
         }
@@ -1052,7 +1051,7 @@ class AdvancedSeekerView (SeekerView):
         query = self.search_object.get('query')
         
         # Hook to allow the search to be filtered before seeker begins it's work
-        self.additional_query_filters(search)
+        search = self.additional_query_filters(search)
         
         # Hook to allow the search to be aggregated
         self.apply_aggregations(search, query, facet_lookup)
