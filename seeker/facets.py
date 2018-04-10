@@ -4,6 +4,7 @@ from elasticsearch_dsl.aggs import Terms, Nested
 
 import functools
 import operator
+import copy
 
 
 class Facet (object):
@@ -18,11 +19,12 @@ class Facet (object):
     template = getattr(settings, 'SEEKER_DEFAULT_FACET_TEMPLATE', 'seeker/facets/terms.html')
     advanced_template = getattr(settings, 'ADVANCED_SEEKER_DEFAULT_FACET_TEMPLATE', 'advanced_seeker/facets/terms.html')
 
-    def __init__(self, field, label=None, name=None, description=None, template=None, **kwargs):
+    def __init__(self, field, label=None, name=None, description=None, template=None, advanced_template=None, **kwargs):
         self.field = field
         self.label = label or self.field.replace('_', ' ').replace('.raw', '').replace('.', ' ').capitalize()
         self.name = (name or self.field).replace('.raw', '').replace('.', '_')
         self.template = template or self.template
+        self.advanced_template = advanced_template or self.advanced_template
         self.description = description
         self.kwargs = kwargs
         
@@ -75,6 +77,9 @@ class Facet (object):
 
     def get_key(self, bucket):
         return bucket.get('key')
+
+    def get_facet_sort_key(self, bucket):
+        return self.get_key(bucket).lower()
 
     def buckets(self, response):
         for b in self.data(response).get('buckets', []):
@@ -181,40 +186,113 @@ class RangeFilter (Facet):
     template = 'seeker/facets/range.html'
     advanced_template = 'advanced_seeker/facets/range.html'
     
+    def __init__(self, field, **kwargs):
+        self.ranges = kwargs.pop('ranges', [])
+        self.missing = kwargs.pop('missing', -1)
+        super(RangeFilter, self).__init__(field, **kwargs)
+
     @property
     def valid_operators(self):
         return [
-            'between',
-            'not between',
-            'less',
-            'less or equal',
-            'greater',
-            'greater or equal'
             'equal',
-            'not equal'
+            'not_equal'
         ]
-    
-    def es_query(self, operator, value):
+
+    def _get_aggregation(self, **extra):
+        params = {'field': self.field, 'ranges': self.ranges, 'missing':self.missing}
+        params.update(extra)
+        return A('range', **params)
+
+    def apply(self, search, **extra):
+        if self.ranges:
+            search.aggs[self.name] = self._get_aggregation(**extra)
+        return search
+
+    def _get_filters(self, value):
+        valid_ranges = []
+        # We only accept ranges that are defined
+        for range in self.ranges:
+            range_value = str(range.get('key'))
+            if (isinstance(value, unicode) and range_value == value) or (isinstance(value, list) and range_value in value):
+                valid_ranges.append(range)
+        filters = []
+        for range in valid_ranges:
+            if 'from' in range and range['from'] == self.missing:
+                filters.append(~Q('exists', field=self.field))
+            else:
+                translated_range = {}
+                if 'from' in range:
+                    translated_range['gte'] = range['from']
+                if 'to' in range:
+                    translated_range['lt'] = range['to']
+                if translated_range:
+                    filters.append(Q('range', **{self.field: translated_range}))
+        return filters
+
+    def es_query(self, query_operator, value):
         """
         This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
-        if operator not in self.valid_operators:
-            raise ValueError(u"'{}' is not a valid operator for a RangeFilter object.".format(operator))
+        if query_operator not in self.valid_operators:
+            raise ValueError(u"'{}' is not a valid operator for a RangeFilter object.".format(query_operator))
         
-        if operator in self.bool_operators:
-            return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
-        return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
+        if self.ranges:
+            filters = self._get_filters(value)
+            if filters:
+                if query_operator in self.bool_operators:
+                    return Q('bool', **{self.bool_operators[query_operator]: [Q('bool', filter=functools.reduce(operator.or_, filters))]})
+                else:
+                    return Q('bool', filter=functools.reduce(operator.or_, filters))
+
+    def build_filter_dict(self, results):
+        filter_dict = super(RangeFilter, self).build_filter_dict(results)
+        data = self.data(results)
+        values = [''] + sorted([str(bucket['key']) for bucket in data['buckets']], key=lambda item: str(item).lower())
+        filter_dict.update({
+            'input': 'select',
+            'values': values,
+            'operators': self.valid_operators
+        })
+        return filter_dict
 
     def filter(self, search, values):
-        if len(values) == 2:
-            r = {}
-            if values[0].isdigit():
-                r['gte'] = values[0]
-            if values[1].isdigit():
-                r['lte'] = values[1]
-            search = search.filter('range', **{self.field: r})
+        if self.ranges:
+            filters = self._get_filters(values)
+            if filters:
+                search = search.filter(functools.reduce(operator.or_, filters))
+        else:
+            if len(values) == 2:
+                r = {}
+                if values[0].isdigit():
+                    r['gte'] = values[0]
+                if values[1].isdigit():
+                    r['lte'] = values[1]
+                search = search.filter('range', **{self.field: r})
         return search
+
+    def data(self, response, values=[], **kwargs):
+        try:
+            facet_data = response.aggregations[self.name].to_dict()
+            buckets = copy.deepcopy(facet_data['buckets'])
+            for bucket in buckets:
+                if bucket['key'] not in values and bucket['doc_count'] == 0:
+                    facet_data['buckets'].remove(bucket)
+            if kwargs.get('sort_facets', True) and 'buckets' in facet_data:
+                facet_data['buckets'] = sorted(facet_data['buckets'], key=self.get_facet_sort_key)
+            return facet_data
+        except:
+            return {}
+
+    def in_range(self, range_key, value):
+        for range in self.ranges:
+            if range['key'] == range_key:
+                if 'from' in range and range['from'] > value:
+                    return False
+                if 'to' in range and range['to'] <= value:
+                    return False
+                return True
+        return False
 
 class NestedFacet (Facet):
     template = 'seeker/facets/nested.html'
