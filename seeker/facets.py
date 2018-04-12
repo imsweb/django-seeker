@@ -255,9 +255,6 @@ class RangeFilter (Facet):
             - In seeker, key will be a list of selected key values.
             - In advanced seeker, key will be a unicode representing 1 key from self.ranges.
         """
-        # This function will only return filters for ranges that are defined in self.ranges (i.e - valid ranges)
-        valid_ranges = []
-
         # This is a list of filter query objects for each value range.
         filters = []
 
@@ -265,6 +262,9 @@ class RangeFilter (Facet):
         if key == '_missing':
             filters.append(~Q('exists', field=self.field))
         else:
+            # This function will only return filters for ranges that are defined in self.ranges (i.e - valid ranges)
+            valid_ranges = []
+
             for range in self.ranges:
                 # For each range in self.ranges, we get the key associated with that range so we can compare it to 'key'.
                 range_key = self._get_range_key(range)
