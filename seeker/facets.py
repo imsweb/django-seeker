@@ -5,11 +5,12 @@ from elasticsearch_dsl.aggs import Terms, Nested
 import functools
 import operator
 import copy
-
+import numbers
 
 class Facet (object):
     bool_operators = {
         'not_equal': 'must_not',
+        'not_between': 'must_not'
     }
     special_operators = {
         'begins_with': "prefix" 
@@ -187,88 +188,187 @@ class RangeFilter (Facet):
     advanced_template = 'advanced_seeker/facets/range.html'
     
     def __init__(self, field, **kwargs):
+        # ranges is an optional list of dictionaries of pre-defined ranges to aggregate on.
         self.ranges = kwargs.pop('ranges', [])
-        self.missing = kwargs.pop('missing', -1)
+        
+        # use_ranges_in_filter_dict specifies if the pre-defined ranges should be used in complex queries
+        self.use_ranges_in_filter_dict = kwargs.pop('use_ranges_in_filter_dict', False)
+        if self.ranges:
+            # If the facet has pre-defined ranges, the facet is by default rendered as a select box with the defined ranges as values.
+            # This can be overridden by passing advanced_template as a parameter in your facet definition.
+            self.advanced_template = "advanced_seeker/facets/terms.html"
         super(RangeFilter, self).__init__(field, **kwargs)
 
     @property
     def valid_operators(self):
-        return [
-            'equal',
-            'not_equal'
-        ]
+        # TODO: Add support for more operators: less, less or equal, greater, greater or equal
+        operators = ['equal', 'not_equal']
+        # between and not_between are valid operators if the facet doesn't have pre-defined ranges or if the facet specifies not to use the pre-defined ranges in the complex search.
+        if not self.use_ranges_in_filter_dict or not self.ranges:
+            operators = ['between', 'not_between'] + operators
+        return operators
 
     def _get_aggregation(self, **extra):
-        params = {'field': self.field, 'ranges': self.ranges, 'missing':self.missing}
-        params.update(extra)
-        return A('range', **params)
+        # If the facet has pre-defined ranges, this function will return a range aggregation.
+        # If the facet doesn't have pre-defined ranges, this function will return a terms aggregation that aggregates on each value in the range field. 
+        if self.ranges:
+            params = {'field': self.field, 'ranges': self.ranges}
+            params.update(extra)
+            return A('range', **params)
+        else:
+            params = {'field': self.field}
+            params.update(self.kwargs)
+            params.update(extra)
+            return A('terms', **params)
 
     def apply(self, search, **extra):
-        if self.ranges:
-            search.aggs[self.name] = self._get_aggregation(**extra)
+        search.aggs[self.name] = self._get_aggregation(**extra)
         return search
+    
+    def _get_range_key(self, range):
+        """
+        This helper function takes a range dictionary and returns the aggregation key.  Key is an optional argument in elasticsearch.
+        If the range in self.ranges does not specify a key, the default key elasticsearch uses is "from-to", where from and to are either floats or *.
+        """
+        default_from_key = range.get("from", "*")
+        default_to_key = range.get("to", "*")
+        
+        # If a from value was found, we need to cast it as a float since that's how elasticsearch formats the default key.
+        if default_from_key != "*":
+            default_from_key = float(default_from_key)
+        # Same as above, if a to value is defined, cast the value as a float.
+        if default_to_key != "*":
+            default_to_key = float(default_to_key)
+        
+        # Create the default "from-to" key
+        default_range_key = "{}-{}".format(default_from_key, default_to_key)
+        
+        # Return the custom key defined in self.ranges or the default key
+        return str(range.get('key', default_range_key))
 
-    def _get_filters(self, value):
-        valid_ranges = []
-        # We only accept ranges that are defined
-        for range in self.ranges:
-            range_value = str(range.get('key'))
-            if (isinstance(value, unicode) and range_value == value) or (isinstance(value, list) and range_value in value):
-                valid_ranges.append(range)
-        filters = []
-        for range in valid_ranges:
-            if 'from' in range and range['from'] == self.missing:
-                filters.append(~Q('exists', field=self.field))
-            else:
+    def _get_filters_from_ranges(self, key):
+        """
+        This helper function takes a key(s) and finds the range boundaries that correspond to that key (defined in self.ranges).
+        This function returns a list of filters.  One filter for each found key.
+        
+        This helper function is use by both seeker and advanced seeker:
+            - In seeker, key will be a list of selected key values.
+            - In advanced seeker, key will be a unicode representing 1 key from self.ranges.
+        """
+        # if key is equal to _missing, we create a query that returns every document that doesn't have a value for that field.
+        if key == '_missing':
+            filters.append(~Q('exists', field=self.field))
+        else:
+            # This function will only return filters for ranges that are defined in self.ranges (i.e - valid ranges)
+            valid_ranges = []
+    
+            # This is a list of filter query objects for each value range.
+            filters = []
+
+            for range in self.ranges:
+                # For each range in self.ranges, we get the key associated with that range so we can compare it to 'key'.
+                range_key = self._get_range_key(range)
+
+                # This if statement is structured to be cross compatible between seeker and advanced seeker.
+                # If key is unicode (advanced seeker), we check if the key is equal to the range_key.  If it is, we add it to valid keys.
+                # If key is a list (seeker), we check if the range_key is in the list of keys.  If it is, we add it to valid keys.
+                if (isinstance(key, unicode) and range_key == key) or (isinstance(key, list) and range_key in key):
+                    valid_ranges.append(range)
+            for range in valid_ranges:
+                # From and To are optional in elasticsearch.  The translated_range dictionary stores the parameters we
+                # intend to use in our query base on what is defined in range.
                 translated_range = {}
                 if 'from' in range:
+                    # We do greater-than or equal to because in Elasticsearch, a range aggregation includes the from value.
                     translated_range['gte'] = range['from']
                 if 'to' in range:
+                    # We do less-than because in Elasticsearch, a range aggregation exclude the to value.
+                    # Doing less-than or equal to could cause the bucket count to be different than the result counts.
                     translated_range['lt'] = range['to']
+                # We check that the range, defined in self.ranges, had a 'from' and/or a 'to' value.
                 if translated_range:
                     filters.append(Q('range', **{self.field: translated_range}))
         return filters
+    
+    def _get_filter_from_range_list(self, range):
+        """
+        This helper function is designed to take a list of 2 values and build a range query.
+        """
+        if len(range) == 2:
+            r = {}
+            # This function supports the ranges defined in range to either be a number or a str representation of a number.
+            if isinstance(range[0], numbers.Number) or range[0].isdigit():
+                r['gte'] = range[0]
+            if isinstance(range[1], numbers.Number) or range[1].isdigit():
+                r['lt'] = range[1]
+            return Q('range', **{self.field: r})
+        else:
+            raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(range), range))
 
     def es_query(self, query_operator, value):
         """
-        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
-        'complex query' functionality.
+        This function returns the elasticsearch_dsl query object for the RangeFilter Facet.
+        
+        The "value" parameter will be 1 of three options:
+            - list: value will be a list of two numbers. The first number represents the lower bound of the range and the second represents the upper bound of the range.
+            - number: value can be single number.  Single numbers are used in complex queries when the operator is equal or not equal. (TODO: Update this comment once other operators are supported)
+            - range key: value can represent a range key that defined in self.ranges
+        
         """
+        # We first check if the query operator is valid.
         if query_operator not in self.valid_operators:
             raise ValueError(u"'{}' is not a valid operator for a RangeFilter object.".format(query_operator))
         
-        if self.ranges:
-            filters = self._get_filters(value)
+        if isinstance(value, list):
+            # If value is a list defining the lower and upper bounds of the range, we call _get_filter_from_range_list that returns the DSL Filter object.
+            filter = self._get_filter_from_range_list(value)
+            query = Q('bool', filter=filter)
+            # A check to see if the query should be wrapped in a parent query defined in self.bool_operators. If not, we return the query as-is. 
+            if query_operator in self.bool_operators:
+                return Q('bool', **{self.bool_operators[query_operator]: [query]})
+            else:
+                return query
+        # We check if value is a number or a str/unicode representation of a number.
+        elif isinstance(value, numbers.Number) or value.isdigit():
+            # TODO: This logic will need to be updated when we support the operators: >, =>, <, and <=
+            # If value is a number, the query will either be equal or not equal to the number stored in value.
+            if query_operator in self.bool_operators:
+                return Q('bool', **{self.bool_operators[query_operator]: [Q('term', **{self.field: value})]})
+            return Q(self.special_operators.get(query_operator, 'term'), **{self.field: value})
+        elif self.ranges:
+            # We get a list of filter objects for each key defined in value.
+            filters = self._get_filters_from_ranges(value)
             if filters:
+                # Build a query object and add the list of filters to it.
                 if query_operator in self.bool_operators:
                     return Q('bool', **{self.bool_operators[query_operator]: [Q('bool', filter=functools.reduce(operator.or_, filters))]})
                 else:
                     return Q('bool', filter=functools.reduce(operator.or_, filters))
+        else:
+            raise ValueError("Received invalid range value. Value must be a list of two numbers, a number, or a key defined in self.ranges")
 
     def build_filter_dict(self, results):
         filter_dict = super(RangeFilter, self).build_filter_dict(results)
-        data = self.data(results)
-        values = [''] + sorted([str(bucket['key']) for bucket in data['buckets']], key=lambda item: str(item).lower())
-        filter_dict.update({
-            'input': 'select',
-            'values': values,
-            'operators': self.valid_operators
-        })
+        if self.ranges and self.use_ranges_in_filter_dict:
+            # If we have self.ranges, the filter is defaulted to a select box for those ranges 
+            data = self.data(results)
+            values = [''] + sorted([str(bucket['key']) for bucket in data['buckets']], key=lambda item: str(item).lower())
+            filter_dict.update({
+                'input': 'select',
+                'values': values,
+                'operators': self.valid_operators
+            })
+        else:
+            filter_dict.update({'operators': self.valid_operators})
         return filter_dict
 
     def filter(self, search, values):
         if self.ranges:
-            filters = self._get_filters(values)
+            filters = self._get_filters_from_ranges(values)
             if filters:
                 search = search.filter(functools.reduce(operator.or_, filters))
         else:
-            if len(values) == 2:
-                r = {}
-                if values[0].isdigit():
-                    r['gte'] = values[0]
-                if values[1].isdigit():
-                    r['lte'] = values[1]
-                search = search.filter('range', **{self.field: r})
+            search = search.filter(self._get_filter_from_range_list(values))
         return search
 
     def data(self, response, values=[], **kwargs):
@@ -284,15 +384,6 @@ class RangeFilter (Facet):
         except:
             return {}
 
-    def in_range(self, range_key, value):
-        for range in self.ranges:
-            if range['key'] == range_key:
-                if 'from' in range and range['from'] > value:
-                    return False
-                if 'to' in range and range['to'] <= value:
-                    return False
-                return True
-        return False
 
 class NestedFacet (Facet):
     template = 'seeker/facets/nested.html'
