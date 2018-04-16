@@ -1276,11 +1276,7 @@ class AdvancedSavedSearchView(View):
                 return JsonResponse({ 'error': 'No URL provided.' }, 400)
             
             SavedSearchModel = self.get_saved_search_model()
-            filter_kwargs = { 'url': url }
-            if self.restrict_to_user:
-                filter_kwargs['user'] = request.user
-            saved_searches = SavedSearchModel.objects.filter(**filter_kwargs).all()
-            
+            saved_searches = self.get_saved_searches(url, SavedSearchModel)
             search_pk = kwargs.get(self.pk_parameter, request.GET.get(self.pk_parameter, None))
             if search_pk:
                 try:
@@ -1290,19 +1286,17 @@ class AdvancedSavedSearchView(View):
             else:
                 # By design this will return None if there are no default searches found
                 saved_search = saved_searches.filter(default=True).first()
+            
+            # If a saved search is found we include its data in 'current_search' for convenience (it will also be in 'all_searches')
+            data = { 'current_search': saved_search.get_details_dict() if saved_search else None }
                 
             SavedSearchForm = self.get_saved_search_form()
-                
-            data = { 
-                'current_search': None,
-            }
-            if saved_search:
-                data.update({ 'current_search': saved_search.get_details_dict() })
+            
+            # Even if a specific saved search was not found we return all of the other available saved searches
             if saved_searches:
-                # We don't need to manually include the current search (like we do in post)
-                # because nothing is being modified (it should already be in there)
                 data.update({ 'all_searches': self.sort_searches([saved_search.get_details_dict() for saved_search in saved_searches]) })
-                
+            
+            # Hook to allow customization 
             self.update_GET_response_data(data, saved_search)  
             
             # Binding the saved search to a form causes issues with the saved_search object (removes string data)
@@ -1313,6 +1307,7 @@ class AdvancedSavedSearchView(View):
                 form_kwargs['instance'] = saved_search
             form = SavedSearchForm(request.GET, **form_kwargs)
             data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            
             return JsonResponse(data)
         else:
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
@@ -1327,55 +1322,46 @@ class AdvancedSavedSearchView(View):
             form_kwargs = {}
             search_pk = kwargs.get(self.pk_parameter, request.POST.get(self.pk_parameter, None))
             SavedSearchModel = self.get_saved_search_model()
-            filter_kwargs = { 'url': url }
-            if self.restrict_to_user:
-                filter_kwargs['user'] = request.user
-            saved_searches = SavedSearchModel.objects.filter(**filter_kwargs)
+            saved_searches = self.get_saved_searches(url, SavedSearchModel)
             
             # These are used to determine alternate paths
             delete = request.POST.get('_delete', False)
             modify_default = request.POST.get('modify_default', '')
             form_kwargs = {}
             
+            saved_search = None
             if search_pk:
                 try:
-                    instance = saved_searches.get(pk=search_pk)
-                    if delete:
-                        instance.delete()
-                    else: 
-                        # This will be used to build the form =
-                        # We put it in KWARGS so it doesn't have to be passed in for a new object (no search_pk)
-                        form_kwargs['instance'] = instance
+                    # We put this in 'form_kwargs' since it is optional (it won't be included for a new object)
+                    saved_search = saved_searches.get(pk=search_pk)
                 except SavedSearchModel.DoesNotExist:
-                    # If we are deleting the search anyway, we can pass if it wasn't found.
-                    # Otherwise (not deleting), throw the exception
+                    # We only want to throw an error if we cannot find the object AND we are NOT trying to delete it anyway
                     if not delete:
                         return JsonResponse({'error': 'Saved search not found.'}, 400)
             
-            # Collect all the saved searches information here
-            all_searches = [search.get_details_dict() for search in saved_searches]
             data = {}
-
             # We have three paths: delete, modify_default, or save
             status = 200
             if delete:
-                saved_search = None
+                if saved_search:
+                    saved_search.delete()
+                saved_search = None # 'saved_search' will still hold the python object of the saved search that was just deleted
             elif modify_default:
                 if modify_default == 'set':
-                    instance.default = True
+                    saved_search.default = True
                     saved_searches.update(default = False)
-                    instance.save()
-                    saved_search = instance
+                    saved_search.save()
                 elif modify_default == 'unset':
-                    instance.default = False
-                    instance.save()
-                    saved_search = instance
+                    saved_search.default = False
+                    saved_search.save()
                 else:
                     data["error"] = 'Invalid value for "modify_default" field'
                     saved_search = None
                     status = 400
             else:
                 SavedSearchForm = self.get_saved_search_form()
+                if saved_search:
+                    form_kwargs['instance'] = saved_search
                 form = SavedSearchForm(request.POST, **form_kwargs)
                 if form.is_valid():
                     saved_search = form.save(commit=False)
@@ -1386,31 +1372,35 @@ class AdvancedSavedSearchView(View):
                     if saved_search.default:
                         saved_searches.update(default=False)
                     
-                    # We enforce the naming restrictions here (depending on the setting)
+                    # We enforce the naming restrictions here (depending on the 'unique_name_enforcement' setting)
                     same_name_searches = saved_searches.filter(name=saved_search.name)
-                    if self.unique_name_enforcement == 'delete' and same_name_searches.count():
-                        same_name_searches.delete()
-                    if self.unique_name_enforcement == 'error' and same_name_searches.count():
-                        return JsonResponse({'error': 'A search already exists with the name provided.'}, 400)
+                    if same_name_searches.exists():
+                        if self.unique_name_enforcement == 'delete':
+                            same_name_searches.delete()
+                        elif self.unique_name_enforcement == 'error':
+                            # TODO - Should this put an error on the form and abort the save? (rather than returning a 400)
+                            return JsonResponse({'error': 'A search already exists with the name provided.'}, 400)
                     
                     saved_search.save()
-                    current_search = saved_search.get_details_dict()
-                    
-                    # Pass the current search details along to be returned
-                    # This happens both directly and in the list of all searches
-                    all_searches.append(current_search)
-                    data['current_search'] = current_search
                 else:
                     # This error message is likely redundant
                     data["error"] = 'Invalid form submitted'
                     saved_search = None
                     status = 400
+                
                 # We add the form here because we want to return it rendered even if the form was not valid
                 data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+                
+            # 'current_search' is included in 'all_searches' but seperated for convenience
+            data['current_search'] = saved_search.get_details_dict() if saved_search else None
             
-            data['all_searches'] = self.sort_searches(all_searches)
+            # We do this query again to make sure we don't have stale data.
+            # TODO - come up with a way to remove this duplicate query
+            data['all_searches'] = self.sort_searches([search.get_details_dict() for search in self.get_saved_searches(url, SavedSearchModel)])
             
+            # Hook to allow customization
             self.update_POST_response_data(data, saved_search)
+            
             return JsonResponse(data, status=status)
         else:
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
@@ -1444,3 +1434,12 @@ class AdvancedSavedSearchView(View):
     def get_saved_search_form(self):
         from .forms import AdvancedSavedSearchForm
         return AdvancedSavedSearchForm
+    
+    def get_saved_searches(self, url, SavedSearchModel):
+        """
+        Returns a QuerySet of the saved searches for this particular request (based on URL and seeker settings)
+        """
+        filter_kwargs = { 'url': url }
+        if self.restrict_to_user:
+            filter_kwargs['user'] = self.request.user
+        return SavedSearchModel.objects.filter(**filter_kwargs)
