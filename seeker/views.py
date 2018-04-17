@@ -298,6 +298,13 @@ class SeekerView (View):
     """
     A dictionary of nested fields used by the keyword search.
     """
+
+    display_column_sort_order = []
+    """
+    This list defines a custom sort order for the display fields (both visible & non-visible).  If the list is empty, default sorting will be applied.
+    If there is at least one field in the list, any missing field will be appended to the end of the list in alphabetical order by column label.
+    NOTE: The indexes defined in required_display are not used if display_column_sort_order has a value.
+    """
         
     def modify_context(self, context):
         """
@@ -445,7 +452,7 @@ class SeekerView (View):
         highlight = self.get_field_highlight(field_name)
         return Column(field_name, label=label, sort=sort, highlight=highlight)
 
-    def get_columns(self):
+    def get_columns(self, display=None):
         """
         Returns a list of :class:`seeker.Column` objects based on self.columns, converting any strings.
         """
@@ -468,7 +475,8 @@ class SeekerView (View):
                         continue
                     columns.append(c)
         # Make sure the columns are bound and ordered based on the display fields (selected or default).
-        display = self.get_display()
+        if not display:
+            display = self.get_display()
         visible_columns = []
         non_visible_columns=[]
         for c in columns:
@@ -477,10 +485,22 @@ class SeekerView (View):
                 visible_columns.append(c)
             else:
                 non_visible_columns.append(c)
-        visible_columns.sort(key=lambda  c: display.index(c.field))
-        non_visible_columns.sort(key=lambda c: c.label)
+                
+        if self.display_column_sort_order:
+            # Get a list of all columns to be sorted
+            sorted_columns = visible_columns + non_visible_columns
+            # Missing columns is a list of every column that isn't included in display_column_sort_order.
+            # These columns will be appended to the end of the display list in alphabetical order.
+            missing_columns = [col for col in sorted_columns if col.field not in self.display_column_sort_order]
+            missing_columns.sort(key=lambda c: c.label)
+            self.display_column_sort_order += [col.field for col in missing_columns]
+            sorted_columns.sort(key=lambda c: self.display_column_sort_order.index(c.field))
+            return sorted_columns
+        else:
+            visible_columns.sort(key=lambda  c: display.index(c.field))
+            non_visible_columns.sort(key=lambda c: c.label)
         
-        return visible_columns + non_visible_columns
+            return visible_columns + non_visible_columns
 
     def get_keywords(self, data_dict):
         return data_dict.get('q', '').strip()
@@ -882,42 +902,6 @@ class AdvancedSeekerView (SeekerView):
         """
         pass
         
-    def get_columns(self, display):
-        """
-        Returns a list of :class:`seeker.Column` objects based on self.columns, converting any strings.
-        """
-        columns = []
-        if not self.columns:
-            # If not specified, all mapping fields will be available.
-            for f in self.document._doc_type.mapping:
-                if self.exclude and f in self.exclude:
-                    continue
-                columns.append(self.make_column(f))
-        else:
-            # Otherwise, go through and convert any strings to Columns.
-            for c in self.columns:
-                if isinstance(c, six.string_types):
-                    if self.exclude and c in self.exclude:
-                        continue
-                    columns.append(self.make_column(c))
-                elif isinstance(c, Column):
-                    if self.exclude and c.field in self.exclude:
-                        continue
-                    columns.append(c)
-        # Make sure the columns are bound and ordered based on the display fields (selected or default).
-        visible_columns = []
-        non_visible_columns=[]
-        for c in columns:
-            c.bind(self, c.field in display)
-            if c.visible:
-                visible_columns.append(c)
-            else:
-                non_visible_columns.append(c)
-        visible_columns.sort(key=lambda  c: display.index(c.field))
-        non_visible_columns.sort(key=lambda c: c.label)
-        
-        return visible_columns + non_visible_columns
-
     def get_display(self, display_list, facets_searched):
         """
         Returns a list of display field names. If the user has selected display fields and display_list is not empty those are used otherwise
@@ -1094,7 +1078,7 @@ class AdvancedSeekerView (SeekerView):
             'facets_searched': facets_searched,
             'footer_template': self.footer_template,
             'header_template': self.header_template,
-            'optional_columns': sorted([c for c in columns if c.field not in self.required_display_fields], key=lambda col: col.label),
+            'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
             'page': page,
             'page_spread': self.page_spread,
             'page_size': self.page_size,
