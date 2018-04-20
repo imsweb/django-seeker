@@ -931,7 +931,7 @@ class AdvancedSeekerView (SeekerView):
     This dictionary translates the boolean operators passed from the frontend into their elasticsearch equivalents.
     """
     
-    footer_template = 'seeker/footer.html'
+    footer_template = 'advanced_seeker/footer.html'
     """
     The template used to render the search results footer.
     """
@@ -1104,7 +1104,8 @@ class AdvancedSeekerView (SeekerView):
         NOTE: The 'search_object' parameter key values listed here are the only fields that are required.
               Since it will be passed back in the response extra values can be added to give the site context as to what search is being loaded.
         """
-        if request.is_ajax():
+        export = request.POST.get('_export', False)
+        if request.is_ajax() or export:
             try:
                 string_search_object = request.POST.get('search_object')
                 # We attach this to self so AdvancedColumn can have access to it
@@ -1113,7 +1114,6 @@ class AdvancedSeekerView (SeekerView):
                 return HttpResponseBadRequest("No 'search_object' found in the request data.")
             except ValueError:
                 return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
-            export = request.POST.get('_export', False)
             
             # Sanity check that the search object has all of it's required components
             if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
@@ -1130,33 +1130,33 @@ class AdvancedSeekerView (SeekerView):
         
         # Hook to allow the search to be filtered before seeker begins it's work
         search = self.additional_query_filters(search)
-        
-        # Hook to allow the search to be aggregated
-        self.apply_aggregations(search, query, facet_lookup)
-        
+
         # Build the actual query that will be applied via post_filter
         advanced_query, facets_searched = self.build_query(query, facet_lookup)
-        
+
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
         if keywords:
             search = search.query(self.get_search_query_type(keywords))
-            
+
         # We use post_filter to allow the aggregations to be run before applying the filter
         search = search.post_filter(advanced_query)
-         
+
         page, offset = self.calculate_page_and_offset(self.search_object['page'], search)
-        
+
         display = self.get_display(self.search_object['display'], facets_searched)
         columns = self.get_columns(display)
         if export:
             return self.export(search, columns)
-        
+
+        # Hook to allow the search to be aggregated
+        self.apply_aggregations(search, query, facet_lookup)
+
         # Highlight fields.
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
             search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
-        
+
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
@@ -1180,6 +1180,7 @@ class AdvancedSeekerView (SeekerView):
             'results': results,
             'show_rank': self.show_rank,
             'sort': sort,
+            'export_name': self.export_name
         }
         self.modify_results_context(context)
             
