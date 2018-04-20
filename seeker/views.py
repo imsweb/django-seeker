@@ -27,6 +27,7 @@ import json
 import warnings
 from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.views.generic.edit import FormView, CreateView
+from django.forms.forms import Form
 
 seekerview_field_templates = {}
 
@@ -298,6 +299,26 @@ class SeekerView (View):
     """
     A dictionary of nested fields used by the keyword search.
     """
+    
+    use_save_form = False
+    """
+    Indicates if a form should be used for saving searches.
+    NOTE: This functionality ONLY works with AJAX.
+    NOTE: The form used is defined in "get_saved_search_form"
+    """
+    
+    form_template = 'seeker/save_form.html'
+    """
+    The form template used to display the save search form.
+    NOTE: This is only used if the request is AJAX and 'use_save_form' is True.
+    NOTE: This template will be used to render the form defined in 'get_saved_search_form"
+    """
+    
+    enforce_unique_name = True
+    """
+    The system will enforce the unique name requirement.
+    All previously existing saved searches (in the same group) with the same name as the new one will be deleted.
+    """
         
     def modify_context(self, context):
         """
@@ -317,6 +338,15 @@ class SeekerView (View):
     """
     An optional name to call this view, used to differentiate two views using the same mapping and class.
     """
+    
+    def get_saved_search_form(self):
+        """
+        Get the form used to save searches.
+        NOTE: This will only be used if 'use_save_form' is set to True and with AJAX requests.
+        NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
+        """
+        from .forms import SavedSearchForm
+        return SavedSearchForm
 
     def get_view_name(self):
         """
@@ -605,10 +635,10 @@ class SeekerView (View):
             saved_search_pk = self.get_saved_search()
             if saved_search_pk:
                 try:
-                    saved_search = self.request.user.seeker_searches.get(pk=saved_search_pk, url=self.request.path, querystring=querystring)
+                    saved_search = self.request.user.seeker_searches.get(pk=saved_search_pk, url=self.request.path)
                 except SavedSearchModel.DoesNotExist:
                     pass
-            saved_searches = list(self.request.user.seeker_searches.filter(url=self.request.path))
+            saved_searches = self.request.user.seeker_searches.filter(url=self.request.path)
         else:
             saved_searches = []
 
@@ -674,8 +704,17 @@ class SeekerView (View):
             'results_template': self.results_template,
             'footer_template': self.footer_template,
             'saved_search': saved_search,
-            'saved_searches': saved_searches,
+            'saved_searches': list(saved_searches),
+            'use_save_form': self.use_save_form,
         }
+        
+        if self.use_save_form:
+            SavedSearchForm = self.get_saved_search_form()
+            form = SavedSearchForm(saved_searches=saved_searches)
+            context.update({
+                'save_form': form,
+                'save_form_template': self.form_template
+            })
 
         if self.extra_context:
             context.update(self.extra_context)
@@ -684,14 +723,19 @@ class SeekerView (View):
 
         search_complete.send(sender=self, context=context)
         if self.request.is_ajax():
-            return JsonResponse({
+            ajax_data = {
                 'querystring': context_querystring,
                 'page': page,
                 'sort': sort,
                 'saved_search_pk': saved_search.pk if saved_search else '',
                 'table_html': loader.render_to_string(self.results_template, context, request=self.request),
                 'facet_data': {facet.field: facet.data(results) for facet in self.get_facets()},
-            })
+            }
+            if self.use_save_form:
+                ajax_data.update({
+                    'save_form_html': loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+                })
+            return JsonResponse(ajax_data)
         else:
             return self.render_to_response(context)
         
@@ -753,6 +797,41 @@ class SeekerView (View):
         if not saved_search_pk.isdigit():
             saved_search_pk = None
         if '_save' in request.POST:
+            # A "sub" method that handles ajax save submissions (and returns JSON, not a redirect)
+            if request.is_ajax() and self.use_save_form:
+                
+                response_data = {} # All data must be able to flatten to JSON
+                
+                # First we check if the user is attempting to overwrite an existing search
+                saved_searches = request.user.seeker_searches.filter(url=request.path)
+                form_kwargs = { 'saved_searches': saved_searches, 'enforce_unique_name': self.enforce_unique_name }
+                saved_search_pk = request.POST.get('saved_search', '').strip()
+                if saved_search_pk:
+                    # We really want to do a try/catch on a get but we don't know the model so we check first
+                    saved_search = saved_searches.exists(pk=saved_search_pk)
+                    if saved_search:
+                        # Since we are using "pk" we know there can only be one so .get is safe
+                        form_kwargs['instance'] = saved_searches.get(pk=saved_search_pk)
+                        
+                SavedSearchForm = self.get_saved_search_form()
+                form = SavedSearchForm(request.POST.copy(), **form_kwargs)
+                if form.is_valid():
+                    saved_search = form.save(commit=False)
+                    saved_search.user = request.user
+                    saved_search.querystring = qs
+                    saved_search.url = request.path
+                    saved_search.save()
+                    messages.success(request, 'Successfully saved "%s".' % saved_search)
+                    response_data['success'] = True
+                else:
+                    response_data['success'] = False
+                    
+                response_data['save_form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=request)
+                
+                # We came in via ajax so we return via JSON
+                return JsonResponse(response_data)
+            
+            # If the request is not ajax or this seeker view does not want to use the form, then handle it the old way
             name = request.POST.get('name', '').strip()
             if not name:
                 messages.error(request, 'You did not provide a name for this search. Please try again.')
@@ -766,11 +845,11 @@ class SeekerView (View):
             return redirect(search)
         elif '_default' in request.POST and saved_search_pk:
             request.user.seeker_searches.filter(url=request.path).update(default=False)
-            request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path, querystring=qs).update(default=True)
+            request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path).update(default=True)
         elif '_unset' in request.POST and saved_search_pk:
             request.user.seeker_searches.filter(url=request.path).update(default=False)
         elif '_delete' in request.POST and saved_search_pk:
-            request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path, querystring=qs).delete()
+            request.user.seeker_searches.filter(pk=saved_search_pk, url=request.path).delete()
             return redirect(request.path)
         return redirect('%s?%s' % (request.path, post_qs))
 
@@ -1259,13 +1338,15 @@ class AdvancedSavedSearchView(View):
     The form template used to display the save search form.
     """
     
-    unique_name_enforcement = 'delete'
+    success_return_empty_form = True
     """
-    The system will enforce the unique name requirement. How it is enforced depends on the value of this field.
-    The three options are:
-        - 'delete': All previously existing saved searches with the same name as the new one will be deleted.
-        - 'error': If a previously existing saved search shares the same name as the new one an error will be thrown.
-        - None: This enforcement is ignored, no restrictions on saved search names.
+    When a search is successfully saved this determines if an empty form should be returned (instead of one linked the the instance just saved)
+    """
+    
+    enforce_unique_name = True
+    """
+    The system will enforce the unique name requirement.
+    All previously existing saved searches (in the same group) with the same name as the new one will be deleted.
     """
         
     def get(self, request, *args, **kwargs):
@@ -1299,13 +1380,7 @@ class AdvancedSavedSearchView(View):
             # Hook to allow customization 
             self.update_GET_response_data(data, saved_search)  
             
-            # Binding the saved search to a form causes issues with the saved_search object (removes string data)
-            # So we do this at the very end
-            # TODO - figure out why the data is removed from the object itself when binding it to a form
-            form_kwargs = {}
-            if saved_search:
-                form_kwargs['instance'] = saved_search
-            form = SavedSearchForm(request.GET, **form_kwargs)
+            form = SavedSearchForm(saved_searches=saved_searches)
             data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
             
             return JsonResponse(data)
@@ -1319,7 +1394,6 @@ class AdvancedSavedSearchView(View):
             except KeyError:
                 return JsonResponse({'error': 'No URL provided.'}, 400)
             
-            form_kwargs = {}
             search_pk = kwargs.get(self.pk_parameter, request.POST.get(self.pk_parameter, None))
             SavedSearchModel = self.get_saved_search_model()
             saved_searches = self.get_saved_searches(url, SavedSearchModel)
@@ -1327,12 +1401,10 @@ class AdvancedSavedSearchView(View):
             # These are used to determine alternate paths
             delete = request.POST.get('_delete', False)
             modify_default = request.POST.get('modify_default', '')
-            form_kwargs = {}
             
             saved_search = None
             if search_pk:
                 try:
-                    # We put this in 'form_kwargs' since it is optional (it won't be included for a new object)
                     saved_search = saved_searches.get(pk=search_pk)
                 except SavedSearchModel.DoesNotExist:
                     # We only want to throw an error if we cannot find the object AND we are NOT trying to delete it anyway
@@ -1349,7 +1421,7 @@ class AdvancedSavedSearchView(View):
             elif modify_default:
                 if modify_default == 'set':
                     saved_search.default = True
-                    saved_searches.update(default = False)
+                    saved_searches.update(default=False)
                     saved_search.save()
                 elif modify_default == 'unset':
                     saved_search.default = False
@@ -1360,28 +1432,21 @@ class AdvancedSavedSearchView(View):
                     status = 400
             else:
                 SavedSearchForm = self.get_saved_search_form()
+                form_kwargs = { 'saved_searches': saved_searches, 'enforce_unique_name': self.enforce_unique_name }
                 if saved_search:
                     form_kwargs['instance'] = saved_search
-                form = SavedSearchForm(request.POST, **form_kwargs)
+                # We use a copy of POST to allow it to be edited within the form (example, if a field should be cleared on error)
+                form = SavedSearchForm(request.POST.copy(), **form_kwargs)
                 if form.is_valid():
                     saved_search = form.save(commit=False)
                     saved_search.user = request.user
-                    
-                    # We can only have one default in the group, so set the others to false
-                    # This queryset does not include the saved_search about to be saved
-                    if saved_search.default:
-                        saved_searches.update(default=False)
-                    
-                    # We enforce the naming restrictions here (depending on the 'unique_name_enforcement' setting)
-                    same_name_searches = saved_searches.filter(name=saved_search.name)
-                    if same_name_searches.exists():
-                        if self.unique_name_enforcement == 'delete':
-                            same_name_searches.delete()
-                        elif self.unique_name_enforcement == 'error':
-                            # TODO - Should this put an error on the form and abort the save? (rather than returning a 400)
-                            return JsonResponse({'error': 'A search already exists with the name provided.'}, 400)
-                    
                     saved_search.save()
+                    
+                    # TODO - Look for way to prevent us from needing to rerun this query to update results
+                    saved_searches = self.get_saved_searches(url, SavedSearchModel)
+                    if self.success_return_empty_form:
+                        # We need a fresh copy to pass back to the site
+                        form = SavedSearchForm(saved_searches=saved_searches)
                 else:
                     # This error message is likely redundant
                     data["error"] = 'Invalid form submitted'
@@ -1395,8 +1460,7 @@ class AdvancedSavedSearchView(View):
             data['current_search'] = saved_search.get_details_dict() if saved_search else None
             
             # We do this query again to make sure we don't have stale data.
-            # TODO - come up with a way to remove this duplicate query
-            data['all_searches'] = self.sort_searches([search.get_details_dict() for search in self.get_saved_searches(url, SavedSearchModel)])
+            data['all_searches'] = self.sort_searches([search.get_details_dict() for search in saved_searches])
             
             # Hook to allow customization
             self.update_POST_response_data(data, saved_search)
@@ -1432,6 +1496,10 @@ class AdvancedSavedSearchView(View):
         return SavedSearch
     
     def get_saved_search_form(self):
+        """
+        Get the form used to save searches.
+        NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
+        """
         from .forms import AdvancedSavedSearchForm
         return AdvancedSavedSearchForm
     
