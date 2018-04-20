@@ -383,7 +383,7 @@ class SeekerView (View):
                 continue
             values = data.getlist(key)
             # Make sure display/facet/sort fields maintain their order. Everything else can be sorted alphabetically for consistency.
-            if key not in ('d', 'f', 's'):
+            if key not in ('d', 'f', 's', 'so'):
                 values = sorted(values)
             parts.extend(urlencode({key: val}) for val in values)
         return '&'.join(parts)
@@ -507,30 +507,42 @@ class SeekerView (View):
         # Make sure the columns are bound and ordered based on the display fields (selected or default).
         if not display:
             display = self.get_display()
-        visible_columns = []
-        non_visible_columns=[]
-        for c in columns:
-            c.bind(self, c.field in display)
-            if c.visible:
-                visible_columns.append(c)
-            else:
-                non_visible_columns.append(c)
-                
+
         if self.display_column_sort_order:
-            # Get a list of all columns to be sorted
-            sorted_columns = visible_columns + non_visible_columns
-            # Missing columns is a list of every column that isn't included in display_column_sort_order.
-            # These columns will be appended to the end of the display list in alphabetical order.
-            missing_columns = [col for col in sorted_columns if col.field not in self.display_column_sort_order]
-            missing_columns.sort(key=lambda c: c.label)
-            self.display_column_sort_order += [col.field for col in missing_columns]
-            sorted_columns.sort(key=lambda c: self.display_column_sort_order.index(c.field))
-            return sorted_columns
+            for c in columns:
+                c.bind(self, c.field in display)
+            sort_order = self.get_sort_order(columns)
+            columns.sort(key=lambda c: sort_order.index(c.field))
+            return columns
         else:
+            visible_columns = []
+            non_visible_columns=[]
+            for c in columns:
+                c.bind(self, c.field in display)
+                if c.visible:
+                    visible_columns.append(c)
+                else:
+                    non_visible_columns.append(c)
             visible_columns.sort(key=lambda  c: display.index(c.field))
             non_visible_columns.sort(key=lambda c: c.label)
         
             return visible_columns + non_visible_columns
+
+    def get_sorted_display_list(self):
+        return self.request.GET.getlist("so")
+
+    def get_sort_order(self, columns):
+        default = self.display_column_sort_order
+        sort_order = self.get_sorted_display_list() or default
+        if sort_order == default:
+            # Missing columns is a list of every column that isn't included in display_column_sort_order.
+            # These columns will be appended to the end of the display list in alphabetical order.
+            missing_columns = [col for col in columns if col.field not in self.display_column_sort_order]
+            missing_columns.sort(key=lambda c: c.label)
+            self.display_column_sort_order += [col.field for col in missing_columns]
+        for field, i in self.required_display:
+            sort_order.insert(i, field)
+        return sort_order
 
     def get_keywords(self, data_dict):
         return data_dict.get('q', '').strip()
@@ -1058,6 +1070,9 @@ class AdvancedSeekerView (SeekerView):
         if c and c.sort:
             return '-{}'.format(c.sort) if sort.startswith('-') else c.sort
         return sort
+    
+    def get_sorted_display_list(self):
+        return self.search_object.get("displaySortOrder")
         
     def get(self, request, *args, **kwargs):
         facets = self.get_facets()
