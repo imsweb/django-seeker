@@ -854,9 +854,9 @@ class SeekerView (View):
                     saved_search.url = request.path
                     saved_search.save()
                     messages.success(request, 'Successfully saved "%s".' % saved_search)
-                    response_data['success'] = True
+                    response_data['redirect_url'] = saved_search.get_absolute_url()
                 else:
-                    response_data['success'] = False
+                    response_data['redirect_url'] = None
                     
                 response_data['save_form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=request)
                 
@@ -1070,7 +1070,7 @@ class AdvancedSeekerView (SeekerView):
         if c and c.sort:
             return '-{}'.format(c.sort) if sort.startswith('-') else c.sort
         return sort
-    
+
     def get_sorted_display_list(self):
         return self.search_object.get("displaySortOrder")
         
