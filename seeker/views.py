@@ -326,6 +326,11 @@ class SeekerView (View):
     If there is at least one field in the list, any missing field will be appended to the end of the list in alphabetical order by column label.
     NOTE: The indexes defined in required_display are not used if display_column_sort_order has a value.
     """
+
+    custom_column_headers = {}
+    """
+    This dictionary can be used to set custom text for a fields column header.  The key is the field_name.
+    """
      
     def modify_context(self, context):
         """
@@ -480,7 +485,8 @@ class SeekerView (View):
         label = self.get_field_label(field_name)
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
-        return Column(field_name, label=label, sort=sort, highlight=highlight)
+        header = self.custom_column_headers.get(field_name, None)
+        return Column(field_name, label=label, sort=sort, highlight=highlight, header=header)
 
     def get_columns(self, display=None):
         """
@@ -1055,7 +1061,8 @@ class AdvancedSeekerView (SeekerView):
         label = self.get_field_label(field_name)
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
-        return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight)
+        header = self.custom_column_headers.get(field_name, None)
+        return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header)
     
     def get_sort_field(self, columns, sort, display):
         """
