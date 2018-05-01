@@ -5,46 +5,48 @@
     {% include header_template %}
 {% endblock header %}
 
-<div class="table-responsive">
-    <table class="table table-striped table-condensed table-seeker">
-        <thead>
-            <tr>
-                {% block pre-table-headers %}{% endblock pre-table-headers %}
-                {% block table-headers %}
-                    {% if show_rank and keywords %}
-                        <th class="sort{% if not sort %} desc{% endif %}">
-                            {% if sort %}
-                                <a href="">{% trans "Rank" %}</a>
-                            {% else %}
-                                {% trans "Rank" %}
-                            {% endif %}
-                        </th>
-                    {% endif %}
-                    {% for col in display_columns %}
-                        {{ col.header }}
-                    {% endfor %}
-                {% endblock table-headers %}
-                {% block post-table-headers %}{% endblock post-table-headers %}
-            </tr>
-        </thead>
-        <tbody>
-            {% block results %}
-                {% for result in results %}
-                    <tr>
-                        {% block pre-columns %}{% endblock pre-columns %}
+{% block results-table %}
+    <div class="table-responsive">
+        <table class="table table-striped table-condensed table-seeker">
+            <thead>
+                <tr>
+                    {% block pre-table-headers %}{% endblock pre-table-headers %}
+                    {% block table-headers %}
                         {% if show_rank and keywords %}
-                            <td>{% seeker_score result results.hits.max_score %}</td>
+                            <th class="sort{% if not sort %} desc{% endif %}">
+                                {% if sort %}
+                                    <a href="">{% trans "Rank" %}</a>
+                                {% else %}
+                                    {% trans "Rank" %}
+                                {% endif %}
+                            </th>
                         {% endif %}
                         {% for col in display_columns %}
-                            {% seeker_column col result %}
+                            {{ col.header }}
                         {% endfor %}
-                        {% block post-columns %}{% endblock post-columns %}
-                    </tr>
-                {% endfor %}
-            {% endblock results %}
-        </tbody>
-    </table>
-</div>
+                    {% endblock table-headers %}
+                    {% block post-table-headers %}{% endblock post-table-headers %}
+                </tr>
+            </thead>
+            <tbody>
+                {% block results %}
+                    {% for result in results %}
+                        <tr>
+                            {% block pre-columns %}{% endblock pre-columns %}
+                            {% if show_rank and keywords %}
+                                <td>{% seeker_score result results.hits.max_score %}</td>
+                            {% endif %}
+                            {% for col in display_columns %}
+                                {% seeker_column col result %}
+                            {% endfor %}
+                            {% block post-columns %}{% endblock post-columns %}
+                        </tr>
+                    {% endfor %}
+                {% endblock results %}
+            </tbody>
+        </table>
+    </div>
+{% endblock results-table %}
 
 {% block footer %}
     {% include footer_template %}
