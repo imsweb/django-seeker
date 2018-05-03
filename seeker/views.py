@@ -926,58 +926,45 @@ class AdvancedColumn (Column):
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
 
-        header_name = self.header_html
+        # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
+        # (i.e. has <br> in header) we skip it.
         if results and ' ' in self.header_html and not '<br' in self.header_html:
-            if len(self.header_html) > self.get_max_length(results, self.field):
-                header_name = self.get_name_with_break(self.header_html)
-        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{}</a></th>'.format(cls, next_sort, data_sort, header_name, sr_label)
+            if len(self.header_html) > self.get_data_max_length(results):
+                self.wordwrap_header_html()
+        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label)
         return mark_safe(html)
 
-    def get_max_length(self, results, field_name):
+    def get_data_max_length(self, results):
         """
         Determines maximum length of data populating the column of field_name
         :param results: search results from elastic search
-        :param field_name: name of the field column
         :return: maximum length of data, or 0 if the field_name does not exist or the is no data
         """
         max_length = 0
         for result in results.hits:
-            try:
-                field_len = len(result[field_name])
-            except (TypeError, KeyError) as e:
-                field_len = 0
+            field_len = len(unicode(result[self.field])) if (self.field in result and result[self.field]) else 0
             max_length = max(max_length, field_len)
         return max_length
 
-    def get_name_with_break(self, field_name):
+    def wordwrap_header_html(self):
         """
         Trying to get 2 parts with lengths as close as possible
         :param field_name: field_name (header_html) that needs to be broken into 2 pieces.
         :return: field_name broken into 2 pieces, separated by <br /> tag
         """
-        parts = field_name.split(' ')
-        if len(parts) < 2:
-            return field_name
-        min_diff = None
-        min_i = None
-        for i in range(1, len(parts)):
-            start_part = sum([len(p) for p in parts[0:i]])
-            end_part = sum([len(p) for p in parts[i:len(parts)]])
-            diff = (start_part - end_part)
-            if not min_diff:
-                min_diff = diff
-                min_i = i
-            elif diff > 0:
-                if abs(diff) < abs(min_diff):
-                    min_i = i
-                break
-            else:
-                if abs(diff) < abs(min_diff):
-                    min_diff = diff
-                    min_i = i
-        start_name = ' '.join([p for p in parts[0:min_i]])
-        end_name = ' '.join([p for p in parts[min_i:len(parts)]])
-        return start_name + '<br />' + end_name
+        if self.header_html.count(' ') < 1:
+            return
+        center = len(self.header_html) / 2
+        space_found = False
+        offset = 0
+        space_index = center
+        while not space_found:
+            for index in [center + offset, center - offset]:
+                if self.header_html[index] == ' ':
+                    space_found = True
+                    space_index = index
+            offset += 1
+        self.header_html = "{}<br/>{}".format(self.header_html[:space_index], self.header_html[space_index + 1:])
 
 
 class AdvancedSeekerView (SeekerView):
