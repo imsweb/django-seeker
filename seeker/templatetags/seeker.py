@@ -64,6 +64,9 @@ def advanced_seeker_facet(facet, **params):
 def seeker_column(column, result, **kwargs):
     return column.render(result, **kwargs)
 
+@register.simple_tag
+def seeker_column_header(column, results=None):
+    return column.header(results)
 
 @register.simple_tag
 def seeker_score(result, max_score=None, template='seeker/score.html'):

@@ -22,7 +22,11 @@
                             </th>
                         {% endif %}
                         {% for col in display_columns %}
-                            {{ col.header }}
+                            {% if use_wordwrap_header %}
+                                {% seeker_column_header col results %}
+                            {% else %}
+                                {{ col.header }}
+                            {% endif %}
                         {% endfor %}
                     {% endblock table-headers %}
                     {% block post-table-headers %}{% endblock post-table-headers %}

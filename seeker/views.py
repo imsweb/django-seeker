@@ -908,7 +908,7 @@ class SeekerView (View):
         return super(SeekerView, self).dispatch(request, *args, **kwargs)
 
 class AdvancedColumn (Column):
-    def header(self):
+    def header(self, results=None):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
@@ -925,8 +925,47 @@ class AdvancedColumn (Column):
             data_sort = self.field
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
+
+        # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
+        # (i.e. has <br> in header) we skip it.
+        if results and ' ' in self.header_html and not '<br' in self.header_html:
+            if len(self.header_html) > self.get_data_max_length(results):
+                self.wordwrap_header_html()
         html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label)
         return mark_safe(html)
+
+    def get_data_max_length(self, results):
+        """
+        Determines maximum length of data populating the column of field_name
+        :param results: search results from elastic search
+        :return: maximum length of data, or 0 if the field_name does not exist or the is no data
+        """
+        max_length = 0
+        for result in results.hits:
+            field_len = len(unicode(result[self.field])) if (self.field in result and result[self.field]) else 0
+            max_length = max(max_length, field_len)
+        return max_length
+
+    def wordwrap_header_html(self):
+        """
+        Trying to get 2 parts with lengths as close as possible
+        :param field_name: field_name (header_html) that needs to be broken into 2 pieces.
+        :return: field_name broken into 2 pieces, separated by <br /> tag
+        """
+        if self.header_html.count(' ') < 1:
+            return
+        center = len(self.header_html) / 2
+        space_found = False
+        offset = 0
+        space_index = center
+        while not space_found:
+            for index in [center + offset, center - offset]:
+                if self.header_html[index] == ' ':
+                    space_found = True
+                    space_index = index
+            offset += 1
+        self.header_html = "{}<br/>{}".format(self.header_html[:space_index], self.header_html[space_index + 1:])
+
 
 class AdvancedSeekerView (SeekerView):
     boolean_translations = {
@@ -956,7 +995,13 @@ class AdvancedSeekerView (SeekerView):
     """
     The overall seeker template to render.
     """
-    
+
+    use_wordwrap_header = False
+    """
+    If set to True, table headers will wrap to second line if they are longer than the content and have space available 
+    between words. 
+    """
+
     @abc.abstractproperty
     def save_search_url(self):
         pass
@@ -1187,7 +1232,8 @@ class AdvancedSeekerView (SeekerView):
             'results': results,
             'show_rank': self.show_rank,
             'sort': sort,
-            'export_name': self.export_name
+            'export_name': self.export_name,
+            'use_wordwrap_header': self.use_wordwrap_header,
         }
         self.modify_results_context(context)
             
