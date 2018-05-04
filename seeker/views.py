@@ -337,7 +337,7 @@ class SeekerView (View):
     The ES analyzer used for keyword searching.
     """
      
-    def modify_context(self, context):
+    def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page. 
         NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
@@ -766,7 +766,7 @@ class SeekerView (View):
         if self.extra_context:
             context.update(self.extra_context)
             
-        self.modify_context(context)
+        self.modify_context(context, self.request)
 
         search_complete.send(sender=self, context=context)
         if self.request.is_ajax():
@@ -1132,7 +1132,7 @@ class AdvancedSeekerView (SeekerView):
         if self.extra_context:
             context.update(self.extra_context)
              
-        self.modify_context(context)
+        self.modify_context(context, request)
         return self.render_to_response(context)
     
     def post(self, request, *args, **kwargs):
