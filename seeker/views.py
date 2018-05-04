@@ -331,6 +331,11 @@ class SeekerView (View):
     """
     This dictionary can be used to set custom text for a fields column header.  The key is the field_name.
     """
+    
+    analyzer = DEFAULT_ANALYZER
+    """
+    The ES analyzer used for keyword searching.
+    """
      
     def modify_context(self, context):
         """
@@ -605,7 +610,7 @@ class SeekerView (View):
         elif mapping is not None:
             fields = []
             for field_name in mapping:
-                if mapping[field_name].to_dict().get('analyzer') == DEFAULT_ANALYZER:
+                if mapping[field_name].to_dict().get('analyzer') == self.analyzer:
                     fields.append(prefix + field_name)
                 if hasattr(mapping[field_name], 'properties'):
                     fields.extend(self.get_search_fields(mapping=mapping[field_name].properties, prefix=prefix + field_name + '.'))
@@ -613,7 +618,9 @@ class SeekerView (View):
         else:
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
-    def get_non_nested_query(self, search_fields, keywords, analyzer=DEFAULT_ANALYZER):
+    def get_non_nested_query(self, search_fields, keywords, analyzer=None):
+        if not analyzer:
+            analyzer = self.analyzer
         non_nested_kwargs = {'query': keywords,
                              'analyzer': analyzer,
                              'fields': search_fields,
@@ -635,7 +642,9 @@ class SeekerView (View):
                 queries.append(nested_query)
         return queries
 
-    def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
+    def get_search_query_type(self, search, keywords, analyzer=None):
+        if not analyzer:
+            analyzer = self.analyzer
         search_fields = self.format_search_fields(self.get_search_fields())
         should = []
         should.append(self.get_non_nested_query(search_fields["non_nested"], keywords, analyzer))
@@ -1016,21 +1025,6 @@ class AdvancedSeekerView (SeekerView):
         for field, i in self.required_display:
             display_fields.insert(i, field)
         return display_fields
-    
-#     def get_search_query_type(self, search, keywords, analyzer=DEFAULT_ANALYZER):
-#         """
-#         This function is deprecated. Please use 'get_keyword_query' directly.
-#         """
-#         return search.query(self.get_keyword_query(keywords, analyzer))
-#     
-#     def get_keyword_query(self, keywords, analyzer=DEFAULT_ANALYZER):
-#         kwargs = {'query': keywords,
-#                   'analyzer': analyzer,
-#                   'fields': self.get_search_fields(),
-#                   'default_operator': self.operator}
-#         if self.query_type == 'simple_query':
-#             kwargs['auto_generate_phrase_queries'] = True
-#         return Q(self.query_type, **kwargs)
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.get_dsl_search()
@@ -1144,7 +1138,7 @@ class AdvancedSeekerView (SeekerView):
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
         if keywords:
-            search = search.query(self.get_search_query_type(keywords))
+            search = self.get_search_query_type(search, keywords)
 
         # We use post_filter to allow the aggregations to be run before applying the filter
         search = search.post_filter(advanced_query)
