@@ -150,6 +150,20 @@ class GlobalTermsFacet (TermsFacet):
         return response.aggregations[self.field][self.field].to_dict()
 
 
+class DateTermsFacet(TermsFacet):
+    def _get_aggregation(self, **extra):
+        params = {
+            'field': self.field,
+            'interval': 'day',
+            'format': 'MM/dd/yyyy',
+            'min_doc_count': 1,
+            'order': {'_key': 'desc'},
+        }
+        params.update(self.kwargs)
+        params.update(extra)
+        return A('date_histogram', **params)
+
+
 class YearHistogram (Facet):
     template = 'seeker/facets/year_histogram.html'
     advanced_template = 'advanced_seeker/facets/year_histogram.html'
@@ -294,16 +308,23 @@ class RangeFilter (Facet):
         """
         This helper function is designed to take a list of 2 values and build a range query.
         """
-        if len(range) == 2:
-            r = {}
-            # This function supports the ranges defined in range to either be a number or a str representation of a number.
-            if isinstance(range[0], numbers.Number) or range[0].isdigit():
-                r['gte'] = range[0]
-            if isinstance(range[1], numbers.Number) or range[1].isdigit():
-                r['lt'] = range[1]
-            return Q('range', **{self.field: r})
+        if isinstance(range, dict):
+            r = range
+        elif isinstance(range, list):
+            if len(range) == 2:
+                r = {}
+                # This function supports the ranges defined in range to either be a number or a str representation of a number.
+                if isinstance(range[0], numbers.Number) or range[0].isdigit():
+                    r['gte'] = range[0]
+                if isinstance(range[1], numbers.Number) or range[1].isdigit():
+                    r['lt'] = range[1]
+            else:
+                raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(range), range))
         else:
-            raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(range), range))
+            raise ValueError(u"Range must either be a list or a dict.  Received: {}".format(type(range)))
+
+        return Q('range', **{self.field: r})
+
 
     def es_query(self, query_operator, value):
         """
@@ -319,7 +340,7 @@ class RangeFilter (Facet):
         if query_operator not in self.valid_operators:
             raise ValueError(u"'{}' is not a valid operator for a RangeFilter object.".format(query_operator))
         
-        if isinstance(value, list):
+        if isinstance(value, (list, dict)):
             # If value is a list defining the lower and upper bounds of the range, we call _get_filter_from_range_list that returns the DSL Filter object.
             filter = self._get_filter_from_range_list(value)
             query = Q('bool', filter=filter)
@@ -384,6 +405,18 @@ class RangeFilter (Facet):
         except:
             return {}
 
+
+class DateRangeFacet(RangeFilter):
+    advanced_template = 'advanced_seeker/facets/date_range.html'
+
+    def __init__(self, field, format="mm/dd/yyyy", **kwargs):
+        self.format = format
+        super(DateRangeFacet, self).__init__(field, **kwargs)
+
+    def _get_filter_from_range_list(self, range):
+        range = super(DateRangeFacet, self)._get_filter_from_range_list(range)
+        range._params[self.field]['format'] = self.format
+        return range
 
 class NestedFacet (Facet):
     template = 'seeker/facets/nested.html'
