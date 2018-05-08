@@ -409,7 +409,7 @@ class RangeFilter (Facet):
 class DateRangeFacet(RangeFilter):
     advanced_template = 'advanced_seeker/facets/date_range.html'
 
-    def __init__(self, field, format="mm/dd/yyyy", **kwargs):
+    def __init__(self, field, format="MM/dd/yyyy", **kwargs):
         self.format = format
         super(DateRangeFacet, self).__init__(field, **kwargs)
 
