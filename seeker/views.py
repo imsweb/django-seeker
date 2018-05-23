@@ -543,16 +543,12 @@ class SeekerView (View):
         return self.request.GET.getlist("so")
 
     def get_sort_order(self, columns):
-        default = self.display_column_sort_order
-        sort_order = self.get_sorted_display_list() or default
-        is_default = sort_order == default
-        # Missing columns is a list of every column that isn't included in display_column_sort_order.
+        sort_order = self.get_sorted_display_list() or self.display_column_sort_order
+        # Missing columns is a list of every column that isn't included in sort_order.
         # These columns will be appended to the end of the display list in alphabetical order.
         missing_columns = [col for col in columns if col.field not in sort_order]
         missing_columns.sort(key=lambda c: c.label)
         sort_order += [col.field for col in missing_columns]
-        if is_default:
-            self.display_column_sort_order = sort_order
         for field, i in self.required_display:
             sort_order.insert(i, field)
         return sort_order
