@@ -89,12 +89,14 @@ class Facet (object):
 
 class TermsFacet (Facet):
 
-    def __init__(self, field, **kwargs):
+    def __init__(self, field, size=2147483647, **kwargs):
+        # Elasticsearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
+        self.size = size
         self.filter_operator = kwargs.pop('filter_operator', 'or')
         super(TermsFacet, self).__init__(field, **kwargs)
 
     def _get_aggregation(self, **extra):
-        params = {'field': self.field}
+        params = {'field': self.field, 'size': self.size}
         params.update(self.kwargs)
         params.update(extra)
         return A('terms', **params)
