@@ -35,7 +35,7 @@
             <tbody>
                 {% block results %}
                     {% for result in results %}
-                        <tr>
+                        <tr class="{% block row-class %}{% endblock row-class %}">
                             {% block pre-columns %}{% endblock pre-columns %}
                             {% if show_rank and keywords %}
                                 <td>{% seeker_score result results.hits.max_score %}</td>
