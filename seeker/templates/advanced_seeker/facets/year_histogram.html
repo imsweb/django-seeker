@@ -1,0 +1,5 @@
+{% load seeker %}
+
+<label for="{{ facet.name }}_select">{{ facet.label|capfirst }}</label>
+<select name="{{ facet.field }}" class="form-control facet-select" multiple="multiple" id="{{ facet.name }}_select">
+</select>

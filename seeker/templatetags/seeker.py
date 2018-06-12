@@ -49,11 +49,24 @@ def seeker_facet(facet, results, selected=None, **params):
     })
     return loader.render_to_string(facet.template, params)
 
+@register.simple_tag
+def advanced_seeker_facet(facet, **params):
+    """
+    Renders an empty facet (no options/selections involved).
+    The options/selected values should be set via AJAX.
+    """
+    params.update({
+        'facet': facet,
+    })
+    return loader.render_to_string(facet.advanced_template, params)
 
 @register.simple_tag
 def seeker_column(column, result, **kwargs):
     return column.render(result, **kwargs)
 
+@register.simple_tag
+def seeker_column_header(column, results=None):
+    return column.header(results)
 
 @register.simple_tag
 def seeker_score(result, max_score=None, template='seeker/score.html'):
@@ -113,3 +126,8 @@ def seeker_highlight(text, query, algorithm='english'):
         else:
             parts.append(word)
     return mark_safe(''.join(parts))
+
+@register.filter
+def dict_lookup(d, key):
+    return d.get(key)
+

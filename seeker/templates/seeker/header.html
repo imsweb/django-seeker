@@ -16,6 +16,6 @@
             {% endif %}
             <button type="submit" name="_delete" class="btn btn-danger btn-xs"><span class="fa fa-times" aria-hidden="true"></span> {% trans "Delete Search" %}</button>
         </form>
-        {% block saved-search-header %}<h1>{{ saved_search }}</h1>{% endblock saved-search-header %}
+        {% block saved-search-header %}<h1>{{ saved_search }} {% if saved_search.default %} (default){% endif %}</h1>{% endblock saved-search-header %}
     </div>
 {% endif %}

@@ -1,0 +1,8 @@
+{% load seeker %}
+
+<label for="{{ facet.name }}_low">{{ facet.label|capfirst }}</label>
+<div class="seeker-range">
+    <input type="text" size="3" class="form-control" name="{{ facet.field }}" value="" id="{{ facet.name }}_low" placeholder="Format: {{ facet.format }}" data-bounds="gte" data-format="{{ facet.format }}" style="width:auto;display:inline-block;" />
+    to
+    <input type="text" size="3" class="form-control" name="{{ facet.field }}" value="" id="{{ facet.name }}_high" placeholder="Format: {{ facet.format }}" data-bounds="lte" data-format="{{ facet.format }}" style="width:auto;display:inline-block;" />
+</div>

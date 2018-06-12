@@ -1,0 +1,13 @@
+{# NOTE: Because Advanced Search is ajax based, it is up to the site to add a JS listener for the #}
+{# 'page-link' class that will make a POST ajax call with the search object & the correct page number (inside the search object) #}
+<ul class="pagination">
+    {% if 1 not in page_range %}
+        <li><a href="javascript:void(0)" class="page-link" data-page="1">1 &hellip;</a></li>
+    {% endif %}
+    {% for p in page_range %}
+        <li{% if p == page.number %} class="active"{% endif %}><a href="javascript:void(0)" class="page-link" data-page="{{ p }}">{{ p }}</a></li>
+    {% endfor %}
+    {% if paginator.num_pages not in page_range %}
+        <li><a href="javascript:void(0)" class="page-link" data-page="{{ paginator.num_pages }}">&hellip; {{ paginator.num_pages }}</a></li>
+    {% endif %}
+</ul>
