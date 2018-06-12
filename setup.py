@@ -7,12 +7,12 @@ def get_version():
         return re.match(r".*__version__ = '(.*?)'", fp.read(), re.S).group(1)
 
 setup(
-    name='seeker',
+    name='django-seeker',
     version=get_version(),
     description='A python package for mapping and querying Django models in Elasticsearch.',
     author='Dan Watson',
     author_email='watsond@imsweb.com',
-    url='http://imsweb.com',
+    url='https://github.com/imsweb/django-seeker',
     license='BSD',
     packages=find_packages(),
     install_requires=[
