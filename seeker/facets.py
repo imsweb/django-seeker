@@ -1,6 +1,6 @@
 from django.conf import settings
 from elasticsearch_dsl import A, Q
-from elasticsearch_dsl.aggs import Terms, Nested
+from elasticsearch_dsl.aggs import Terms
 
 import functools
 import operator
@@ -425,33 +425,3 @@ class DateRangeFacet(RangeFilter):
         _range = super(DateRangeFacet, self)._get_filter_from_range_list(_range)
         _range._params[self.field]['format'] = self.format
         return _range
-
-class NestedFacet (Facet):
-    template = 'seeker/facets/nested.html'
-
-    @property
-    def valid_operators(self):
-        return [
-            'equal',
-            'not_equal',
-        ]
-
-    def __init__(self, path, field, **kwargs):
-        self.path = path
-        super(NestedFacet, self).__init__(field, **kwargs)
-
-    def _get_nested_bucket(self):
-        return Nested(path=self.path)
-
-    def _get_aggregation(self):
-        return Terms(field=self.field)
-
-    def apply(self, search):
-        search.aggs.bucket(self.name, self._get_nested_bucket()).bucket(self.name, self._get_aggregation())
-        return search
-
-    def filter(self, search, values):
-        if values:
-            nested_kwargs = {'query': Q("terms", **{self.field: values}), "path": self.path}
-            return search.filter("nested", **nested_kwargs)
-        return search
