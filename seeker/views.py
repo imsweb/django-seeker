@@ -602,7 +602,7 @@ class SeekerView (View):
         else:
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
-    def get_search_query_type(self, keywords, analyzer=None):
+    def get_search_query_type(self, search, keywords, analyzer=None):
         if not analyzer:
             analyzer = self.analyzer
         kwargs = {'query': keywords,
