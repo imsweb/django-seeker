@@ -77,7 +77,10 @@ class Facet (object):
             return {}
 
     def get_key(self, bucket):
-        return bucket.get('key')
+        return bucket['key']
+
+    def get_formatted_key(self, bucket):
+        return bucket['key_as_string'] if 'key_as_string' in bucket else self.get_key(bucket)
 
     def get_facet_sort_key(self, bucket):
         return self.get_key(bucket).lower()
@@ -262,6 +265,9 @@ class RangeFilter (Facet):
         # Return the custom key defined in self.ranges or the default key
         return str(range.get('key', default_range_key))
 
+    def _build_query(self, range):
+        return Q('range', **{self.field: range})
+
     def _get_filters_from_ranges(self, key):
         """
         This helper function takes a key(s) and finds the range boundaries that correspond to that key (defined in self.ranges).
@@ -303,7 +309,7 @@ class RangeFilter (Facet):
                     translated_range['lt'] = range['to']
                 # We check that the range, defined in self.ranges, had a 'from' and/or a 'to' value.
                 if translated_range:
-                    filters.append(Q('range', **{self.field: translated_range}))
+                    filters.append(self._build_query(translated_range))
         return filters
     
     def _get_filter_from_range_list(self, range):
@@ -325,7 +331,7 @@ class RangeFilter (Facet):
         else:
             raise ValueError(u"Range must either be a list or a dict.  Received: {}".format(type(range)))
 
-        return Q('range', **{self.field: r})
+        return self._build_query(r)
 
 
     def es_query(self, query_operator, value):
