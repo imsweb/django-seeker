@@ -244,13 +244,13 @@ class RangeFilter (Facet):
         search.aggs[self.name] = self._get_aggregation(**extra)
         return search
     
-    def _get_range_key(self, range):
+    def _get_range_key(self, _range):
         """
         This helper function takes a range dictionary and returns the aggregation key.  Key is an optional argument in elasticsearch.
         If the range in self.ranges does not specify a key, the default key elasticsearch uses is "from-to", where from and to are either floats or *.
         """
-        default_from_key = range.get("from", "*")
-        default_to_key = range.get("to", "*")
+        default_from_key = _range.get("from", "*")
+        default_to_key = _range.get("to", "*")
         
         # If a from value was found, we need to cast it as a float since that's how elasticsearch formats the default key.
         if default_from_key != "*":
@@ -263,10 +263,10 @@ class RangeFilter (Facet):
         default_range_key = "{}-{}".format(default_from_key, default_to_key)
         
         # Return the custom key defined in self.ranges or the default key
-        return str(range.get('key', default_range_key))
+        return str(_range.get('key', default_range_key))
 
-    def _build_query(self, range):
-        return Q('range', **{self.field: range})
+    def _build_query(self, _range):
+        return Q('range', **{self.field: _range})
 
     def _get_filters_from_ranges(self, key):
         """
@@ -287,49 +287,49 @@ class RangeFilter (Facet):
             # This function will only return filters for ranges that are defined in self.ranges (i.e - valid ranges)
             valid_ranges = []
 
-            for range in self.ranges:
+            for _range in self.ranges:
                 # For each range in self.ranges, we get the key associated with that range so we can compare it to 'key'.
-                range_key = self._get_range_key(range)
+                range_key = self._get_range_key(_range)
 
                 # This if statement is structured to be cross compatible between seeker and advanced seeker.
                 # If key is unicode (advanced seeker), we check if the key is equal to the range_key.  If it is, we add it to valid keys.
                 # If key is a list (seeker), we check if the range_key is in the list of keys.  If it is, we add it to valid keys.
                 if (isinstance(key, unicode) and range_key == key) or (isinstance(key, list) and range_key in key):
-                    valid_ranges.append(range)
-            for range in valid_ranges:
+                    valid_ranges.append(_range)
+            for _range in valid_ranges:
                 # From and To are optional in elasticsearch.  The translated_range dictionary stores the parameters we
                 # intend to use in our query base on what is defined in range.
                 translated_range = {}
-                if 'from' in range:
+                if 'from' in _range:
                     # We do greater-than or equal to because in Elasticsearch, a range aggregation includes the from value.
-                    translated_range['gte'] = range['from']
-                if 'to' in range:
+                    translated_range['gte'] = _range['from']
+                if 'to' in _range:
                     # We do less-than because in Elasticsearch, a range aggregation exclude the to value.
                     # Doing less-than or equal to could cause the bucket count to be different than the result counts.
-                    translated_range['lt'] = range['to']
+                    translated_range['lt'] = _range['to']
                 # We check that the range, defined in self.ranges, had a 'from' and/or a 'to' value.
                 if translated_range:
                     filters.append(self._build_query(translated_range))
         return filters
     
-    def _get_filter_from_range_list(self, range):
+    def _get_filter_from_range_list(self, _range):
         """
         This helper function is designed to take a list of 2 values and build a range query.
         """
-        if isinstance(range, dict):
-            r = range
-        elif isinstance(range, list):
-            if len(range) == 2:
+        if isinstance(_range, dict):
+            r = _range
+        elif isinstance(_range, list):
+            if len(_range) == 2:
                 r = {}
                 # This function supports the ranges defined in range to either be a number or a str representation of a number.
-                if isinstance(range[0], numbers.Number) or range[0].isdigit():
-                    r['gte'] = range[0]
-                if isinstance(range[1], numbers.Number) or range[1].isdigit():
-                    r['lt'] = range[1]
+                if isinstance(_range[0], numbers.Number) or _range[0].isdigit():
+                    r['gte'] = _range[0]
+                if isinstance(_range[1], numbers.Number) or _range[1].isdigit():
+                    r['lt'] = _range[1]
             else:
-                raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(range), range))
+                raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(_range), _range))
         else:
-            raise ValueError(u"Range must either be a list or a dict.  Received: {}".format(type(range)))
+            raise ValueError(u"Range must either be a list or a dict.  Received: {}".format(type(_range)))
 
         return self._build_query(r)
 
@@ -421,10 +421,10 @@ class DateRangeFacet(RangeFilter):
         self.format = format
         super(DateRangeFacet, self).__init__(field, **kwargs)
 
-    def _get_filter_from_range_list(self, range):
-        range = super(DateRangeFacet, self)._get_filter_from_range_list(range)
-        range._params[self.field]['format'] = self.format
-        return range
+    def _get_filter_from_range_list(self, _range):
+        _range = super(DateRangeFacet, self)._get_filter_from_range_list(_range)
+        _range._params[self.field]['format'] = self.format
+        return _range
 
 class NestedFacet (Facet):
     template = 'seeker/facets/nested.html'
