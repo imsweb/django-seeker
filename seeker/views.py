@@ -121,7 +121,7 @@ class Column (object):
         else:
             export_val = ''
         return export_val
-    
+
 class SeekerView (View):
     document = None
     """
@@ -284,12 +284,12 @@ class SeekerView (View):
     This property is slated to be deprecated in the future. Please use "modify_context".
     Extra context variables to use when rendering. May be passed via as_view(), or overridden as a property.
     """
-    
+
     field_templates = {}
     """
     A dictionary of field template overrides.
     """
-    
+
     _field_templates = {}
     """
     A dictionary of default templates for each field
@@ -301,20 +301,20 @@ class SeekerView (View):
     NOTE: This functionality ONLY works with AJAX.
     NOTE: The form used is defined in "get_saved_search_form"
     """
-    
+
     form_template = 'seeker/save_form.html'
     """
     The form template used to display the save search form.
     NOTE: This is only used if the request is AJAX and 'use_save_form' is True.
     NOTE: This template will be used to render the form defined in 'get_saved_search_form"
     """
-    
+
     enforce_unique_name = True
     """
     The system will enforce the unique name requirement.
     All previously existing saved searches (in the same group) with the same name as the new one will be deleted.
     """
-    
+
     display_column_sort_order = []
     """
     This list defines a custom sort order for the display fields (both visible & non-visible).  If the list is empty, default sorting will be applied.
@@ -326,31 +326,36 @@ class SeekerView (View):
     """
     This dictionary can be used to set custom text for a fields column header.  The key is the field_name.
     """
-    
+
     analyzer = DEFAULT_ANALYZER
     """
     The ES analyzer used for keyword searching.
     """
-     
+
+    missing_sort = None
+    """
+    Whether to sort missing values first or last. Valid values are "_first", "_last", "_low", "_high", or None.
+    """
+
     def modify_context(self, context, request):
         """
-        This function allows modifications to the context that will be used to render the initial seeker page. 
+        This function allows modifications to the context that will be used to render the initial seeker page.
         NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
-    
+
     def modify_results_context(self, context):
         """
-        This function allows modifications to the context that will be used to render the results table. 
+        This function allows modifications to the context that will be used to render the results table.
         NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
-    
+
     view_name = None
     """
     An optional name to call this view, used to differentiate two views using the same mapping and class.
     """
-    
+
     def get_saved_search_form(self):
         """
         Get the form used to save searches.
@@ -439,7 +444,7 @@ class SeekerView (View):
                 self._field_templates = seekerview_field_templates[self.get_view_name()]
             except KeyError:
                 seekerview_field_templates.update({self.get_view_name(): {}})
-                self._field_templates = seekerview_field_templates[self.get_view_name()]            
+                self._field_templates = seekerview_field_templates[self.get_view_name()]
         try:
             return self._field_templates[field_name]
         except KeyError:
@@ -531,7 +536,7 @@ class SeekerView (View):
                     non_visible_columns.append(c)
             visible_columns.sort(key=lambda  c: display.index(c.field))
             non_visible_columns.sort(key=lambda c: c.label)
-        
+
             return visible_columns + non_visible_columns
 
     def get_sorted_display_list(self):
@@ -583,7 +588,7 @@ class SeekerView (View):
             if f.field != exclude:
                 facets[f] = data_dict.getlist(f.field) or initial.get(f.field, [])
         return facets
-    
+
     def get_saved_search_model(self):
         from .models import SavedSearch
         return SavedSearch
@@ -628,6 +633,23 @@ class SeekerView (View):
                     facet.apply(s)
         return s
 
+    def sort_descriptor(self, sort):
+        if self.missing_sort is None or isinstance(sort, dict):
+            return sort
+        desc = sort.startswith('-')
+        field = sort.lstrip('-')
+        missing = self.missing_sort
+        if missing == '_low':
+            missing = '_last' if desc else '_first'
+        elif missing == '_high':
+            missing = '_first' if desc else '_last'
+        return {
+            field: {
+                'order': 'desc' if desc else 'asc',
+                'missing': missing,
+            }
+        }
+
     def render(self):
         SavedSearchModel = self.get_saved_search_model()
 
@@ -669,7 +691,7 @@ class SeekerView (View):
             # Get the column based on the field name, and use it's "sort" field, if applicable.
             c = column_lookup.get(s.lstrip('-'))
             if c and c.sort:
-                sort_fields.append('-%s' % c.sort if s.startswith('-') else c.sort)
+                sort_fields.append(self.sort_descriptor('-%s' % c.sort if s.startswith('-') else c.sort))
 
         # Highlight fields.
         if self.highlight:
@@ -716,7 +738,7 @@ class SeekerView (View):
             'saved_searches': list(saved_searches),
             'use_save_form': self.use_save_form,
         }
-        
+
         if self.use_save_form:
             SavedSearchForm = self.get_saved_search_form()
             form = SavedSearchForm(saved_searches=saved_searches)
@@ -727,7 +749,7 @@ class SeekerView (View):
 
         if self.extra_context:
             context.update(self.extra_context)
-            
+
         self.modify_context(context, self.request)
 
         search_complete.send(sender=self, context=context)
@@ -747,7 +769,7 @@ class SeekerView (View):
             return JsonResponse(ajax_data)
         else:
             return self.render_to_response(context)
-        
+
     def render_to_response(self, context):
         return render(self.request, self.template_name, context)
 
@@ -808,9 +830,9 @@ class SeekerView (View):
         if '_save' in request.POST:
             # A "sub" method that handles ajax save submissions (and returns JSON, not a redirect)
             if request.is_ajax() and self.use_save_form:
-                
+
                 response_data = {} # All data must be able to flatten to JSON
-                
+
                 # First we check if the user is attempting to overwrite an existing search
                 saved_searches = request.user.seeker_searches.filter(url=request.path)
                 form_kwargs = { 'saved_searches': saved_searches, 'enforce_unique_name': self.enforce_unique_name }
@@ -821,7 +843,7 @@ class SeekerView (View):
                     if saved_search:
                         # Since we are using "pk" we know there can only be one so .get is safe
                         form_kwargs['instance'] = saved_searches.get(pk=saved_search_pk)
-                        
+
                 SavedSearchForm = self.get_saved_search_form()
                 form = SavedSearchForm(request.POST.copy(), **form_kwargs)
                 if form.is_valid():
@@ -834,12 +856,12 @@ class SeekerView (View):
                     response_data['redirect_url'] = saved_search.get_absolute_url()
                 else:
                     response_data['redirect_url'] = None
-                    
+
                 response_data['save_form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=request)
-                
+
                 # We came in via ajax so we return via JSON
                 return JsonResponse(response_data)
-            
+
             # If the request is not ajax or this seeker view does not want to use the form, then handle it the old way
             name = request.POST.get('name', '').strip()
             if not name:
@@ -946,7 +968,7 @@ class AdvancedSeekerView (SeekerView):
     """
     This dictionary translates the boolean operators passed from the frontend into their elasticsearch equivalents.
     """
-    
+
     footer_template = 'advanced_seeker/footer.html'
     """
     The template used to render the search results footer.
@@ -956,12 +978,12 @@ class AdvancedSeekerView (SeekerView):
     """
     The template used to render the search results header.
     """
-    
+
     results_template = 'seeker/results.html'
     """
     The template used to render the search results.
     """
-    
+
     template_name = 'seeker/seeker.html'
     """
     The overall seeker template to render.
@@ -969,8 +991,8 @@ class AdvancedSeekerView (SeekerView):
 
     use_wordwrap_header = False
     """
-    If set to True, table headers will wrap to second line if they are longer than the content and have space available 
-    between words. 
+    If set to True, table headers will wrap to second line if they are longer than the content and have space available
+    between words.
     """
 
     @abc.abstractproperty
@@ -980,7 +1002,7 @@ class AdvancedSeekerView (SeekerView):
     This property should return the url of the associated AdvancedSavedSearchView.
     It is set to abstract because it needs to be defined on a site by site basis. None is a valid value if saved searches are not being used.
     """
-    
+
     @abc.abstractproperty
     def search_url(self):
         pass
@@ -989,24 +1011,24 @@ class AdvancedSeekerView (SeekerView):
     It is set to abstract because it needs to be defined on a site by site basis.
     Generally, this will be a 'reverse' call to the URL associated with this view.
     """
-    
+
     sort = ''
     """
     Default field to sort by. Prepend '-' to reverse sort.
     """
-    
+
     add_facets_to_display = True
     """
     Facet fields with selected values will automatically be added to the 'display' list (shown on the results table).
     """
-    
+
     def __init__(self):
         if getattr(SeekerView, 'get_search_query_type').__func__ != getattr(self, 'get_search_query_type').__func__:
             warnings.warn(
                 "'get_search_query_type' function is deprecated, please use 'get_keyword_query' instead.",
                 DeprecationWarning
             )
-    
+
     def modify_json_response(self, json_response, context):
         """
         This function allows modifications to the json data that will be returned when rendering results.
@@ -1014,7 +1036,7 @@ class AdvancedSeekerView (SeekerView):
         NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
-        
+
     def get_display(self, display_list, facets_searched):
         """
         Returns a list of display field names. If the user has selected display fields and display_list is not empty those are used otherwise
@@ -1022,12 +1044,12 @@ class AdvancedSeekerView (SeekerView):
         """
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
         display_list = display_list or default
-        
+
         if self.add_facets_to_display:
             for field in facets_searched:
                 if field not in display_list + self.required_display:
                     display_list.append(field)
-                    
+
         display_fields = [f for f in display_list if f not in self.required_display_fields]
         for field, i in self.required_display:
             display_fields.insert(i, field)
@@ -1046,13 +1068,13 @@ class AdvancedSeekerView (SeekerView):
                 if aggregate:
                     facet.apply(s)
         return s
-    
+
     def get_dsl_search(self):
         using = self.using or self.document._doc_type.using or 'default'
         index = self.index or self.document._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
         # TODO: self.document.search(using=using, index=index) once new version is released
         return self.document.search().index(index).using(using).extra(track_scores=True)
-    
+
     def make_column(self, field_name):
         """
         Creates a :class:`seeker.Column` instance for the given field name.
@@ -1064,7 +1086,7 @@ class AdvancedSeekerView (SeekerView):
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
         return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header)
-    
+
     def get_sort_field(self, columns, sort, display):
         """
         Returns the appropriate sort field for a given sort value.
@@ -1081,7 +1103,7 @@ class AdvancedSeekerView (SeekerView):
 
     def get_sorted_display_list(self):
         return self.search_object.get("displaySortOrder")
-        
+
     def get(self, request, *args, **kwargs):
         facets = self.get_facets()
         context = {
@@ -1090,13 +1112,13 @@ class AdvancedSeekerView (SeekerView):
             'search_url': self.search_url,
             'save_search_url': self.save_search_url
         }
-         
+
         if self.extra_context:
             context.update(self.extra_context)
-             
+
         self.modify_context(context, request)
         return self.render_to_response(context)
-    
+
     def post(self, request, *args, **kwargs):
         """
         Parameters:
@@ -1122,20 +1144,20 @@ class AdvancedSeekerView (SeekerView):
                 return HttpResponseBadRequest("No 'search_object' found in the request data.")
             except ValueError:
                 return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
-            
+
             # Sanity check that the search object has all of it's required components
             if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
                 return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
             return self.render_results(export)
         else:
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
-    
+
     def render_results(self, export):
         facets = self.get_facets()
         facet_lookup = { facet.field: facet for facet in facets }
         search = self.get_dsl_search()
         query = self.search_object.get('query')
-        
+
         # Hook to allow the search to be filtered before seeker begins it's work
         search = self.additional_query_filters(search)
 
@@ -1168,7 +1190,7 @@ class AdvancedSeekerView (SeekerView):
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
-            results = search.sort(sort)[offset:offset + self.page_size].execute()
+            results = search.sort(self.sort_descriptor(sort))[offset:offset + self.page_size].execute()
         else:
             results = search[offset:offset + self.page_size].execute()
 
@@ -1201,7 +1223,7 @@ class AdvancedSeekerView (SeekerView):
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
-        
+
     def calculate_page_and_offset(self, page, search):
         offset = (page - 1) * self.page_size
         results_count = search[0:0].execute().hits.total
@@ -1209,7 +1231,7 @@ class AdvancedSeekerView (SeekerView):
             page = 1
             offset = 0
         return page, offset
-    
+
     def apply_aggregations(self, search, query, facet_lookup):
         """
         Applies the desired aggregations to the search.
@@ -1220,7 +1242,7 @@ class AdvancedSeekerView (SeekerView):
         """
         for facet in facet_lookup.values():
             facet.apply(search)
-    
+
     def additional_query_filters(self, search):
         """
         Allows additional search filters (Q objects) to be applied to the search.
@@ -1229,13 +1251,13 @@ class AdvancedSeekerView (SeekerView):
         NOTE: This function makes the modification of the search object in place, there is no return value.
         """
         pass
-        
+
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
         Returns two values:
         1) The ES DSL Q object representing the 'advanced_query' dictionary passed in
         2) A list of the selected fields for this query
-        
+
         The advanced_query is a dictionary representation of the advanced query. The following is an example of the accepted format:
         {
             "condition": "<boolean operator>",
@@ -1259,7 +1281,7 @@ class AdvancedSeekerView (SeekerView):
             ],
             "not": <flag to negate sibling rules>
         }
-         
+
         NOTES:
         Each 'rule' is a dictionary containing single rules and groups of rules. The value for each rule field are as follows:
             - id:     The name of the field in the elasticsearch document being searched.
@@ -1276,13 +1298,13 @@ class AdvancedSeekerView (SeekerView):
                 facet = facet_lookup.get(advanced_query['id'])
                 return facet.es_query(advanced_query['operator'], advanced_query['value']), [facet.field]
             return None, None
-        
-        # Check if all required keys are present for a group   
+
+        # Check if all required keys are present for a group
         elif all(k in advanced_query for k in ('condition', 'rules')):
             group_operator = self.boolean_translations.get(advanced_query.get('condition'), None)
             if not group_operator:
                 raise ValueError(u"'{}' is not a valid boolean operator.".format(v))
-            
+
             queries = []
             selected_facets = []
             # The central portion of the recursion, we iterate over all rules inside this group
@@ -1291,12 +1313,12 @@ class AdvancedSeekerView (SeekerView):
                 if query:
                     queries.append(query)
                     selected_facets += facet_field
-                
+
             if advanced_query.get('not', False):
                 return ~Q('bool', **{group_operator: queries}), list(set(selected_facets))
             else:
                 return Q('bool', **{group_operator: queries}), list(set(selected_facets))
-            
+
         # The advanced_query must have been missing something, so we cannot create this query
         else:
             raise ValueError(u"The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(advanced_query)))
@@ -1331,40 +1353,40 @@ class AdvancedSavedSearchView(View):
     """
     The parameter to check for to get the saved search id (either via URL or request GET/POST)
     """
-    
+
     url_parameter = 'url'
     """
     The parameter to check for to get the url associated with the desired saved searches.
     """
-    
+
     restrict_to_user = True
     """
     If users should only be able to view their own saved searches.
     """
-    
+
     form_template = 'advanced_seeker/save_form.html'
     """
     The form template used to display the save search form.
     """
-    
+
     success_return_empty_form = True
     """
     When a search is successfully saved this determines if an empty form should be returned (instead of one linked the the instance just saved)
     """
-    
+
     enforce_unique_name = True
     """
     The system will enforce the unique name requirement.
     All previously existing saved searches (in the same group) with the same name as the new one will be deleted.
     """
-        
+
     def get(self, request, *args, **kwargs):
         if self.request.is_ajax():
             try:
                 url = request.GET.get(self.url_parameter)
             except KeyError:
                 return JsonResponse({ 'error': 'No URL provided.' }, 400)
-            
+
             SavedSearchModel = self.get_saved_search_model()
             saved_searches = self.get_saved_searches(url, SavedSearchModel)
             search_pk = kwargs.get(self.pk_parameter, request.GET.get(self.pk_parameter, None))
@@ -1376,41 +1398,41 @@ class AdvancedSavedSearchView(View):
             else:
                 # By design this will return None if there are no default searches found
                 saved_search = saved_searches.filter(default=True).first()
-            
+
             # If a saved search is found we include its data in 'current_search' for convenience (it will also be in 'all_searches')
             data = { 'current_search': saved_search.get_details_dict() if saved_search else None }
-                
+
             SavedSearchForm = self.get_saved_search_form()
-            
+
             # Even if a specific saved search was not found we return all of the other available saved searches
             if saved_searches:
                 data.update({ 'all_searches': self.sort_searches([saved_search.get_details_dict() for saved_search in saved_searches]) })
-            
-            # Hook to allow customization 
-            self.update_GET_response_data(data, saved_search)  
-            
+
+            # Hook to allow customization
+            self.update_GET_response_data(data, saved_search)
+
             form = SavedSearchForm(saved_searches=saved_searches)
             data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
-            
+
             return JsonResponse(data)
         else:
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
-        
+
     def post(self, request, *args, **kwargs):
         if self.request.is_ajax():
             try:
                 url = request.POST.get(self.url_parameter)
             except KeyError:
                 return JsonResponse({'error': 'No URL provided.'}, 400)
-            
+
             search_pk = kwargs.get(self.pk_parameter, request.POST.get(self.pk_parameter, None))
             SavedSearchModel = self.get_saved_search_model()
             saved_searches = self.get_saved_searches(url, SavedSearchModel)
-            
+
             # These are used to determine alternate paths
             delete = request.POST.get('_delete', False)
             modify_default = request.POST.get('modify_default', '')
-            
+
             saved_search = None
             if search_pk:
                 try:
@@ -1419,7 +1441,7 @@ class AdvancedSavedSearchView(View):
                     # We only want to throw an error if we cannot find the object AND we are NOT trying to delete it anyway
                     if not delete:
                         return JsonResponse({'error': 'Saved search not found.'}, 400)
-            
+
             data = {}
             # We have three paths: delete, modify_default, or save
             status = 200
@@ -1450,7 +1472,7 @@ class AdvancedSavedSearchView(View):
                     saved_search = form.save(commit=False)
                     saved_search.user = request.user
                     saved_search.save()
-                    
+
                     # TODO - Look for way to prevent us from needing to rerun this query to update results
                     saved_searches = self.get_saved_searches(url, SavedSearchModel)
                     if self.success_return_empty_form:
@@ -1461,23 +1483,23 @@ class AdvancedSavedSearchView(View):
                     data["error"] = 'Invalid form submitted'
                     saved_search = None
                     status = 400
-                
+
                 # We add the form here because we want to return it rendered even if the form was not valid
                 data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
-                
+
             # 'current_search' is included in 'all_searches' but seperated for convenience
             data['current_search'] = saved_search.get_details_dict() if saved_search else None
-            
+
             # We do this query again to make sure we don't have stale data.
             data['all_searches'] = self.sort_searches([search.get_details_dict() for search in saved_searches])
-            
+
             # Hook to allow customization
             self.update_POST_response_data(data, saved_search)
-            
+
             return JsonResponse(data, status=status)
         else:
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
-    
+
     def update_GET_response_data(self, data, saved_search=None):
         """
         This function allows modifications to the json data that will be returned with a GET request.
@@ -1485,7 +1507,7 @@ class AdvancedSavedSearchView(View):
         NOTE: The changes to data should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
-    
+
     def update_POST_response_data(self, data, saved_search=None):
         """
         This function allows modifications to the json data that will be returned with a POST request.
@@ -1493,17 +1515,17 @@ class AdvancedSavedSearchView(View):
         NOTE: The changes to data should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
-    
+
     def sort_searches(self, all_searches):
         """
         This function sorts the list of searches that will be returned.
         """
         return sorted(all_searches, key=lambda search: search.get('name'))
-                
+
     def get_saved_search_model(self):
         from .models import SavedSearch
         return SavedSearch
-    
+
     def get_saved_search_form(self):
         """
         Get the form used to save searches.
@@ -1511,7 +1533,7 @@ class AdvancedSavedSearchView(View):
         """
         from .forms import AdvancedSavedSearchForm
         return AdvancedSavedSearchForm
-    
+
     def get_saved_searches(self, url, SavedSearchModel):
         """
         Returns a QuerySet of the saved searches for this particular request (based on URL and seeker settings)

@@ -1,4 +1,4 @@
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 from .facets import Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram, DateTermsFacet, DateRangeFacet
 from .mapping import (
