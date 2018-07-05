@@ -90,7 +90,8 @@ def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=
         'page': page,
         'param': param,
         'querystring': querystring,
-        'show_last_page' : show_last_page
+        'show_last_page' : show_last_page,
+        'max_results' : max_results,
     })
 
 _phrase_re = re.compile(r'"([^"]*)"')
