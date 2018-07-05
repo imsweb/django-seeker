@@ -17,6 +17,6 @@
         <li><a href="?{{ querystring }}{% if querystring %}&amp;{% endif %}{{ param }}={{ page.number|add:"1" }}" class="page-link" data-page="{{ page.number|add:"1" }}">Next</a></li>
     {% endif %}
 </ul>
-{% if show_last_page and page.number == paginator.num_pages%}
+{% if not show_last_page and page.number == paginator.num_pages%}
 <div class="alert alert-warning">Paging has been limited to the first {{ max_results }} results.</div>
 {% endif %}
