@@ -1248,9 +1248,8 @@ class AdvancedSeekerView (SeekerView):
         Allows additional search filters (Q objects) to be applied to the search.
         Ideally, filters applied by this function will be applied for every search.
         For that reason nothing is passed to this function except the search.
-        NOTE: This function makes the modification of the search object in place, there is no return value.
         """
-        pass
+        return search
 
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
