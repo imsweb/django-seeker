@@ -961,6 +961,12 @@ class AdvancedColumn (Column):
 
 
 class AdvancedSeekerView (SeekerView):
+    available_page_sizes = [10, 20, 50, 100]
+    """
+    A list of available page sizes. The values must be integers.
+    NOTE: These values are NOT inenforced, they are simply used for rendering.
+    """
+    
     boolean_translations = {
         'AND': 'must',
         'OR': 'should'
@@ -1171,8 +1177,9 @@ class AdvancedSeekerView (SeekerView):
 
         # We use post_filter to allow the aggregations to be run before applying the filter
         search = search.post_filter(advanced_query)
-
-        page, offset = self.calculate_page_and_offset(self.search_object['page'], search)
+        
+        page_size = int(self.search_object.get('page_size', self.page_size))
+        page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
 
         display = self.get_display(self.search_object['display'], facets_searched)
         columns = self.get_columns(display)
@@ -1190,9 +1197,9 @@ class AdvancedSeekerView (SeekerView):
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
-            results = search.sort(self.sort_descriptor(sort))[offset:offset + self.page_size].execute()
+            results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
         else:
-            results = search[offset:offset + self.page_size].execute()
+            results = search[offset:offset + page_size].execute()
 
         # TODO clean this up (may not need everything)
         context = {
@@ -1205,7 +1212,8 @@ class AdvancedSeekerView (SeekerView):
             'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
             'page': page,
             'page_spread': self.page_spread,
-            'page_size': self.page_size,
+            'available_page_sizes': self.available_page_sizes,
+            'page_size': page_size,
             'query': query,
             'results': results,
             'show_rank': self.show_rank,
@@ -1224,8 +1232,8 @@ class AdvancedSeekerView (SeekerView):
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
 
-    def calculate_page_and_offset(self, page, search):
-        offset = (page - 1) * self.page_size
+    def calculate_page_and_offset(self, page, page_size, search):
+        offset = (page - 1) * page_size
         results_count = search[0:0].execute().hits.total
         if results_count < offset:
             page = 1
