@@ -964,7 +964,7 @@ class AdvancedSeekerView (SeekerView):
     available_page_sizes = [10, 20, 50, 100]
     """
     A list of available page sizes. The values must be integers.
-    NOTE: These values are NOT inenforced, they are simply used for rendering.
+    NOTE: These values are NOT enforced, they are simply used for rendering.
     """
     
     boolean_translations = {
