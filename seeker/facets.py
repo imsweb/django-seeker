@@ -23,7 +23,7 @@ class Facet (object):
     def __init__(self, field, label=None, name=None, description=None, template=None, advanced_template=None, **kwargs):
         self.field = field
         self.label = label or self.field.replace('_', ' ').replace('.raw', '').replace('.', ' ').capitalize()
-        self.name = (name or self.field).replace('.raw', '').replace('.', '_')
+        self.name = (name or self.field).replace('.', '_')
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
