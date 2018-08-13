@@ -1452,6 +1452,8 @@ class AdvancedSavedSearchView(View):
             data = {}
             # We have three paths: delete, modify_default, or save
             status = 200
+            SavedSearchForm = self.get_saved_search_form()
+            form_kwargs = { 'saved_searches': saved_searches, 'enforce_unique_name': self.enforce_unique_name }
             if delete:
                 if saved_search:
                     saved_search.delete()
@@ -1469,8 +1471,6 @@ class AdvancedSavedSearchView(View):
                     saved_search = None
                     status = 400
             else:
-                SavedSearchForm = self.get_saved_search_form()
-                form_kwargs = { 'saved_searches': saved_searches, 'enforce_unique_name': self.enforce_unique_name }
                 if saved_search:
                     form_kwargs['instance'] = saved_search
                 # We use a copy of POST to allow it to be edited within the form (example, if a field should be cleared on error)
@@ -1491,8 +1491,12 @@ class AdvancedSavedSearchView(View):
                     saved_search = None
                     status = 400
 
-                # We add the form here because we want to return it rendered even if the form was not valid
-                data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            # the saved search form needs to be updated if we modified a default search or deleted a search
+            if delete or modify_default:
+                form = SavedSearchForm(**form_kwargs)
+
+            # We add the form here because we want to return the most up-to-date version of the form
+            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
 
             # 'current_search' is included in 'all_searches' but seperated for convenience
             data['current_search'] = saved_search.get_details_dict() if saved_search else None
