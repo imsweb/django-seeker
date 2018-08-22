@@ -179,7 +179,7 @@ class SeekerView (View):
 
     sort = None
     """
-    A list of field/column names to sort by default, or None for no default sort order.
+    A list of field/column names to sort by default, or None for no default sort order. For reverse order prefix the field with '-'.
     """
 
     search = None
