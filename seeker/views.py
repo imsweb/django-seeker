@@ -959,6 +959,17 @@ class AdvancedColumn (Column):
             offset += 1
         self.header_html = "{}<br/>{}".format(self.header_html[:space_index], self.header_html[space_index + 1:])
 
+    def export_value(self, result):
+        export_field = self.field if self.export is True else self.export
+        if export_field:
+            value = getattr(result, export_field, '')
+            if self.value_format:
+                value = self.value_format(value)
+            export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+        else:
+            export_val = ''
+        return export_val
+
 
 class AdvancedSeekerView (SeekerView):
     available_page_sizes = [10, 20, 50, 100]
@@ -1028,6 +1039,13 @@ class AdvancedSeekerView (SeekerView):
     Facet fields with selected values will automatically be added to the 'display' list (shown on the results table).
     """
 
+    value_formats = {}
+    """
+    key: field_name, value: value_format function
+    A dictionary of custom formats used for extracting values from mappings. 
+    value_formats are used for creating columns and exporting values in csv files.
+    """
+
     def __init__(self):
         if getattr(SeekerView, 'get_search_query_type').__func__ != getattr(self, 'get_search_query_type').__func__:
             warnings.warn(
@@ -1091,7 +1109,8 @@ class AdvancedSeekerView (SeekerView):
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
-        return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header)
+        val_format = self.value_formats.get(field_name, None)
+        return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header, value_format=val_format)
 
     def get_sort_field(self, columns, sort, display):
         """
