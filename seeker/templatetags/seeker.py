@@ -66,8 +66,11 @@ def seeker_score(result, max_score=None, template='seeker/score.html'):
 
 
 @register.simple_tag
-def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html'):
-    paginator = Paginator(range(total), page_size)
+def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html', max_results=None):
+    if max_results:
+        paginator = Paginator(range(min(total,(max_results//page_size * page_size))), page_size)
+    else:
+        paginator = Paginator(range(total), page_size)
     if paginator.num_pages < 2:
         return ''
     page = paginator.page(page)
@@ -77,12 +80,18 @@ def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=
         page_range = range(start, end)
     else:
         page_range = paginator.page_range
+    if max_results and max_results < page_size * total:
+        show_last_page = False
+    else:
+        show_last_page = True
     return loader.render_to_string(template, {
         'page_range': page_range,
         'paginator': paginator,
         'page': page,
         'param': param,
         'querystring': querystring,
+        'show_last_page' : show_last_page,
+        'max_results' : max_results,
     })
 
 _phrase_re = re.compile(r'"([^"]*)"')
