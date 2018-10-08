@@ -17,6 +17,8 @@ class QueryTests (TestCase):
     def test_filter(self):
         results = self.mapping.query(filters={'authors': 'Alexa Watson'})
         self.assertEqual(set(r.data['title'] for r in results), set(['Herding Cats', 'Law School Sucks']))
+
+    def test_boolean_filter(self):
         results = self.mapping.query(filters=seeker.F(in_print=False))
         self.assertEqual(results.count(), 1)
         self.assertEqual(results[0].id, '3')
@@ -24,7 +26,10 @@ class QueryTests (TestCase):
     def test_facets(self):
         facet = seeker.TermAggregate('category')
         results = self.mapping.query(facets=facet)
-        self.assertEqual(results.aggregates[facet], [{'key': 'Non-Fiction', 'doc_count': 2}, {'key': 'Fiction', 'doc_count': 1}])
+        self.assertEqual(
+            results.aggregates[facet],
+            [{'key': 'fiction', 'doc_count': 3}, {'key': 'non', 'doc_count': 2}]
+        )
 
     def test_crossquery(self):
         results = {}
