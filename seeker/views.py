@@ -118,7 +118,7 @@ class Column (object):
         export_field = self.field if self.export is True else self.export
         if export_field:
             value = getattr(result, export_field, '')
-            if isinstance(value, datetime) and not timezone.is_naive(value):
+            if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
             export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
         else:
@@ -966,7 +966,7 @@ class AdvancedColumn (Column):
         export_field = self.field if self.export is True else self.export
         if export_field:
             value = getattr(result, export_field, '')
-            if isinstance(value, datetime) and not timezone.is_naive(value):
+            if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
             if self.value_format:
                 value = self.value_format(value)
