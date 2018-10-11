@@ -1047,7 +1047,7 @@ class AdvancedSeekerView (SeekerView):
     """
 
     def __init__(self):
-        if getattr(SeekerView, 'get_search_query_type').__func__ != getattr(self, 'get_search_query_type').__func__:
+        if vars(SeekerView).get('get_search_query_type') != getattr(self, 'get_search_query_type').__func__:
             warnings.warn(
                 "'get_search_query_type' function is deprecated, please use 'get_keyword_query' instead.",
                 DeprecationWarning
