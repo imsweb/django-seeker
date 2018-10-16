@@ -315,16 +315,14 @@ class SeekerView (View):
         for key in sorted(data):
             if ignore and key in ignore:
                 continue
-            if not data[key]:
+            if not data.getlist(key) or not any(data.getlist(key)):
                 continue
             if key == 'p' and data[key] == '1':
                 continue
             values = data.getlist(key)
-            # Make sure display/facet/sort fields maintain their order. Everything else can be sorted alphabetically for consistency.
-            if key not in ('d', 'f', 's'):
-                values = sorted(values)
             parts.extend(urlencode({key: val}) for val in values)
         return '&'.join(parts)
+    pass
 
     def get_field_label(self, field_name):
         """
