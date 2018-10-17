@@ -17,7 +17,7 @@ class Category (models.Model):
 class Book (models.Model):
     title = models.CharField(max_length=200)
     authors = models.ManyToManyField(Author, related_name='books')
-    category = models.ForeignKey(Category, related_name='books')
+    category = models.ForeignKey(Category, related_name='books', on_delete=models.CASCADE)
     date_published = models.DateField()
     pages = models.IntegerField()
     in_print = models.BooleanField(default=True)

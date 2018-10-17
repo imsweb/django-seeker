@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.apps import apps
 from seeker.utils import get_app_mappings
 from elasticsearch.helpers import bulk
-import StringIO
+import io
 import sys
 import gc
 
@@ -34,7 +34,7 @@ def reindex(mapping, options):
         total = mapping.queryset().count()
     except:
         total = None
-    output = StringIO.StringIO() if options['quiet'] else sys.stderr
+    output = io.StringIO() if options['quiet'] else sys.stderr
     iterator = silent_iter if options['quiet'] else progress_iter
     output.write('Indexing %s\n' % mapping.__class__.__name__)
     output.flush()

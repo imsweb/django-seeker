@@ -71,11 +71,11 @@ class MappingType (object):
         if value is None:
             return None
         elif isinstance(value, (list, tuple)):
-            return [unicode(v) for v in value]
+            return [str(v) for v in value]
         elif hasattr(value, 'all'):
-            return [unicode(v) for v in value.all()]
+            return [str(v) for v in value.all()]
         else:
-            return unicode(value)
+            return str(value)
 
     def to_python(self, value):
         """
@@ -252,7 +252,7 @@ def object_data(obj, schema, preparer=None):
     If a preparer is specified, it will be searched for prepare_<fieldname> methods.
     """
     data = {}
-    for name, t in schema.iteritems():
+    for name, t in schema.items():
         if preparer and hasattr(preparer, 'prepare_%s' % name):
             data[name] = getattr(preparer, 'prepare_%s' % name)(obj)
         elif hasattr(obj, 'get_%s_display' % name):
@@ -279,7 +279,7 @@ class ObjectType (MappingType):
                     if isinstance(t, type):
                         t = t()
                     self.schema[f.name] = t
-        for name, t in schema.iteritems():
+        for name, t in schema.items():
             if isinstance(t, type):
                 t = t()
             self.schema[name] = t
@@ -292,7 +292,7 @@ class ObjectType (MappingType):
         return None
 
     def mapping_params(self):
-        return {'properties': {name: t.mapping_params() for name, t in self.schema.iteritems()}}
+        return {'properties': {name: t.mapping_params() for name, t in self.schema.items()}}
 
 class Mapping (object):
     """
@@ -391,7 +391,7 @@ class Mapping (object):
         return {
             '_all': {'enabled': True, 'analyzer': 'snowball'},
             'dynamic': 'strict',
-            'properties': {name: t.mapping_params() for name, t in self.field_map.iteritems()},
+            'properties': {name: t.mapping_params() for name, t in self.field_map.items()},
         }
 
     def _get_field(self, name, t):
@@ -407,7 +407,7 @@ class Mapping (object):
         """
         seen = set()
         if isinstance(self.fields, dict):
-            for name, t in self.fields.iteritems():
+            for name, t in self.fields.items():
                 seen.add(name)
                 yield name, self._get_field(name, t)
         else:
@@ -420,7 +420,7 @@ class Mapping (object):
                     seen.add(f.name)
                     yield f.name, self._get_field(f.name, t)
         if isinstance(self.overrides, dict):
-            for name, t in self.overrides.iteritems():
+            for name, t in self.overrides.items():
                 if name not in seen:
                     if isinstance(t, type):
                         t = t()
@@ -495,7 +495,7 @@ class Mapping (object):
         """
         Returns an ID for ElasticSearch to use when indexing the specified object. Defaults to ``obj.pk``. Must be unique over :attr:`doc_type`.
         """
-        return unicode(obj.pk)
+        return str(obj.pk)
 
     def get_data(self, obj):
         """
@@ -517,7 +517,7 @@ class Mapping (object):
         """
         try:
             self.es.delete(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), refresh=refresh)
-        except elasticsearch.TransportError, e:
+        except elasticsearch.TransportError as e:
             # Ignore 404 errors here, since the record doesn't exist anyway.
             if e.status_code != 404:
                 raise e

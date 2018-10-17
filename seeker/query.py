@@ -4,6 +4,7 @@ import collections
 import operator
 import logging
 import copy
+from functools import reduce
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class Result (object):
     def data(self):
         if self._data is None:
             self._data = collections.OrderedDict()
-            for name, t in self.mapping.field_map.iteritems():
+            for name, t in self.mapping.field_map.items():
                 self._data[name] = t.to_python(self.hit['_source'].get(name))
         return self._data
 
@@ -64,11 +65,11 @@ class ResultSet (object):
     def __init__(self, mapping, query=None, filters=None, facets=None, highlight=None, suggest=None, limit=10, offset=0, sort=None, prefetch=False):
         self.mapping = mapping
         self.query = query or {}
-        if isinstance(self.query, basestring):
+        if isinstance(self.query, str):
             self.query = self.get_search_query_type()
         self.filters = filters or []
         if isinstance(self.filters, dict):
-            self.filters = [F(**{name: values}) for name, values in self.filters.iteritems()]
+            self.filters = [F(**{name: values}) for name, values in self.filters.items()]
         elif isinstance(self.filters, F):
             self.filters = [self.filters]
         self.facets = facets or []
@@ -77,15 +78,15 @@ class ResultSet (object):
         self.highlight = highlight or {}
         if isinstance(self.highlight, (list, tuple)):
             self.highlight = {'fields': {f: {'number_of_fragments': 0} for f in self.highlight}}
-        elif isinstance(self.highlight, basestring):
+        elif isinstance(self.highlight, str):
             self.highlight = {'fields': {self.highlight: {'number_of_fragments': 0}}}
         self.suggest = suggest
-        if isinstance(self.suggest, basestring):
+        if isinstance(self.suggest, str):
             self.suggest = {'suggest-all': {'text': self.suggest, 'term': {'field': '_all'}}}
         self.limit = limit
         self.offset = offset
         self.sort = sort or None
-        if isinstance(self.sort, basestring):
+        if isinstance(self.sort, str):
             parts = self.sort.split(':', 1)
             name = parts[0]
             if name in mapping.field_map:
@@ -302,7 +303,7 @@ class RangeAggregate (Aggregate):
 class F (object):
 
     def __init__(self, **filters):
-        filters = filters.items()
+        filters = list(filters.items())
         if len(filters) > 1:
             self.filters = [{'and': filters}]
         else:
@@ -343,7 +344,7 @@ class F (object):
         return self._combine(other, 'and')
 
     def filter_spec(self, val):
-        if isinstance(val[1], (basestring, bool, int)):
+        if isinstance(val[1], (str, bool, int)):
             return {'term': {val[0]: val[1]}}
         else:
             return {'terms': {val[0]: list(val[1])}}
@@ -351,7 +352,7 @@ class F (object):
     def to_elastic(self):
         def _es(val):
             if isinstance(val, dict):
-                for conn, vals in val.iteritems():
+                for conn, vals in val.items():
                     return {conn: [_es(v) for v in vals]}
             else:
                 if hasattr(val, 'filter_spec'):

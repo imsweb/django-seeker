@@ -7,8 +7,8 @@ from .query import TermAggregate
 from .utils import get_facet_filters
 from .mapping import StringType, ObjectType
 from elasticsearch.helpers import scan
-from urlparse import parse_qsl
-import urllib
+from urllib.parse import parse_qsl
+import urllib.request, urllib.parse, urllib.error
 import re
 
 class SeekerView (TemplateView):
@@ -82,7 +82,7 @@ class SeekerView (TemplateView):
             sort = [part for part in qs_parts if part[0] == 'sort' and part[1]]
             if not sort:
                 qs_parts.append(('sort', self.sort))
-        qs = urllib.urlencode(qs_parts)
+        qs = urllib.parse.urlencode(qs_parts)
         return qs
 
     def get_facets(self):
@@ -91,7 +91,7 @@ class SeekerView (TemplateView):
         instance for any mapping fields with ``facet=True``.
         """
         mapping = self.mapping.instance()
-        for name, t in mapping.field_map.iteritems():
+        for name, t in mapping.field_map.items():
             if isinstance(t, StringType) and t.facet:
                 field_name = name + '.raw' if t.index else name
                 yield TermAggregate(field_name, label=mapping.field_label(name))
@@ -104,7 +104,7 @@ class SeekerView (TemplateView):
         if self.display:
             return self.display
         mapping = self.mapping.instance()
-        return mapping.field_map.keys()
+        return list(mapping.field_map.keys())
 
     def get_selectable_fields(self):
         """
@@ -274,8 +274,8 @@ class SeekerView (TemplateView):
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(unicode(v) for v in value)
-            return '"%s"' % unicode(value).replace('"', '""')
+                value = '; '.join(str(v) for v in value)
+            return '"%s"' % str(value).replace('"', '""')
 
         def csv_generator():
             yield ','.join(force_text(mapping.field_label(f)) for f in display_fields) + '\n'

@@ -67,7 +67,7 @@ def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
     seeker_app = apps.get_app_config('seeker')
     es = Elasticsearch(hosts or getattr(settings, 'SEEKER_HOSTS', None))
     query = query or {}
-    if isinstance(query, basestring):
+    if isinstance(query, str):
         query = {
             'query': get_search_query_type(query)
         }

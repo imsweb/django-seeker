@@ -5,6 +5,7 @@ from django.utils.deprecation import MiddlewareMixin
 from .utils import get_mappings, get_model_mappings
 import operator
 import logging
+from functools import reduce
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ def find_relations(model_class, other_class, schema, prefix=''):
     Given a parent model_class, a child other_class, and a seeker schema (field_name -> mapping_type), generates
     a list of relationship names that can be queried on model_class given an instance of other_class.
     """
-    for name, t in schema.iteritems():
+    for name, t in schema.items():
         if hasattr(t, 'model'):
             if t.model == other_class:
                 # This field is a direct ObjectType reference to other_class, count it.
