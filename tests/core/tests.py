@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.core.management import call_command
 from .models import Book
+from .mappings import BookMapping
 import seeker
 
 class QueryTests (TestCase):
@@ -23,6 +24,18 @@ class QueryTests (TestCase):
         self.assertEqual(results.count(), 1)
         self.assertEqual(results[0].id, '3')
 
+    def test_TermAggregate(self):
+        facet = seeker.TermAggregate('category', size=15)
+        self.assertEqual(
+            facet.to_elastic(),
+            {
+                'terms': {
+                    'field': 'category',
+                    'size': 15,
+                }
+            }
+        )
+
     def test_facets(self):
         facet = seeker.TermAggregate('category')
         results = self.mapping.query(facets=facet)
@@ -40,3 +53,11 @@ class QueryTests (TestCase):
         self.assertEqual(total, 3)
         self.assertEqual(len(results['book']), 1)
         self.assertEqual(len(results['magazine']), 2)
+
+
+class MappingTests(TestCase):
+
+    def test_mapping_refresh(self):
+        """Just make sure refresh doesn't throw an error"""
+        mapping = BookMapping()
+        mapping.refresh()
