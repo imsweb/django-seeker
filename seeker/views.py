@@ -996,17 +996,17 @@ class AdvancedSeekerView (SeekerView):
     The template used to render the search results footer.
     """
 
-    header_template = 'seeker/header.html'
+    header_template = 'advanced_seeker/header.html'
     """
     The template used to render the search results header.
     """
 
-    results_template = 'seeker/results.html'
+    results_template = 'advanced_seeker/results.html'
     """
     The template used to render the search results.
     """
 
-    template_name = 'seeker/seeker.html'
+    template_name = 'advanced_seeker/seeker.html'
     """
     The overall seeker template to render.
     """
