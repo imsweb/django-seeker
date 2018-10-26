@@ -322,7 +322,6 @@ class SeekerView (View):
             values = data.getlist(key)
             parts.extend(urlencode({key: val}) for val in values)
         return '&'.join(parts)
-    pass
 
     def get_field_label(self, field_name):
         """
