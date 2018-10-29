@@ -6,10 +6,17 @@ from django.utils.encoding import force_text
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .mapping import StringType, ObjectType
+
 from elasticsearch.helpers import scan
-from urllib.parse import parse_qsl
-import urllib.request, urllib.parse, urllib.error
-import re
+
+import six
+
+if six.PY2:
+    from urlparse import parse_qsl
+    from urllib import urlencode
+elif six.PY3:
+    from urllib.parse import parse_qsl, urlencode
+
 
 class SeekerView (TemplateView):
     mapping = None
@@ -82,7 +89,7 @@ class SeekerView (TemplateView):
             sort = [part for part in qs_parts if part[0] == 'sort' and part[1]]
             if not sort:
                 qs_parts.append(('sort', self.sort))
-        qs = urllib.parse.urlencode(qs_parts)
+        qs = urlencode(qs_parts)
         return qs
 
     def get_facets(self):
