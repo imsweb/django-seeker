@@ -315,11 +315,11 @@ class SeekerView (View):
         for key in sorted(data):
             if ignore and key in ignore:
                 continue
-            if not data.getlist(key) or not any(data.getlist(key)):
+            values = data.getlist(key)
+            if not any(values):
                 continue
             if key == 'p' and data[key] == '1':
                 continue
-            values = data.getlist(key)
             parts.extend(urlencode({key: val}) for val in values)
         return '&'.join(parts)
 
