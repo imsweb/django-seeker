@@ -8,6 +8,7 @@ from functools import reduce
 
 logger = logging.getLogger(__name__)
 
+
 class Result (object):
 
     def __init__(self, mapping, hit, max_score=0, instance=None):
@@ -59,6 +60,7 @@ class Result (object):
         if self._instance is None:
             self._instance = self.mapping.queryset().get(pk=self.id)
         return self._instance
+
 
 class ResultSet (object):
 
@@ -157,7 +159,12 @@ class ResultSet (object):
         if self._response is None:
             query = self.to_elastic()
             logger.debug('Querying %s/%s: %s', self.mapping.index_name, self.mapping.doc_type, query)
-            self._response = self.mapping.es.search(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query, size=self.limit, from_=self.offset)
+            self._response = self.mapping.es.search(
+                index=self.mapping.index_name,
+                doc_type=self.mapping.doc_type,
+                body=query,
+                size=self.limit,
+                from_=self.offset)
         return self._response
 
     @property
@@ -176,7 +183,7 @@ class ResultSet (object):
                 if s['options']:
                     suggs[s['text']] = s['options'][0]['text']
             return suggs
-        except:
+        except BaseException:
             return {}
 
     def __len__(self):
@@ -206,6 +213,7 @@ class ResultSet (object):
     def aggregates(self):
         return collections.OrderedDict(self.facet_values())
 
+
 class Aggregate (object):
     def __init__(self, field, name=None, label=None, description=None):
         self.field = field
@@ -224,6 +232,7 @@ class Aggregate (object):
 
     def get_key(self, value):
         return value['key']
+
 
 class TermAggregate (Aggregate):
     def __init__(self, field, name=None, label=None, description=None, size=10, include=None, exclude=None, filter_operator='or'):
@@ -247,9 +256,11 @@ class TermAggregate (Aggregate):
         else:
             return F(**{self.field: values})
 
+
 class StatsAggregate (Aggregate):
     def to_elastic(self):
         return {'stats': {'field': self.field}}
+
 
 class YearHistogram (Aggregate):
     def to_elastic(self):
@@ -260,6 +271,7 @@ class YearHistogram (Aggregate):
 
     def get_key(self, value):
         return value['key_as_string']
+
 
 class RangeAggregate (Aggregate):
     separator = '-'
@@ -299,6 +311,7 @@ class RangeAggregate (Aggregate):
 
 # Basically taken from ElasticUtils, and simplified to generate Query DSL directly and not handle inverts.
 # Ideally, I'd like to eventually just use ElasticUtils, but they don't support ES 1.0 yet.
+
 
 class F (object):
 
@@ -364,6 +377,7 @@ class F (object):
         else:
             return _es(self.filters[0])
 
+
 class AndSpec (object):
     def __init__(self, field, values):
         self.field = field
@@ -372,9 +386,11 @@ class AndSpec (object):
     def filter_spec(self):
         return {'terms': {self.field: self.values, 'execution': 'and'}}
 
+
 class And (F):
     def __init__(self, field, values):
         self.filters = [AndSpec(field, values)]
+
 
 class RangeSpec (object):
     def __init__(self, field, min_value, max_value, min_oper='gte', max_oper='lte'):
@@ -392,9 +408,11 @@ class RangeSpec (object):
             r[self.max_oper] = self.max_value
         return {'range': {self.field: r}}
 
+
 class Range (F):
     def __init__(self, field, min_value, max_value, min_oper='gte', max_oper='lte'):
         self.filters = [RangeSpec(field, min_value, max_value, min_oper=min_oper, max_oper=max_oper)]
+
 
 class IdsSpec (object):
     def __init__(self, values):
@@ -402,6 +420,7 @@ class IdsSpec (object):
 
     def filter_spec(self):
         return {'ids': {'values': self.values}}
+
 
 class Ids (F):
     def __init__(self, values):

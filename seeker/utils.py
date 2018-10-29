@@ -1,12 +1,14 @@
 from django.apps import apps
 from django.conf import settings
 
+
 def get_mappings():
     """
     Returns a list of all defined mappings.
     """
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.mappings
+
 
 def get_app_mappings(app_label):
     """
@@ -15,12 +17,14 @@ def get_app_mappings(app_label):
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.app_mappings.get(app_label, [])
 
+
 def get_model_mappings(model_class):
     """
     Returns a list of mappings for the specified model class.
     """
     seeker_app = apps.get_app_config('seeker')
     return seeker_app.model_mappings.get(model_class, [])
+
 
 def get_search_query_type(query):
     query_type = getattr(settings, 'SEEKER_QUERY_TYPE', 'query_string')
@@ -34,6 +38,7 @@ def get_search_query_type(query):
     if query_type == 'query_string':
         query_type_config[query_type]['auto_generate_phrase_queries'] = True
     return query_type_config
+
 
 def get_facet_filters(request_data, facets, exclude=None):
     """
@@ -52,11 +57,13 @@ def get_facet_filters(request_data, facets, exclude=None):
             facet_filters.append(facet.filter(terms))
     return filters, facet_filters
 
+
 def index(obj):
     """ Shortcut to index an object based on it's model class. """
     # TODO: should this use ContentType, to deal with proxy models?
     for mapping in get_model_mappings(obj.__class__):
         mapping.index(obj)
+
 
 def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
     """
@@ -76,6 +83,7 @@ def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
     for hit in response['hits']['hits']:
         mapping = seeker_app.doc_types[hit['_type']]
         yield Result(mapping, hit, max_score)
+
 
 def queryset(model_class, **kwargs):
     """

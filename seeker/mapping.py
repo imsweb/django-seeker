@@ -9,10 +9,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def follow(obj, path):
     for part in path.split('__'):
         obj = getattr(obj, part, None)
     return obj
+
 
 class MappingType (object):
     """
@@ -102,6 +104,7 @@ class MappingType (object):
         params.update(extra)
         return params
 
+
 class StringType (MappingType):
     """
     A string value. The __init__ method takes an optional additional parameter, ``analyzer``, that will be passed to Elasticsearch.
@@ -122,6 +125,7 @@ class StringType (MappingType):
             extra['fields'] = {'raw': {'type': 'string', 'index': 'not_analyzed'}}
         return super(StringType, self).mapping_params(**extra)
 
+
 class DateType (MappingType):
     """
     A date value with an ES format of ``date``.
@@ -139,12 +143,13 @@ class DateType (MappingType):
     def to_python(self, value):
         try:
             return datetime.datetime.strptime(value, '%Y-%m-%d').date()
-        except:
+        except BaseException:
             logger.warning('Could not parse date value: %s', value)
             return value
 
     def mapping_params(self):
         return super(DateType, self).mapping_params(format='date')
+
 
 class DateTimeType (MappingType):
     """
@@ -170,7 +175,7 @@ class DateTimeType (MappingType):
         for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
             try:
                 return datetime.datetime.strptime(value, fmt)
-            except:
+            except BaseException:
                 pass
         raise ValueError('No matching date format was found.')
 
@@ -179,12 +184,13 @@ class DateTimeType (MappingType):
             # Dates coming out of Elasticsearch will be in UTC, make them aware and convert them to local time.
             d = timezone.make_aware(self._parse_datetime(value), timezone=timezone.utc)
             return timezone.localtime(d)
-        except:
+        except BaseException:
             logger.warning('Could not parse datetime value: %s', value)
             return value
 
     def mapping_params(self):
         return super(DateTimeType, self).mapping_params(format='date_optional_time')
+
 
 class BooleanType (MappingType):
     """
@@ -198,6 +204,7 @@ class BooleanType (MappingType):
             return None
         return bool(value)
 
+
 class IntegerType (MappingType):
     """
     An integer value.
@@ -209,6 +216,7 @@ class IntegerType (MappingType):
         if value is None:
             return None
         return int(value)
+
 
 class FloatType (MappingType):
     """
@@ -222,6 +230,7 @@ class FloatType (MappingType):
         if value is None:
             return None
         return float(value)
+
 
 DEFAULT_TYPE_MAP = {
     models.CharField: StringType,
@@ -246,6 +255,7 @@ try:
 except ImportError:
     pass
 
+
 def object_data(obj, schema, preparer=None):
     """
     Helper function for converting a Django object into a dictionary based on the specified schema (name -> MappingType).
@@ -260,9 +270,10 @@ def object_data(obj, schema, preparer=None):
         else:
             try:
                 data[name] = t.to_elastic(follow(obj, name))
-            except:
+            except BaseException:
                 logger.exception('Problem extracting data for %s', name)
     return data
+
 
 class ObjectType (MappingType):
 
@@ -293,6 +304,7 @@ class ObjectType (MappingType):
 
     def mapping_params(self):
         return {'properties': {name: t.mapping_params() for name, t in self.schema.items()}}
+
 
 class Mapping (object):
     """
@@ -412,7 +424,8 @@ class Mapping (object):
                 yield name, self._get_field(name, t)
         else:
             for f in (self.model._meta.fields + self.model._meta.many_to_many):
-                if f.__class__ in self.type_map and (self.fields is None or f.name in self.fields) and (self.exclude is None or f.name not in self.exclude):
+                if f.__class__ in self.type_map and (self.fields is None or f.name in self.fields) and (
+                        self.exclude is None or f.name not in self.exclude):
                     t = self.type_map[f.__class__]
                     if f.choices:
                         # Special case for Django fields with choices.
@@ -445,7 +458,7 @@ class Mapping (object):
             return self.field_label_overrides[field_name]
         try:
             return capfirst(self.model._meta.get_field(field_name).verbose_name)
-        except:
+        except BaseException:
             return ' '.join(w.capitalize() for w in field_name.split('_'))
 
     @property

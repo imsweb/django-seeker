@@ -4,6 +4,7 @@ from .models import Book
 from .mappings import BookMapping
 import seeker
 
+
 class QueryTests (TestCase):
     fixtures = ('books',)
 

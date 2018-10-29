@@ -4,6 +4,7 @@ from django.db.models.sql.compiler import SQLCompiler
 from django.db.models.sql.constants import MULTI
 from django.conf import settings
 
+
 def cursor_iter(cursor, fetch_size=1000):
     try:
         while True:
@@ -16,6 +17,7 @@ def cursor_iter(cursor, fetch_size=1000):
         cursor.execute('ROLLBACK')
         cursor.close()
 
+
 class CursorCompiler (SQLCompiler):
     def execute_sql(self, result_type=MULTI):
         if result_type != MULTI:
@@ -25,6 +27,7 @@ class CursorCompiler (SQLCompiler):
         cursor.execute('BEGIN')
         cursor.execute('DECLARE seeker_cursor CURSOR FOR ' + sql, params)
         return cursor_iter(cursor, fetch_size=getattr(settings, 'SEEKER_BATCH_SIZE', 1000))
+
 
 class CursorQuery (Query):
     def get_compiler(self, using=None, connection=None):

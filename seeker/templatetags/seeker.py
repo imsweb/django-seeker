@@ -13,9 +13,11 @@ import re
 
 register = template.Library()
 
+
 @register.filter
 def facet_key(facet, value):
     return facet.get_key(value)
+
 
 @register.simple_tag
 def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix=''):
@@ -33,15 +35,18 @@ def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix='
     }
     return mark_safe(html)
 
+
 @register.simple_tag
 def facet_values(facet, filters, missing='MISSING', remove='&times;'):
     html = '<ul class="list-unstyled facet-values">'
     for term in filters.get(facet.field, []):
         if not term:
             term = missing
-        html += '<li><a class="remove" data-term="%(term)s" title="Remove this term">%(remove)s</a> %(term)s</li>' % {'term': escape(term), 'remove': remove}
+        html += '<li><a class="remove" data-term="%(term)s" title="Remove this term">%(remove)s</a> %(term)s</li>' % {
+            'term': escape(term), 'remove': remove}
     html += '</ul>'
     return mark_safe(html)
+
 
 @register.filter
 def string_format(value):
@@ -57,9 +62,11 @@ def string_format(value):
         return dateformat.format(value, settings.DATE_FORMAT)
     return str(value)
 
+
 @register.filter
 def list_display(values, sep=', '):
     return sep.join(string_format(v) for v in values)
+
 
 @register.filter
 def dict_display(d, sep=', '):
@@ -68,6 +75,7 @@ def dict_display(d, sep=', '):
         if key and value:
             parts.append('%s: %s' % (key, string_format(value)))
     return sep.join(parts)
+
 
 @register.simple_tag
 def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None, sort_overrides=None):
@@ -95,9 +103,11 @@ def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None, so
     sr_label = (' <span class="sr-only">(%s)</span>' % ('Ascending' if cur == 'asc' else 'Descending')) if cur else ''
     return mark_safe('<a href="?%s" class="sort %s">%s%s</a>' % (q.urlencode(), cur, escape(label), sr_label))
 
+
 @register.simple_tag
 def field_label(mapping, field_name):
     return mapping.field_label(field_name)
+
 
 def _find_hilight_words(highlight):
     words = set()
@@ -106,11 +116,14 @@ def _find_hilight_words(highlight):
             words.update(re.findall(r'<em>([^<]+)</em>', m))
     return words
 
+
 class HighlightList (list):
     highlighted = False
 
+
 class HighlightDict (dict):
     highlighted = False
+
 
 def _highlight(obj, words):
     was_highlighted = False
@@ -138,6 +151,7 @@ def _highlight(obj, words):
         return mark_safe(s), was_highlighted
     return obj, was_highlighted
 
+
 @register.simple_tag
 def result_value(result, field_name, highlight=True, template=None):
     if highlight:
@@ -159,10 +173,11 @@ def result_value(result, field_name, highlight=True, template=None):
             'value': value,
             'highlighted': was_highlighted,
         })
-    except:
+    except BaseException:
         pass
     # Otherwise, do our best to render the value as a string.
     return string_format(value)
+
 
 @register.simple_tag
 def result_link(result, field_name, view=None):
@@ -171,9 +186,10 @@ def result_link(result, field_name, view=None):
     else:
         try:
             return result.instance.get_absolute_url()
-        except:
+        except BaseException:
             pass
     return ''
+
 
 @register.simple_tag
 def suggest_link(suggestions, querystring='', name='q'):
@@ -183,6 +199,7 @@ def suggest_link(suggestions, querystring='', name='q'):
         keywords = keywords.replace(term, replacement)
     q[name] = keywords
     return mark_safe('<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords)))
+
 
 @register.inclusion_tag('seeker/pager.html')
 def pager(total, page_size=10, page=1, param='page', querystring='', spread=7):

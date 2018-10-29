@@ -129,7 +129,7 @@ class SeekerView (TemplateView):
         """
         try:
             return result.instance.get_absolute_url()
-        except:
+        except BaseException:
             return ''
 
     def get_query(self):
@@ -225,11 +225,18 @@ class SeekerView (TemplateView):
                     highlight.append('%s.*' % name)
                 else:
                     highlight.append(name)
-            except:
+            except BaseException:
                 pass
 
         facet_filters.extend(self.extra_filters())
-        results = mapping.query(query=keywords, filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
+        results = mapping.query(
+            query=keywords,
+            filters=facet_filters,
+            facets=facets,
+            highlight=highlight,
+            limit=self.page_size,
+            offset=offset,
+            sort=sort)
 
         querystring = self._querystring()
         saved_search = None
@@ -324,7 +331,7 @@ class SeekerView (TemplateView):
                 default = request.user.seeker_searches.get(url=request.path, default=True)
                 if default.querystring != querystring:
                     return redirect(default)
-        except:
+        except BaseException:
             pass
         return super(SeekerView, self).get(request, *args, **kwargs)
 

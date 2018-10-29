@@ -9,6 +9,7 @@ from functools import reduce
 
 logger = logging.getLogger(__name__)
 
+
 def find_relations(model_class, other_class, schema, prefix=''):
     """
     Given a parent model_class, a child other_class, and a seeker schema (field_name -> mapping_type), generates
@@ -29,8 +30,9 @@ def find_relations(model_class, other_class, schema, prefix=''):
                 f = model_class._meta.get_field(name)
                 if f.rel.to == other_class:
                     yield prefix + name
-            except:
+            except BaseException:
                 pass
+
 
 def index_related(model_class, instance, delete=False):
     for mapping in get_mappings():
@@ -46,6 +48,7 @@ def index_related(model_class, instance, delete=False):
                     mapping.delete(obj)
                 else:
                     mapping.index(obj)
+
 
 class ModelIndexingMiddleware (MiddlewareMixin):
     """

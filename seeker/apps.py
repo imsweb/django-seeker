@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class SeekerConfig (AppConfig):
     name = 'seeker'
 
@@ -27,7 +28,9 @@ class SeekerConfig (AppConfig):
                             continue
                         mapping = item.instance()
                         if mapping.doc_type in self.doc_types:
-                            raise ImproperlyConfigured('doc_type (%s) must be unique across all mappings [hint: check your mapping class names!]' % mapping.doc_type)
+                            raise ImproperlyConfigured(
+                                'doc_type (%s) must be unique across all mappings [hint: check your mapping class names!]' %
+                                mapping.doc_type)
                         self.mappings.append(mapping)
                         self.app_mappings.setdefault(app.label, []).append(mapping)
                         self.doc_types[mapping.doc_type] = mapping
@@ -36,5 +39,5 @@ class SeekerConfig (AppConfig):
                 loaded.add(mod_name)
             except ImportError:
                 pass
-            except:
+            except BaseException:
                 logger.exception('Error registering mapping')
