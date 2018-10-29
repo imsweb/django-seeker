@@ -1,8 +1,11 @@
 from django.test import TestCase
 from django.core.management import call_command
+
 from .models import Book
 from .mappings import BookMapping
+
 import seeker
+from seeker.management.commands.reindex import reindex
 
 
 class QueryTests (TestCase):
@@ -62,3 +65,14 @@ class MappingTests(TestCase):
         """Just make sure refresh doesn't throw an error"""
         mapping = BookMapping()
         mapping.refresh()
+
+
+class ReindexTests(TestCase):
+
+    def test_reindex_quiet_is_true(self):
+        mapping = BookMapping()
+        reindex(mapping, {'quiet': True, 'cursor': False})
+
+    def test_reindex_quiet_is_false(self):
+        mapping = BookMapping()
+        reindex(mapping, {'quiet': False, 'cursor': False})

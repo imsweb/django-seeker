@@ -1,10 +1,14 @@
-from django.core.management.base import BaseCommand
-from django.apps import apps
-from seeker.utils import get_app_mappings
-from elasticsearch.helpers import bulk
 import io
 import sys
 import gc
+import six
+
+from django.core.management.base import BaseCommand
+from django.apps import apps
+
+from elasticsearch.helpers import bulk
+
+from seeker.utils import get_app_mappings
 
 
 def silent_iter(iterable, **kwargs):
@@ -39,7 +43,11 @@ def reindex(mapping, options):
     except BaseException:
         total = None
 
-    output = io.StringIO() if options['quiet'] else sys.stderr
+    if six.PY2:
+        writer = io.BytesIO
+    elif six.PY3:
+        writer = io.StringIO
+    output = writer() if options['quiet'] else sys.stderr
     iterator = silent_iter if options['quiet'] else progress_iter
     output.write('Indexing %s\n' % mapping.__class__.__name__)
     output.flush()
