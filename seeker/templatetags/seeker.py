@@ -27,15 +27,17 @@ def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix='
     if filters is None:
         filters = {}
     key = facet.get_key(value)
-    html = '<label><input type="checkbox" name="%(name)s" value="%(key)s"%(checked)s data-count="%(count)s" /> %(key_fmt)s (%(count_prefix)s%(count_fmt)s)</label>' % {
-        'name': facet.field,
-        'key': key or '',
-        'key_fmt': key or missing,
-        'count': value['doc_count'],
-        'count_fmt': intcomma(value['doc_count']),
-        'count_prefix': count_prefix,
-        'checked': ' checked="checked"' if facet.field in filters and key in filters[facet.field] else '',
-    }
+    html = ('<label><input type="checkbox" name="%(name)s" '
+            'value="%(key)s"%(checked)s data-count="%(count)s" /> '
+            '%(key_fmt)s (%(count_prefix)s%(count_fmt)s)</label>') % {
+                'name': facet.field,
+                'key': key or '',
+                'key_fmt': key or missing,
+                'count': value['doc_count'],
+                'count_fmt': intcomma(value['doc_count']),
+                'count_prefix': count_prefix,
+                'checked': ' checked="checked"' if facet.field in filters and key in filters[facet.field] else '',
+            }
     return mark_safe(html)
 
 
