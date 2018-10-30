@@ -43,11 +43,7 @@ def reindex(mapping, options):
     except Exception:
         total = None
 
-    if six.PY2:
-        writer = io.BytesIO
-    elif six.PY3:
-        writer = io.StringIO
-    output = writer() if options['quiet'] else sys.stderr
+    output = six.StringIO() if options['quiet'] else sys.stderr
     iterator = silent_iter if options['quiet'] else progress_iter
     output.write('Indexing %s\n' % mapping.__class__.__name__)
     output.flush()

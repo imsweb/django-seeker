@@ -9,13 +9,7 @@ from .mapping import StringType, ObjectType
 
 from elasticsearch.helpers import scan
 
-import six
-
-if six.PY2:
-    from urlparse import parse_qsl
-    from urllib import urlencode
-elif six.PY3:
-    from urllib.parse import parse_qsl, urlencode
+from six.moves.urllib.parse import parse_qsl, urlencode
 
 
 class SeekerView (TemplateView):

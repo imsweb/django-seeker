@@ -1,10 +1,12 @@
-from django.conf import settings
-from .utils import get_search_query_type
+import six
 import collections
 import operator
 import logging
 import copy
 from functools import reduce
+
+from .utils import get_search_query_type
+
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,7 @@ class ResultSet (object):
     def __init__(self, mapping, query=None, filters=None, facets=None, highlight=None, suggest=None, limit=10, offset=0, sort=None, prefetch=False):
         self.mapping = mapping
         self.query = query or {}
-        if isinstance(self.query, str):
+        if isinstance(self.query, six.string_types):
             self.query = self.get_search_query_type()
         self.filters = filters or []
         if isinstance(self.filters, dict):

@@ -1,11 +1,14 @@
-from django.conf import settings
-from django.db import models
-from django.utils import timezone
-from django.utils.text import capfirst
+import six
 import elasticsearch
 import collections
 import datetime
 import logging
+
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+from django.utils.text import capfirst
+
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +76,11 @@ class MappingType (object):
         if value is None:
             return None
         elif isinstance(value, (list, tuple)):
-            return [str(v) for v in value]
+            return [six.text_type(v) for v in value]
         elif hasattr(value, 'all'):
-            return [str(v) for v in value.all()]
+            return [six.text_type(v) for v in value.all()]
         else:
-            return str(value)
+            return six.text_type(value)
 
     def to_python(self, value):
         """
