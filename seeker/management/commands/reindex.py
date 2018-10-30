@@ -18,7 +18,7 @@ def silent_iter(iterable, **kwargs):
 
 try:
     from tqdm import tqdm as progress_iter
-except BaseException:
+except Exception:
     progress_iter = silent_iter
 
 
@@ -40,7 +40,7 @@ def reindex(mapping, options):
             yield action
     try:
         total = mapping.queryset().count()
-    except BaseException:
+    except Exception:
         total = None
 
     if six.PY2:

@@ -30,7 +30,7 @@ def find_relations(model_class, other_class, schema, prefix=''):
                 f = model_class._meta.get_field(name)
                 if f.rel.to == other_class:
                     yield prefix + name
-            except BaseException:
+            except Exception:
                 pass
 
 

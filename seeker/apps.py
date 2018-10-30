@@ -39,5 +39,5 @@ class SeekerConfig (AppConfig):
                 loaded.add(mod_name)
             except ImportError:
                 pass
-            except BaseException:
+            except Exception:
                 logger.exception('Error registering mapping')

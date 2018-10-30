@@ -129,7 +129,7 @@ class SeekerView (TemplateView):
         """
         try:
             return result.instance.get_absolute_url()
-        except BaseException:
+        except Exception:
             return ''
 
     def get_query(self):
@@ -225,7 +225,7 @@ class SeekerView (TemplateView):
                     highlight.append('%s.*' % name)
                 else:
                     highlight.append(name)
-            except BaseException:
+            except Exception:
                 pass
 
         facet_filters.extend(self.extra_filters())
@@ -331,7 +331,7 @@ class SeekerView (TemplateView):
                 default = request.user.seeker_searches.get(url=request.path, default=True)
                 if default.querystring != querystring:
                     return redirect(default)
-        except BaseException:
+        except Exception:
             pass
         return super(SeekerView, self).get(request, *args, **kwargs)
 

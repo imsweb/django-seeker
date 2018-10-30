@@ -173,7 +173,7 @@ def result_value(result, field_name, highlight=True, template=None):
             'value': value,
             'highlighted': was_highlighted,
         })
-    except BaseException:
+    except Exception:
         pass
     # Otherwise, do our best to render the value as a string.
     return string_format(value)
@@ -186,7 +186,7 @@ def result_link(result, field_name, view=None):
     else:
         try:
             return result.instance.get_absolute_url()
-        except BaseException:
+        except Exception:
             pass
     return ''
 

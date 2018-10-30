@@ -143,7 +143,7 @@ class DateType (MappingType):
     def to_python(self, value):
         try:
             return datetime.datetime.strptime(value, '%Y-%m-%d').date()
-        except BaseException:
+        except Exception:
             logger.warning('Could not parse date value: %s', value)
             return value
 
@@ -175,7 +175,7 @@ class DateTimeType (MappingType):
         for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
             try:
                 return datetime.datetime.strptime(value, fmt)
-            except BaseException:
+            except Exception:
                 pass
         raise ValueError('No matching date format was found.')
 
@@ -184,7 +184,7 @@ class DateTimeType (MappingType):
             # Dates coming out of Elasticsearch will be in UTC, make them aware and convert them to local time.
             d = timezone.make_aware(self._parse_datetime(value), timezone=timezone.utc)
             return timezone.localtime(d)
-        except BaseException:
+        except Exception:
             logger.warning('Could not parse datetime value: %s', value)
             return value
 
@@ -270,7 +270,7 @@ def object_data(obj, schema, preparer=None):
         else:
             try:
                 data[name] = t.to_elastic(follow(obj, name))
-            except BaseException:
+            except Exception:
                 logger.exception('Problem extracting data for %s', name)
     return data
 
@@ -458,7 +458,7 @@ class Mapping (object):
             return self.field_label_overrides[field_name]
         try:
             return capfirst(self.model._meta.get_field(field_name).verbose_name)
-        except BaseException:
+        except Exception:
             return ' '.join(w.capitalize() for w in field_name.split('_'))
 
     @property

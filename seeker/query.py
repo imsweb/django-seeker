@@ -183,7 +183,7 @@ class ResultSet (object):
                 if s['options']:
                     suggs[s['text']] = s['options'][0]['text']
             return suggs
-        except BaseException:
+        except Exception:
             return {}
 
     def __len__(self):
