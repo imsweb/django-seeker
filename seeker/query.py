@@ -82,15 +82,15 @@ class ResultSet (object):
         self.highlight = highlight or {}
         if isinstance(self.highlight, (list, tuple)):
             self.highlight = {'fields': {f: {'number_of_fragments': 0} for f in self.highlight}}
-        elif isinstance(self.highlight, str):
+        elif isinstance(self.highlight, six.string_types):
             self.highlight = {'fields': {self.highlight: {'number_of_fragments': 0}}}
         self.suggest = suggest
-        if isinstance(self.suggest, str):
+        if isinstance(self.suggest, six.string_types):
             self.suggest = {'suggest-all': {'text': self.suggest, 'term': {'field': '_all'}}}
         self.limit = limit
         self.offset = offset
         self.sort = sort or None
-        if isinstance(self.sort, str):
+        if isinstance(self.sort, six.string_types):
             parts = self.sort.split(':', 1)
             name = parts[0]
             if name in mapping.field_map:
@@ -359,7 +359,7 @@ class F (object):
         return self._combine(other, 'and')
 
     def filter_spec(self, val):
-        if isinstance(val[1], (str, bool, int)):
+        if isinstance(val[1], (six.string_types, bool, int)):
             return {'term': {val[0]: val[1]}}
         else:
             return {'terms': {val[0]: list(val[1])}}

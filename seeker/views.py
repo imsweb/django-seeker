@@ -1,15 +1,17 @@
+import six
+from six.moves.urllib.parse import parse_qsl, urlencode
+
 from django.views.generic import TemplateView
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse, Http404
 from django.utils.encoding import force_text
-from .query import TermAggregate
-from .utils import get_facet_filters
-from .mapping import StringType, ObjectType
 
 from elasticsearch.helpers import scan
 
-from six.moves.urllib.parse import parse_qsl, urlencode
+from .query import TermAggregate
+from .utils import get_facet_filters
+from .mapping import StringType, ObjectType
 
 
 class SeekerView (TemplateView):
@@ -282,8 +284,8 @@ class SeekerView (TemplateView):
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(str(v) for v in value)
-            return '"%s"' % str(value).replace('"', '""')
+                value = '; '.join(six.text_type(v) for v in value)
+            return '"%s"' % six.text_type(value).replace('"', '""')
 
         def csv_generator():
             yield ','.join(force_text(mapping.field_label(f)) for f in display_fields) + '\n'

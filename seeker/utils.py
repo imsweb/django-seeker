@@ -1,3 +1,5 @@
+import six
+
 from django.apps import apps
 from django.conf import settings
 
@@ -74,7 +76,7 @@ def crossquery(query, suggest=None, limit=None, offset=None, hosts=None):
     seeker_app = apps.get_app_config('seeker')
     es = Elasticsearch(hosts or getattr(settings, 'SEEKER_HOSTS', None))
     query = query or {}
-    if isinstance(query, str):
+    if isinstance(query, six.string_types):
         query = {
             'query': get_search_query_type(query)
         }

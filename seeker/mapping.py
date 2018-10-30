@@ -511,7 +511,7 @@ class Mapping (object):
         """
         Returns an ID for ElasticSearch to use when indexing the specified object. Defaults to ``obj.pk``. Must be unique over :attr:`doc_type`.
         """
-        return str(obj.pk)
+        return six.text_type(obj.pk)
 
     def get_data(self, obj):
         """

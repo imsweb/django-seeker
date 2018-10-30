@@ -1,3 +1,8 @@
+import six
+import datetime
+import string
+import re
+
 from django import template
 from django.template import loader
 from django.utils.html import escape
@@ -7,9 +12,7 @@ from django.utils import dateformat
 from django.utils.safestring import mark_safe
 from django.core.paginator import Paginator
 from django.contrib.humanize.templatetags.humanize import intcomma
-import datetime
-import string
-import re
+
 
 register = template.Library()
 
@@ -60,7 +63,7 @@ def string_format(value):
         return dateformat.format(value, settings.DATETIME_FORMAT)
     if isinstance(value, datetime.date):
         return dateformat.format(value, settings.DATE_FORMAT)
-    return str(value)
+    return six.text_type(value)
 
 
 @register.filter
@@ -143,8 +146,8 @@ def _highlight(obj, words):
             values[k] = val
         values.highlighted = was_highlighted
         return values, was_highlighted
-    elif isinstance(obj, (str, int)):
-        s = escape(str(obj))
+    elif isinstance(obj, (six.string_types, int)):
+        s = escape(six.text_type(obj))
         for w in words:
             was_highlighted |= w in s
             s = s.replace(w, '<em>%s</em>' % w)
