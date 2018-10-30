@@ -20,8 +20,11 @@ class QueryTests (TestCase):
         self.assertEqual(set(int(r.id) for r in results), set([2]))
 
     def test_filter(self):
-        results = self.mapping.query(filters={'authors': 'Alexa Watson'})
-        self.assertEqual(set(r.data['title'] for r in results), set(['Herding Cats', 'Law School Sucks']))
+        results = self.mapping.query(filters={'in_print': True})
+        self.assertListEqual(
+            [r.data['title'] for r in results],
+            ['Searching in Django', 'Herding Cats']
+        )
 
     def test_boolean_filter(self):
         results = self.mapping.query(filters=seeker.F(in_print=False))
