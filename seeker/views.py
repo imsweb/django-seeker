@@ -1575,5 +1575,8 @@ class AdvancedSavedSearchView(View):
         """
         filter_kwargs = { 'url': url }
         if self.restrict_to_user:
-            filter_kwargs['user'] = self.request.user
+            if self.request.user.is_authenticated:
+                filter_kwargs['user'] = self.request.user
+            else:
+                return SavedSearchModel.objects.none()
         return SavedSearchModel.objects.filter(**filter_kwargs)
