@@ -26,6 +26,7 @@ import inspect
 import re
 import json
 import warnings
+import copy
 from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.views.generic.edit import FormView, CreateView
 from django.forms.forms import Form
@@ -102,6 +103,25 @@ class Column (object):
                 highlight = result.meta.highlight[self.highlight]
         except:
             highlight = []
+
+        # If the value is a list (AttrList is DSL's custom list) then highlight won't work properly
+        # The "meta.highlight" will only contain the matched item, not the others
+        if highlight and isinstance(value, AttrList):
+            # We are going to modify this copy with the appropriate highlights
+            modified_values = copy.deepcopy(value)
+            for highlighted_value in highlight:
+                # Remove the <em> tags elasticsearch added
+                stripped_value = highlighted_value.replace('<em>', '').replace('</em>', '')
+                index_to_replace = None
+                # Iterate over all of the values and try to find the item that caused the "hit"
+                for index, individual_value in enumerate(value):
+                    if stripped_value == individual_value:
+                        index_to_replace = index
+                        break
+                if index_to_replace:
+                    modified_values[index_to_replace] = highlighted_value
+            highlight = modified_values
+            
         params = {
             'result': result,
             'field': self.field,
@@ -699,6 +719,7 @@ class SeekerView (View):
         # Highlight fields.
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
+            # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
             search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
 
         # Calculate paging information.
@@ -1216,6 +1237,7 @@ class AdvancedSeekerView (SeekerView):
         # Highlight fields.
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
+            # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
             search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
 
         # Finally, grab the results.
