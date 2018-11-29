@@ -118,7 +118,8 @@ class Column (object):
                     if stripped_value == individual_value:
                         index_to_replace = index
                         break
-                if index_to_replace:
+                # Specifically check against None because "0" is falsy (but a valid index)
+                if index_to_replace is not None:
                     modified_values[index_to_replace] = highlighted_value
             highlight = modified_values
             
