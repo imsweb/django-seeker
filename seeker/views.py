@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
 from django.shortcuts import redirect, render
-from django.template import Context, RequestContext, loader, TemplateDoesNotExist
+from django.template import Context, RequestContext, TemplateDoesNotExist, loader
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
@@ -22,7 +22,9 @@ import collections
 import inspect
 import re
 
+
 seekerview_field_templates = {}
+
 
 class Column (object):
     """
@@ -277,12 +279,12 @@ class SeekerView (View):
     """
     Extra context variables to use when rendering. May be passed via as_view(), or overridden as a property.
     """
-    
+
     field_templates = {}
     """
     A dictionary of field template overrides.
     """
-    
+
     _field_templates = {}
     """
     A dictionary of default templates for each field
@@ -372,7 +374,7 @@ class SeekerView (View):
                 self._field_templates = seekerview_field_templates[self.get_view_name()]
             except KeyError:
                 seekerview_field_templates.update({self.get_view_name(): {}})
-                self._field_templates = seekerview_field_templates[self.get_view_name()]            
+                self._field_templates = seekerview_field_templates[self.get_view_name()]
         try:
             return self._field_templates[field_name]
         except KeyError:
@@ -392,7 +394,7 @@ class SeekerView (View):
         template = loader.select_template(search_templates)
         existing_templates = list(set(self._field_templates.values()))
         for existing_template in existing_templates:
-            #If the template object already exists just re-use the existing one.
+            # If the template object already exists just re-use the existing one.
             if template.template.name == existing_template.template.name:
                 template = existing_template
                 break
@@ -445,16 +447,16 @@ class SeekerView (View):
         # Make sure the columns are bound and ordered based on the display fields (selected or default).
         display = self.get_display()
         visible_columns = []
-        non_visible_columns=[]
+        non_visible_columns = []
         for c in columns:
             c.bind(self, c.field in display)
             if c.visible:
                 visible_columns.append(c)
             else:
                 non_visible_columns.append(c)
-        visible_columns.sort(key=lambda  c: display.index(c.field))
+        visible_columns.sort(key=lambda c: display.index(c.field))
         non_visible_columns.sort(key=lambda c: c.label)
-        
+
         return visible_columns + non_visible_columns
 
     def get_keywords(self):

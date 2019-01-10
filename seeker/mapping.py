@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from elasticsearch.helpers import bulk, scan
 from elasticsearch_dsl.connections import connections
-from elasticsearch_dsl.field import InnerObject
+from elasticsearch_dsl.field import Object
 import elasticsearch_dsl as dsl
 import six
 
@@ -38,7 +38,7 @@ def follow(obj, path, force_string=False):
 
 def serialize_object(obj, mapping, prepare=None):
     """
-    Given a Django model instance and a ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.InnerObject``, returns a
+    Given a Django model instance and a ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.Object``, returns a
     dictionary of field data that should be indexed.
     """
     data = {}
@@ -51,9 +51,9 @@ def serialize_object(obj, mapping, prepare=None):
             value = follow(obj, name)
             if value is not None:
                 if isinstance(value, models.Model):
-                    data[name] = serialize_object(value, field.properties) if isinstance(field, InnerObject) else six.text_type(value)
+                    data[name] = serialize_object(value, field.properties) if isinstance(field, Object) else six.text_type(value)
                 elif isinstance(value, models.Manager):
-                    if isinstance(field, InnerObject):
+                    if isinstance(field, Object):
                         data[name] = [serialize_object(v, field.properties) for v in value.all()]
                     else:
                         data[name] = [six.text_type(v) for v in value.all()]
@@ -62,14 +62,11 @@ def serialize_object(obj, mapping, prepare=None):
     return data
 
 
-class Indexable (dsl.DocType):
+class Indexable (dsl.Document):
     """
     An ``elasticsearch_dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
     indexed.
     """
-
-    class Meta:
-        index = getattr(settings, 'SEEKER_INDEX', 'seeker')
 
     @classmethod
     def documents(cls, **kwargs):
@@ -175,9 +172,9 @@ class ModelIndex (Indexable):
     @classmethod
     def connect_additional_signal_handlers(cls, indexer):
         """
-            Override to register additional signal handlers to work in conjunction with ``SEEKER_INDEXER`` 
-            (e.g. if a mapping includes related data such as a ManyToManyField, a signal could be registered to index 
-            on the ManyToManyField save). 
+            Override to register additional signal handlers to work in conjunction with ``SEEKER_INDEXER``
+            (e.g. if a mapping includes related data such as a ManyToManyField, a signal could be registered to index
+            on the ManyToManyField save).
         """
         pass
 
@@ -192,16 +189,17 @@ class ModelIndex (Indexable):
         """
         return self.queryset().get(pk=self.meta.id)
 
-RawString = dsl.String(analyzer=DEFAULT_ANALYZER, fields={
-    'raw': dsl.String(index='not_analyzed'),
+
+RawString = dsl.Text(analyzer=DEFAULT_ANALYZER, fields={
+    'raw': dsl.Keyword(),
 })
 """
 An ``elasticsearch_dsl.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
 not analyzed, suitable for aggregations, sorting, etc.
 """
 
-RawMultiString = dsl.String(analyzer=DEFAULT_ANALYZER, multi=True, fields={
-    'raw': dsl.String(index='not_analyzed'),
+RawMultiString = dsl.Text(analyzer=DEFAULT_ANALYZER, multi=True, fields={
+    'raw': dsl.Keyword(),
 })
 """
 The same as ``RawString``, but with ``multi=True`` specified, so lists are returned.
@@ -224,7 +222,7 @@ def document_field(field):
         models.PositiveIntegerField: dsl.Long(),
         models.BooleanField: dsl.Boolean(),
         models.NullBooleanField: dsl.Boolean(),
-        models.SlugField: dsl.String(index='not_analyzed'),
+        models.SlugField: dsl.Text(index='not_analyzed'),
         models.DecimalField: dsl.Double(),
         models.FloatField: dsl.Float(),
     }
@@ -243,23 +241,20 @@ def deep_field_factory(field):
         return document_field(field)
 
 
-def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
+def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
     Defines Elasticsearch fields for Django model fields. By default, this method will create a new
     ``elasticsearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
 
     :param model_class: The Django model class to build a mapping for
-    :param mapping: An ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.InnerObject`` instance to define fields on
-    :param doc_type: The doc_type to use, if no mapping is specified
+    :param mapping: An ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.Object`` instance to define fields on
     :param fields: A list of Django model field names to include
     :param exclude: A list of Django model field names to exclude
     :param field_factory: A function that takes a Django model field instance, and returns a ``elasticsearch_dsl.Field``
     :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
     """
     if mapping is None:
-        if doc_type is None:
-            doc_type = model_class.__name__.lower()
-        mapping = dsl.Mapping(doc_type)
+        mapping = dsl.Mapping('_doc')
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.get_fields():
@@ -277,16 +272,20 @@ def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude
 
 
 def document_from_model(model_class, document_class=ModelIndex, fields=None, exclude=None,
-                        index=None, using='default', doc_type=None, field_factory=None,
+                        index=None, using='default', field_factory=None,
                         extra=None, module='seeker.mappings'):
     """
     Returns an instance of ``document_class`` with a ``Meta`` inner class and default ``queryset`` class method.
     """
+    if index is None:
+        index = getattr(settings, 'SEEKER_INDEX_PREFIX', '').lower() + model_class.__name__.lower()
     return type('%sDoc' % model_class.__name__, (document_class,), {
         'Meta': type('Meta', (object,), {
-            'index': index or getattr(settings, 'SEEKER_INDEX', 'seeker'),
+            'mapping': build_mapping(model_class, fields=fields, exclude=exclude, field_factory=field_factory, extra=extra),
+        }),
+        'Index': type('Index', (object,), {
+            'name': index,
             'using': using,
-            'mapping': build_mapping(model_class, doc_type=doc_type, fields=fields, exclude=exclude, field_factory=field_factory, extra=extra),
         }),
         'queryset': classmethod(lambda cls: model_class.objects.all()),
         '__module__': module,

@@ -4,7 +4,10 @@ from .registry import model_documents
 from .utils import delete, index
 
 import logging
+
+
 logger = logging.getLogger(__name__)
+
 
 class ModelIndexer(object):
     """
@@ -49,5 +52,3 @@ class ModelIndexer(object):
                 index(instance)
             except:
                 logger.exception('Error indexing many to many change %s instance: %s', sender, instance)
-
-

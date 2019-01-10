@@ -8,6 +8,7 @@ def get_version():
     with open(os.path.join(os.path.dirname(__file__), 'seeker', '__init__.py')) as fp:
         return re.match(r".*__version__ = '(.*?)'", fp.read(), re.S).group(1)
 
+
 setup(
     name='django-seeker',
     version=get_version(),

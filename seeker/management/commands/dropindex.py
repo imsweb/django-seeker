@@ -22,7 +22,7 @@ class Command (BaseCommand):
         index = options['index'] or getattr(settings, 'SEEKER_INDEX', 'seeker')
         connection = options['using'] or 'default'
         es = connections.get_connection(connection)
-        
+
         print 'Attempting to drop index "%s" using "%s" connection...' % (index, connection)
         if es.indices.exists(index=index):
             es.indices.delete(index=index)
@@ -32,4 +32,3 @@ class Command (BaseCommand):
                 print '...The index was dropped.'
         else:
             print '...The index could not be dropped because it does not exist.'
-            
