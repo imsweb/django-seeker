@@ -464,7 +464,7 @@ class SeekerView (View):
         return list(self.facets) if self.facets else []
 
     def get_sorts(self):
-        self.request.GET.getlist('s', None)
+        return self.request.GET.getlist('s', None)
 
     def get_display(self):
         """
