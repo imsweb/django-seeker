@@ -463,6 +463,9 @@ class SeekerView (View):
     def get_facets(self):
         return list(self.facets) if self.facets else []
 
+    def get_sorts(self):
+        return self.request.GET.getlist('s', None)
+
     def get_display(self):
         """
         Returns a list of display field names. If the user has selected display fields, those are used, otherwise
@@ -562,7 +565,7 @@ class SeekerView (View):
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = {c.field: c for c in columns}
-        sorts = self.request.GET.getlist('s', None)
+        sorts = self.get_sorts()
         if not sorts:
             if keywords:
                 sorts = []
