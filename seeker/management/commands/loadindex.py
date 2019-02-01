@@ -1,3 +1,6 @@
+import json
+from optparse import make_option
+
 from django.apps import apps
 from django.core.management.base import BaseCommand, CommandError
 from elasticsearch.helpers import bulk
@@ -5,22 +8,19 @@ from elasticsearch_dsl.connections import connections
 
 from seeker.registry import model_doc_types
 
-from optparse import make_option
-import json
 
-
-class Command (BaseCommand):
+class Command(BaseCommand):
     args = '<app1 app2 ...>'
     option_list = BaseCommand.option_list + (
         make_option('--filename', '-f',
-            dest='filename',
-            default=None,
-            help='The file to load index data from'
+                    dest='filename',
+                    default=None,
+                    help='The file to load index data from',
         ),
         make_option('--index',
-            dest='index',
-            default=None,
-            help='Index to load data into'
+                    dest='index',
+                    default=None,
+                    help='Index to load data into',
         ),
     )
 

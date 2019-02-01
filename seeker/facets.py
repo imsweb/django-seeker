@@ -1,13 +1,15 @@
+import copy
+import functools
+import numbers
+import operator
+
+import six
 from django.conf import settings
 from elasticsearch_dsl import A, Q
 from elasticsearch_dsl.aggs import Terms
 
-import functools
-import operator
-import copy
-import numbers
 
-class Facet (object):
+class Facet(object):
     bool_operators = {
         'not_equal': 'must_not',
         'not_between': 'must_not'
@@ -73,7 +75,7 @@ class Facet (object):
     def data(self, response):
         try:
             return response.aggregations[self.name].to_dict()
-        except:
+        except Exception:
             return {}
 
     def get_key(self, bucket):
@@ -90,7 +92,7 @@ class Facet (object):
             yield self.get_key(b), b.get('doc_count')
 
 
-class TermsFacet (Facet):
+class TermsFacet(Facet):
 
     def __init__(self, field, size=2147483647, **kwargs):
         # Elasticsearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
@@ -143,7 +145,7 @@ class TermsFacet (Facet):
         return search
 
 
-class GlobalTermsFacet (TermsFacet):
+class GlobalTermsFacet(TermsFacet):
 
     def apply(self, search, **extra):
         top = A('global')
@@ -169,7 +171,7 @@ class DateTermsFacet(TermsFacet):
         return A('date_histogram', **params)
 
 
-class YearHistogram (Facet):
+class YearHistogram(Facet):
     template = 'seeker/facets/year_histogram.html'
     advanced_template = 'advanced_seeker/facets/year_histogram.html'
 
@@ -202,7 +204,7 @@ class YearHistogram (Facet):
         return bucket.get('key_as_string')
 
 
-class RangeFilter (Facet):
+class RangeFilter(Facet):
     template = 'seeker/facets/range.html'
     advanced_template = 'advanced_seeker/facets/range.html'
     
@@ -294,7 +296,7 @@ class RangeFilter (Facet):
                 # This if statement is structured to be cross compatible between seeker and advanced seeker.
                 # If key is unicode (advanced seeker), we check if the key is equal to the range_key.  If it is, we add it to valid keys.
                 # If key is a list (seeker), we check if the range_key is in the list of keys.  If it is, we add it to valid keys.
-                if (isinstance(key, unicode) and range_key == key) or (isinstance(key, list) and range_key in key):
+                if (isinstance(key, six.string_types) and range_key == key) or (isinstance(key, list) and range_key in key):
                     valid_ranges.append(_range)
             for _range in valid_ranges:
                 # From and To are optional in elasticsearch.  The translated_range dictionary stores the parameters we
@@ -410,7 +412,7 @@ class RangeFilter (Facet):
             if kwargs.get('sort_facets', True) and 'buckets' in facet_data:
                 facet_data['buckets'] = sorted(facet_data['buckets'], key=self.get_facet_sort_key)
             return facet_data
-        except:
+        except Exception:
             return {}
 
 

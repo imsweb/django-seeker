@@ -1,15 +1,16 @@
+import logging
+
+import elasticsearch_dsl as dsl
+import six
 from django.conf import settings
 from django.db import models
 from elasticsearch.helpers import bulk, scan
 from elasticsearch_dsl.connections import connections
 from elasticsearch_dsl.field import InnerObject
-import elasticsearch_dsl as dsl
-import six
-
-import logging
 
 
 logger = logging.getLogger(__name__)
+
 
 DEFAULT_ANALYZER = getattr(settings, 'SEEKER_DEFAULT_ANALYZER', 'snowball')
 
@@ -62,7 +63,7 @@ def serialize_object(obj, mapping, prepare=None):
     return data
 
 
-class Indexable (dsl.DocType):
+class Indexable(dsl.DocType):
     """
     An ``elasticsearch_dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
     indexed.
@@ -86,7 +87,7 @@ class Indexable (dsl.DocType):
         """
         try:
             return len(cls.documents())
-        except:
+        except Exception:
             return None
 
     @classmethod
@@ -110,7 +111,7 @@ class Indexable (dsl.DocType):
             es.indices.refresh(index=index)
 
 
-class ModelIndex (Indexable):
+class ModelIndex(Indexable):
     """
     A subclass of ``Indexable`` that returns document data based on Django models.
     """

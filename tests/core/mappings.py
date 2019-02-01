@@ -10,7 +10,7 @@ BookDocument = seeker.document_from_model(Book, module=__name__)
 MagazineDocument = seeker.document_from_model(Magazine, module=__name__)
 
 
-class DjangoBookDocument (seeker.ModelIndex):
+class DjangoBookDocument(seeker.ModelIndex):
 
     class Meta:
         mapping = seeker.build_mapping(Book, doc_type='django_book')
@@ -20,5 +20,5 @@ class DjangoBookDocument (seeker.ModelIndex):
         return Book.objects.filter(title__icontains='django')
 
 
-class DerivedDocument (BaseDocument):
+class DerivedDocument(BaseDocument):
     derived_field = dsl.Integer()
