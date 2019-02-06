@@ -37,18 +37,18 @@ class ModelIndexer(object):
     def handle_save(self, sender, instance, **kwargs):
         try:
             index(instance)
-        except Exception:
-            logger.exception('Error indexing %s instance: %s', sender, instance)
+        except Exception as e:
+            logger.exception('Error indexing %s instance: %s. Exception raised: %s', sender, instance, e)
 
     def handle_delete(self, sender, instance, **kwargs):
         try:
             delete(instance)
-        except Exception:
-            logger.exception('Error deleting %s instance: %s', sender, instance)
+        except Exception as e:
+            logger.exception('Error deleting %s instance: %s. Exception raised: %s', sender, instance, e)
 
     def handle_m2m_changed(self, sender, instance, action, **kwargs):
         if action in ('post_add', 'post_remove', 'post_clear'):
             try:
                 index(instance)
-            except Exception:
-                logger.exception('Error indexing many to many change %s instance: %s', sender, instance)
+            except Exception as e:
+                logger.exception('Error indexing many to many change %s instance: %s. Exception raised: %s', sender, instance, e)
