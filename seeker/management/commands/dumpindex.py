@@ -1,26 +1,26 @@
+import json
+from optparse import make_option
+
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from elasticsearch.helpers import scan
 from elasticsearch_dsl.connections import connections
 
-from optparse import make_option
-import json
 
-
-class Command (BaseCommand):
+class Command(BaseCommand):
     args = '<doc_type>'
     help = 'Dumps out data from the specified document types'
     option_list = BaseCommand.option_list + (
         make_option('--indent',
-            type='int',
-            dest='indent',
-            default=None,
-            help='Amount of indentation to use when serializing documents'
+                    type='int',
+                    dest='indent',
+                    default=None,
+                    help='Amount of indentation to use when serializing documents',
         ),
         make_option('--index',
-            dest='index',
-            default=None,
-            help='Index to dump'
+                    dest='index',
+                    default=None,
+                    help='Index to dump',
         ),
     )
 

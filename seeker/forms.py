@@ -1,5 +1,7 @@
 from django.forms import ModelForm
-from .models import SavedSearch, AdvancedSavedSearch
+
+from .models import AdvancedSavedSearch, SavedSearch
+
 
 class BaseSavedSearchForm(ModelForm):
     def __init__(self, *args, **kwargs):
@@ -24,13 +26,14 @@ class BaseSavedSearchForm(ModelForm):
             saved_search.save()
         return saved_search
 
+
 class SavedSearchForm(BaseSavedSearchForm):
     class Meta:
         model = SavedSearch
         fields = ['name', 'default']
+
         
 class AdvancedSavedSearchForm(BaseSavedSearchForm):
     class Meta:
         model = AdvancedSavedSearch
         fields = ['name', 'url', 'default', 'search_object']
-        

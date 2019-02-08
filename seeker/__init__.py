@@ -1,12 +1,12 @@
-__version__ = '4.1.7'
+__version__ = '4.2.0'
 
-from .facets import Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram, DateTermsFacet, DateRangeFacet
+from .facets import DateRangeFacet, DateTermsFacet, Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram
 from .mapping import (
-    DEFAULT_ANALYZER, Indexable, ModelIndex, RawMultiString, RawString, build_mapping, deep_field_factory,
-    document_field, document_from_model)
+    build_mapping, deep_field_factory, DEFAULT_ANALYZER, document_field, document_from_model, Indexable, ModelIndex,
+    RawMultiString, RawString)
 from .registry import app_documents, documents, model_documents, register
 from .utils import delete, index, search
-from .views import Column, AdvancedColumn, SeekerView, AdvancedSeekerView, AdvancedSavedSearchView
+from .views import AdvancedColumn, AdvancedSavedSearchView, AdvancedSeekerView, Column, SeekerView
 
 
 default_app_config = 'seeker.apps.SeekerConfig'

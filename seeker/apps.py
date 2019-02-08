@@ -1,3 +1,7 @@
+import importlib
+import inspect
+import logging
+
 from django.apps import AppConfig, apps
 from django.conf import settings
 
@@ -5,15 +9,11 @@ from .mapping import Indexable
 from .registry import register
 from .utils import import_class
 
-import importlib
-import inspect
-import logging
-
 
 logger = logging.getLogger(__name__)
 
 
-class SeekerConfig (AppConfig):
+class SeekerConfig(AppConfig):
     name = 'seeker'
 
     def ready(self):

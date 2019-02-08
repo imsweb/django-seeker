@@ -6,14 +6,14 @@ Our Example Model
 
 For the purposes of this document, take the following models::
 
-    class Author (models.Model):
+    class Author(models.Model):
         name = models.CharField(max_length=100)
         age = models.IntegerField()
 
-        def __unicode__(self):
+        def __str__(self):
             return self.name
 
-    class Post (models.Model):
+    class Post(models.Model):
         author = models.ForeignKey(Author, related_name='posts')
         slug = models.SlugField()
         title = models.CharField(max_length=100)
@@ -53,7 +53,7 @@ You can specify how seeker builds the mapping for your model class in several wa
 
     import elasticsearch_dsl as dsl
 
-    class PostDoc (seeker.ModelIndex):
+    class PostDoc(seeker.ModelIndex):
         # Custom field definition for existing field
         author = dsl.Object(properties={
             'name': seeker.RawString,
@@ -86,7 +86,7 @@ When Seeker goes to index this document, it will automatically pull data from an
 So in this example, ``title``, ``body``, and ``author`` will automatically be sent for indexing, but you will need to generate ``word_count``
 yourself. To do this, you can implement a ``prepare_word_count`` class method::
 
-    class PostDoc (seeker.ModelIndex):
+    class PostDoc(seeker.ModelIndex):
         # ...
 
         @classmethod
@@ -101,7 +101,7 @@ Customizing The Entire Data Mapping
 
 If, for some reason, you need to customize the entire data mapping process, you may override the ``serialize`` class method::
 
-    class PostDoc (seeker.ModelIndex):
+    class PostDoc(seeker.ModelIndex):
         # ...
 
         @classmethod
@@ -132,7 +132,7 @@ Non-Django Documents
 It's possible to use seeker to build documents not associated with Django models. To do so, simply subclass
 ``seeker.Indexable`` instead of ``seeker.ModelIndex``, and override ``seeker.ModelIndex.documents``, like so::
 
-    class OtherDoc (seeker.Indexable):
+    class OtherDoc(seeker.Indexable):
 
         @classmethod
         def documents(cls, **kwargs):

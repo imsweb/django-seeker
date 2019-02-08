@@ -10,7 +10,7 @@ and faceting. To get started, you might define a view hooked up to :doc:`PostMap
     from .mappings import PostDoc
     import seeker
 
-    class PostSeekerView (seeker.SeekerView):
+    class PostSeekerView(seeker.SeekerView):
         document = PostDoc
 
     urlpatterns = patterns('',

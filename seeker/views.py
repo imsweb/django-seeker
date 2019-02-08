@@ -1,39 +1,40 @@
+import abc
+import collections
+import copy
+import inspect
+import json
+import re
+import warnings
 from datetime import datetime
+
+import elasticsearch_dsl as dsl
+import six
 from django.conf import settings
 from django.contrib import messages
+from django.forms.forms import Form
 from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
+from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
-from django.template import Context, RequestContext, loader, TemplateDoesNotExist
+from django.template import Context, loader, RequestContext, TemplateDoesNotExist
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
 from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.views.generic import View
-from elasticsearch_dsl.utils import AttrList
+from django.views.generic.edit import CreateView, FormView
 from elasticsearch_dsl import Q
-import elasticsearch_dsl as dsl
-import six
-
-from seeker.templatetags.seeker import seeker_format
+from elasticsearch_dsl.utils import AttrList
 
 from .mapping import DEFAULT_ANALYZER
-from .signals import search_complete, advanced_search_performed
+from .signals import advanced_search_performed, search_complete
+from .templatetags.seeker import seeker_format
 
-import abc
-import collections
-import inspect
-import re
-import json
-import warnings
-import copy
-from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
-from django.views.generic.edit import FormView, CreateView
-from django.forms.forms import Form
 
 seekerview_field_templates = {}
 
-class Column (object):
+
+class Column(object):
     """
     """
 
@@ -101,7 +102,7 @@ class Column (object):
                 highlight = {f.replace('.', '_'): result.meta.highlight[f] for f in result.meta.highlight if re.match(r, f)}
             else:
                 highlight = result.meta.highlight[self.highlight]
-        except:
+        except Exception:
             highlight = []
 
         # If the value is a list (AttrList is DSL's custom list) then highlight won't work properly
@@ -146,7 +147,8 @@ class Column (object):
             export_val = ''
         return export_val
 
-class SeekerView (View):
+
+class SeekerView(View):
     document = None
     """
     A :class:`elasticsearch_dsl.DocType` class to present a view for.
@@ -434,7 +436,7 @@ class SeekerView (View):
             # If the document is a ModelIndex, try to get the verbose_name of the Django field.
             f = self.document.queryset().model._meta.get_field(field_name)
             return f.verbose_name[0].upper() + f.verbose_name[1:]
-        except:
+        except Exception:
             # Otherwise, just make the field name more human-readable.
             return field_name.replace('_', ' ').capitalize()
 
@@ -744,7 +746,7 @@ class SeekerView (View):
             'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
             'display_columns': [c for c in columns if c.visible],
             'facets': facets,
-            'selected_facets': self.request.GET.getlist('f') or self.initial_facets.keys(),
+            'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
             'form_action': self.request.path,
             'results': results,
             'page': page,
@@ -925,7 +927,8 @@ class SeekerView (View):
             return resp
         return super(SeekerView, self).dispatch(request, *args, **kwargs)
 
-class AdvancedColumn (Column):
+
+class AdvancedColumn(Column):
     def header(self, results=None):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         if not self.sort:
@@ -960,7 +963,7 @@ class AdvancedColumn (Column):
         """
         max_length = 0
         for result in results.hits:
-            field_len = len(unicode(result[self.field])) if (self.field in result and result[self.field]) else 0
+            field_len = len(six.text_type(result[self.field])) if (self.field in result and result[self.field]) else 0
             max_length = max(max_length, field_len)
         return max_length
 
@@ -972,7 +975,7 @@ class AdvancedColumn (Column):
         """
         if self.header_html.count(' ') < 1:
             return
-        center = len(self.header_html) / 2
+        center = len(self.header_html) // 2
         space_found = False
         offset = 0
         space_index = center
@@ -998,7 +1001,7 @@ class AdvancedColumn (Column):
         return export_val
 
 
-class AdvancedSeekerView (SeekerView):
+class AdvancedSeekerView(SeekerView):
     available_page_sizes = [10, 20, 50, 100]
     """
     A list of available page sizes. The values must be integers.
@@ -1398,9 +1401,11 @@ class AdvancedSeekerView (SeekerView):
         resp['Content-Disposition'] = 'attachment; filename=%s' % export_name
         return resp
 
+
 class SearchFailed(Exception):
     """ Thrown when a search fails """
     pass
+
 
 class AdvancedSavedSearchView(View):
     pk_parameter = 'saved_search_pk'
