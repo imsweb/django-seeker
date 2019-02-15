@@ -13,7 +13,10 @@ MagazineDocument = seeker.document_from_model(Magazine, module=__name__)
 class DjangoBookDocument(seeker.ModelIndex):
 
     class Meta:
-        mapping = seeker.build_mapping(Book, doc_type='django_book')
+        mapping = seeker.build_mapping(Book)
+
+    class Index:
+        name = 'djangobook'
 
     @classmethod
     def queryset(cls):
@@ -22,3 +25,6 @@ class DjangoBookDocument(seeker.ModelIndex):
 
 class DerivedDocument(BaseDocument):
     derived_field = dsl.Integer()
+
+    class Index:
+        name = 'derived'

@@ -4,4 +4,4 @@ import seeker
 
 
 class BaseDocument(seeker.Indexable):
-    base_field = dsl.String()
+    base_field = dsl.Text()

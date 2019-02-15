@@ -15,7 +15,7 @@ from django.forms.forms import Form
 from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
 from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
-from django.template import Context, loader, RequestContext, TemplateDoesNotExist
+from django.template import Context, RequestContext, TemplateDoesNotExist, loader
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape
@@ -31,7 +31,9 @@ from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
 
 
+
 seekerview_field_templates = {}
+
 
 
 class Column(object):
@@ -211,7 +213,7 @@ class SeekerView(View):
 
     sort = None
     """
-    A list of field/column names to sort by default, or None for no default sort order.
+    A list of field/column names to sort by default, or None for no default sort order. For reverse order prefix the field with '-'.
     """
 
     search = None
@@ -490,7 +492,7 @@ class SeekerView(View):
         template = loader.select_template(search_templates)
         existing_templates = list(set(self._field_templates.values()))
         for existing_template in existing_templates:
-            #If the template object already exists just re-use the existing one.
+            # If the template object already exists just re-use the existing one.
             if template.template.name == existing_template.template.name:
                 template = existing_template
                 break

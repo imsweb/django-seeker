@@ -99,6 +99,7 @@ def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=
         'querystring': querystring,
     })
 
+
 _phrase_re = re.compile(r'"([^"]*)"')
 
 
@@ -112,8 +113,8 @@ def seeker_highlight(text, query, algorithm='english'):
         stemWord = stemmer.stemWord
         stemWords = stemmer.stemWords
     except Exception:
-        stemWord = lambda word: word
-        stemWords = lambda words: words
+        def stemWord(word): return word
+        def stemWords(words): return words
     phrases = _phrase_re.findall(query)
     keywords = [w.lower() for w in re.split(r'\W+', _phrase_re.sub('', query)) if w]
     highlight = set(stemWords(keywords))

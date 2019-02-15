@@ -9,7 +9,8 @@ from seeker.registry import app_documents, documents
 from seeker.utils import progress
 
 
-def reindex(doc_class, index, using, options):
+
+def reindex(es, doc_class, index, options):
     """
     Index all the things, using ElasticSearch's bulk API for speed.
     """
@@ -21,7 +22,6 @@ def reindex(doc_class, index, using, options):
             }
             action.update(doc)
             yield action
-    es = connections.get_connection(using)
     actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
     bulk(es, actions)
     es.indices.refresh(index=index)
@@ -80,16 +80,15 @@ class Command(BaseCommand):
             doc_classes.extend(app_documents.get(label, []))
         if not args:
             doc_classes.extend(documents)
-        if options['drop']:
-            index = options['index'] or getattr(settings, 'SEEKER_INDEX', 'seeker')
-            es = connections.get_connection(options['using'] or 'default')
-            if es.indices.exists(index=index):
-                es.indices.delete(index=index)
         for doc_class in doc_classes:
-            using = options['using'] or doc_class._doc_type.using or 'default'
-            index = options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
-            if options['clear'] and not options['drop']:
+            using = options['using'] or doc_class._index._using or 'default'
+            index = doc_class._index._name  # options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+            es = connections.get_connection(using)
+            if options['drop']:
+                if es.indices.exists(index=index):
+                    es.indices.delete(index=index)
+            elif options['clear']:
                 doc_class.clear(index=index, using=using)
             doc_class.init(index=index, using=using)
             if options['data']:
-                reindex(doc_class, index, using, options)
+                reindex(es, doc_class, index, options)

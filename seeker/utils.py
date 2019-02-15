@@ -28,8 +28,8 @@ def index(obj, index=None, using=None):
     for doc_class in model_documents.get(model_class, []):
         if not doc_class.queryset().filter(pk=obj.pk).exists():
             continue
-        doc_using = using or doc_class._doc_type.using or 'default'
-        doc_index = index or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        doc_using = using or doc_class._index._using or 'default'
+        doc_index = index or doc_class._index._name
         es = connections.get_connection(doc_using)
         body = doc_class.serialize(obj)
         doc_id = body.pop('_id', None)
@@ -49,8 +49,8 @@ def delete(obj, index=None, using=None):
     from django.contrib.contenttypes.models import ContentType
     model_class = ContentType.objects.get_for_model(obj).model_class()
     for doc_class in model_documents.get(model_class, []):
-        doc_using = using or doc_class._doc_type.using or 'default'
-        doc_index = index or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        doc_using = using or doc_class._index._using or 'default'
+        doc_index = index or doc_class._index._name
         es = connections.get_connection(doc_using)
         try:
             es.delete(
@@ -74,7 +74,7 @@ def search(models=None, using='default'):
         models = model_documents
     for model_class in models:
         for doc_class in model_documents.get(model_class, []):
-            indices.append(doc_class._doc_type.index)
+            indices.append(doc_class._index._name)
             types.append(doc_class)
     return dsl.Search(using=using).index(*indices).doc_type(*types)
 
