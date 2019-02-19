@@ -19,7 +19,7 @@ setup(
     license='BSD',
     packages=find_packages(),
     install_requires=[
-        'elasticsearch-dsl>=2.0.0,<3.0.0',
+        'elasticsearch-dsl>=6.0.0,<7.0.0',
         'snowballstemmer',
     ],
     include_package_data=True,
