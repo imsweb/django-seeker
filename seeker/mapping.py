@@ -113,6 +113,9 @@ class ModelIndex(Indexable):
     A subclass of ``Indexable`` that returns document data based on Django models.
     """
 
+    class Index:
+        name = getattr(settings, 'SEEKER_INDEX', 'seeker')
+
     @classmethod
     def queryset(cls):
         """
@@ -255,7 +258,7 @@ def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_fa
     :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
     """
     if mapping is None:
-        mapping = dsl.Mapping('_doc')
+        mapping = dsl.Mapping('doc')
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.get_fields():

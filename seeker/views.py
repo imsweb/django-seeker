@@ -455,7 +455,7 @@ class SeekerView(View):
             dsl_field = self.document._doc_type.mapping[field_name]
             if isinstance(dsl_field, (dsl.Object, dsl.Nested)):
                 return None
-            if not isinstance(dsl_field, dsl.String):
+            if not isinstance(dsl_field, dsl.Text):
                 return field_name
             if 'raw' in dsl_field.fields:
                 return '%s.raw' % field_name
@@ -647,8 +647,8 @@ class SeekerView(View):
         return search.query(self.query_type, **kwargs)
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
-        using = self.using or self.document._doc_type.using or 'default'
-        index = self.index or self.document._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        using = self.using or self.document._index._using or 'default'
+        index = self.index or self.document._index or getattr(settings, 'SEEKER_INDEX', 'seeker')
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
