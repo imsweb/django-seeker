@@ -226,7 +226,7 @@ def document_field(field):
         models.PositiveIntegerField: dsl.Long(),
         models.BooleanField: dsl.Boolean(),
         models.NullBooleanField: dsl.Boolean(),
-        models.SlugField: dsl.Text(index='not_analyzed'),
+        models.SlugField: dsl.Keyword(),
         models.DecimalField: dsl.Double(),
         models.FloatField: dsl.Float(),
     }
@@ -257,6 +257,8 @@ def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_fa
     :param field_factory: A function that takes a Django model field instance, and returns a ``elasticsearch_dsl.Field``
     :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
     """
+    print 'here'
+    print model_class
     if mapping is None:
         mapping = dsl.Mapping('doc')
     if field_factory is None:
@@ -266,6 +268,7 @@ def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_fa
             continue
         if exclude and f.name in exclude:
             continue
+        print f
         field = field_factory(f)
         if field is not None:
             mapping.field(f.name, field)
