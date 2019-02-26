@@ -52,10 +52,10 @@ def serialize_object(obj, mapping, prepare=None):
             value = follow(obj, name)
             if value is not None:
                 if isinstance(value, models.Model):
-                    data[name] = serialize_object(value, field.properties) if isinstance(field, Object) else six.text_type(value)
+                    data[name] = serialize_object(value, field.to_dict()['properties']) if isinstance(field, Object) else six.text_type(value)
                 elif isinstance(value, models.Manager):
                     if isinstance(field, Object):
-                        data[name] = [serialize_object(v, field.properties) for v in value.all()]
+                        data[name] = [serialize_object(v, field.to_dict()['properties']) for v in value.all()]
                     else:
                         data[name] = [six.text_type(v) for v in value.all()]
                 else:
