@@ -92,8 +92,8 @@ class Indexable (dsl.Document):
         """
         Deletes the Elasticsearch mapping associated with this document type.
         """
-        using = using or cls._doc_type.using or 'default'
-        index = index or cls._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        using = using or cls._index._using or 'default'
+        index = index or cls._index._name or getattr(settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(using)
         if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
             def get_actions():
@@ -113,8 +113,10 @@ class ModelIndex(Indexable):
     A subclass of ``Indexable`` that returns document data based on Django models.
     """
 
+    # You must define this for each ModelIndex subclass in your project, no two ModelIndex's should share the same index
+    # Name needs to be set as a unique string per elasticsearch instance
     class Index:
-        name = getattr(settings, 'SEEKER_INDEX', 'seeker')
+        name = None
 
     @classmethod
     def queryset(cls):
@@ -245,7 +247,7 @@ def deep_field_factory(field):
         return document_field(field)
 
 
-def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
+def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
     Defines Elasticsearch fields for Django model fields. By default, this method will create a new
     ``elasticsearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
@@ -257,10 +259,10 @@ def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_fa
     :param field_factory: A function that takes a Django model field instance, and returns a ``elasticsearch_dsl.Field``
     :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
     """
-    print 'here'
-    print model_class
     if mapping is None:
-        mapping = dsl.Mapping('doc')
+        if doc_type is None:
+            doc_type = model_class.__name__.lower()
+        mapping = dsl.Mapping(doc_type)
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.get_fields():
@@ -268,7 +270,6 @@ def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_fa
             continue
         if exclude and f.name in exclude:
             continue
-        print f
         field = field_factory(f)
         if field is not None:
             mapping.field(f.name, field)
