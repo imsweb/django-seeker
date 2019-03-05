@@ -436,11 +436,15 @@ class SeekerView(View):
             return self.field_labels[field_name]
         try:
             # If the document is a ModelIndex, try to get the verbose_name of the Django field.
-            f = self.document.queryset().model._meta.get_field(field_name)
+            f = self.document.model._meta.get_field(field_name)
             return f.verbose_name[0].upper() + f.verbose_name[1:]
         except Exception:
+            try:
+                f = self.document.queryset().model.get_field(field_name)
+                return f.verbose_name[0].upper() + f.verbose_name[1:]
+            except Exception:
             # Otherwise, just make the field name more human-readable.
-            return field_name.replace('_', ' ').capitalize()
+                return field_name.replace('_', ' ').capitalize()
 
     def get_field_sort(self, field_name):
         """
@@ -485,6 +489,10 @@ class SeekerView(View):
         search_templates = []
         if field_name in self.field_templates:
             search_templates.append(self.field_templates[field_name])
+        try:
+            search_templates.append('seeker/%s/%s.html' % (self.document.model.__name__.lower(), field_name))
+        except Exception:
+            search_templates.append('seeker/%s/%s.html' % (self.document.queryset().model.__name__.lower(), field_name))
         for _cls in inspect.getmro(self.document):
             if issubclass(_cls, dsl.DocType):
                 search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))

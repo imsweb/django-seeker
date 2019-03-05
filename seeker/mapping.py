@@ -113,6 +113,10 @@ class ModelIndex(Indexable):
     A subclass of ``Indexable`` that returns document data based on Django models.
     """
 
+
+    # Set this to the class of the model being indexed. Note the model class can be grabbed from the queryset but for large querysets this offers a performance boost
+    model = None
+
     # You must define this for each ModelIndex subclass in your project, no two ModelIndex's should share the same index
     # Name needs to be set as a unique string per elasticsearch instance
     class Index:
@@ -261,7 +265,7 @@ def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude
     """
     if mapping is None:
         if doc_type is None:
-            doc_type = model_class.__name__.lower()
+            doc_type = '_doc'
         mapping = dsl.Mapping(doc_type)
     if field_factory is None:
         field_factory = document_field
@@ -288,6 +292,7 @@ def document_from_model(model_class, document_class=ModelIndex, fields=None, exc
     if index is None:
         index = getattr(settings, 'SEEKER_INDEX_PREFIX', '').lower() + model_class.__name__.lower()
     return type('%sDoc' % model_class.__name__, (document_class,), {
+        'model' : model_class,
         'Meta': type('Meta', (object,), {
             'mapping': build_mapping(model_class, fields=fields, exclude=exclude, field_factory=field_factory, extra=extra),
         }),

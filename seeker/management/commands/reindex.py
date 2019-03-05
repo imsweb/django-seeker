@@ -80,13 +80,15 @@ class Command(BaseCommand):
             doc_classes.extend(app_documents.get(label, []))
         if not args:
             doc_classes.extend(documents)
+        deleted_indexes = []
         for doc_class in doc_classes:
             using = options['using'] or doc_class._index._using or 'default'
             index = doc_class._index._name  # options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
             es = connections.get_connection(using)
-            if options['drop']:
+            if options['drop'] and index not in deleted_indexes:
                 if es.indices.exists(index=index):
                     es.indices.delete(index=index)
+                    deleted_indexes.append(index)
             elif options['clear']:
                 doc_class.clear(index=index, using=using)
             doc_class.init(index=index, using=using)

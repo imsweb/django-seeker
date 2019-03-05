@@ -21,7 +21,9 @@ def register(doc_class, app_label=None):
         return
     documents.append(doc_class)
     if issubclass(doc_class, ModelIndex):
-        model_class = doc_class.queryset().model
+        model_class = doc_class.model
+        if not model_class:    
+            model_class = doc_class.queryset().model
         # It's possible to register more than one document type for a model, so keep a list.
         model_documents.setdefault(model_class, []).append(doc_class)
         # For doing queries across multiple document types, we'll need a mapping from doc_type back to model_class.
