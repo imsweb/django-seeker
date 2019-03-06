@@ -1,18 +1,23 @@
-from django.conf import settings
-from django.db import models
-from django.utils import timezone
-from django.utils.text import capfirst
+import six
 import elasticsearch
 import collections
 import datetime
 import logging
 
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+from django.utils.text import capfirst
+
+
 logger = logging.getLogger(__name__)
+
 
 def follow(obj, path):
     for part in path.split('__'):
         obj = getattr(obj, part, None)
     return obj
+
 
 class MappingType (object):
     """
@@ -71,11 +76,11 @@ class MappingType (object):
         if value is None:
             return None
         elif isinstance(value, (list, tuple)):
-            return [unicode(v) for v in value]
+            return [six.text_type(v) for v in value]
         elif hasattr(value, 'all'):
-            return [unicode(v) for v in value.all()]
+            return [six.text_type(v) for v in value.all()]
         else:
-            return unicode(value)
+            return six.text_type(value)
 
     def to_python(self, value):
         """
@@ -102,6 +107,7 @@ class MappingType (object):
         params.update(extra)
         return params
 
+
 class StringType (MappingType):
     """
     A string value. The __init__ method takes an optional additional parameter, ``analyzer``, that will be passed to Elasticsearch.
@@ -122,6 +128,7 @@ class StringType (MappingType):
             extra['fields'] = {'raw': {'type': 'string', 'index': 'not_analyzed'}}
         return super(StringType, self).mapping_params(**extra)
 
+
 class DateType (MappingType):
     """
     A date value with an ES format of ``date``.
@@ -139,12 +146,13 @@ class DateType (MappingType):
     def to_python(self, value):
         try:
             return datetime.datetime.strptime(value, '%Y-%m-%d').date()
-        except:
+        except Exception:
             logger.warning('Could not parse date value: %s', value)
             return value
 
     def mapping_params(self):
         return super(DateType, self).mapping_params(format='date')
+
 
 class DateTimeType (MappingType):
     """
@@ -170,7 +178,7 @@ class DateTimeType (MappingType):
         for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
             try:
                 return datetime.datetime.strptime(value, fmt)
-            except:
+            except Exception:
                 pass
         raise ValueError('No matching date format was found.')
 
@@ -179,12 +187,13 @@ class DateTimeType (MappingType):
             # Dates coming out of Elasticsearch will be in UTC, make them aware and convert them to local time.
             d = timezone.make_aware(self._parse_datetime(value), timezone=timezone.utc)
             return timezone.localtime(d)
-        except:
+        except Exception:
             logger.warning('Could not parse datetime value: %s', value)
             return value
 
     def mapping_params(self):
         return super(DateTimeType, self).mapping_params(format='date_optional_time')
+
 
 class BooleanType (MappingType):
     """
@@ -198,6 +207,7 @@ class BooleanType (MappingType):
             return None
         return bool(value)
 
+
 class IntegerType (MappingType):
     """
     An integer value.
@@ -209,6 +219,7 @@ class IntegerType (MappingType):
         if value is None:
             return None
         return int(value)
+
 
 class FloatType (MappingType):
     """
@@ -222,6 +233,7 @@ class FloatType (MappingType):
         if value is None:
             return None
         return float(value)
+
 
 DEFAULT_TYPE_MAP = {
     models.CharField: StringType,
@@ -246,13 +258,14 @@ try:
 except ImportError:
     pass
 
+
 def object_data(obj, schema, preparer=None):
     """
     Helper function for converting a Django object into a dictionary based on the specified schema (name -> MappingType).
     If a preparer is specified, it will be searched for prepare_<fieldname> methods.
     """
     data = {}
-    for name, t in schema.iteritems():
+    for name, t in schema.items():
         if preparer and hasattr(preparer, 'prepare_%s' % name):
             data[name] = getattr(preparer, 'prepare_%s' % name)(obj)
         elif hasattr(obj, 'get_%s_display' % name):
@@ -260,9 +273,10 @@ def object_data(obj, schema, preparer=None):
         else:
             try:
                 data[name] = t.to_elastic(follow(obj, name))
-            except:
+            except Exception:
                 logger.exception('Problem extracting data for %s', name)
     return data
+
 
 class ObjectType (MappingType):
 
@@ -279,7 +293,7 @@ class ObjectType (MappingType):
                     if isinstance(t, type):
                         t = t()
                     self.schema[f.name] = t
-        for name, t in schema.iteritems():
+        for name, t in schema.items():
             if isinstance(t, type):
                 t = t()
             self.schema[name] = t
@@ -292,7 +306,8 @@ class ObjectType (MappingType):
         return None
 
     def mapping_params(self):
-        return {'properties': {name: t.mapping_params() for name, t in self.schema.iteritems()}}
+        return {'properties': {name: t.mapping_params() for name, t in self.schema.items()}}
+
 
 class Mapping (object):
     """
@@ -391,7 +406,7 @@ class Mapping (object):
         return {
             '_all': {'enabled': True, 'analyzer': 'snowball'},
             'dynamic': 'strict',
-            'properties': {name: t.mapping_params() for name, t in self.field_map.iteritems()},
+            'properties': {name: t.mapping_params() for name, t in self.field_map.items()},
         }
 
     def _get_field(self, name, t):
@@ -407,12 +422,13 @@ class Mapping (object):
         """
         seen = set()
         if isinstance(self.fields, dict):
-            for name, t in self.fields.iteritems():
+            for name, t in self.fields.items():
                 seen.add(name)
                 yield name, self._get_field(name, t)
         else:
             for f in (self.model._meta.fields + self.model._meta.many_to_many):
-                if f.__class__ in self.type_map and (self.fields is None or f.name in self.fields) and (self.exclude is None or f.name not in self.exclude):
+                if f.__class__ in self.type_map and (self.fields is None or f.name in self.fields) and (
+                        self.exclude is None or f.name not in self.exclude):
                     t = self.type_map[f.__class__]
                     if f.choices:
                         # Special case for Django fields with choices.
@@ -420,7 +436,7 @@ class Mapping (object):
                     seen.add(f.name)
                     yield f.name, self._get_field(f.name, t)
         if isinstance(self.overrides, dict):
-            for name, t in self.overrides.iteritems():
+            for name, t in self.overrides.items():
                 if name not in seen:
                     if isinstance(t, type):
                         t = t()
@@ -445,7 +461,7 @@ class Mapping (object):
             return self.field_label_overrides[field_name]
         try:
             return capfirst(self.model._meta.get_field(field_name).verbose_name)
-        except:
+        except Exception:
             return ' '.join(w.capitalize() for w in field_name.split('_'))
 
     @property
@@ -495,12 +511,15 @@ class Mapping (object):
         """
         Returns an ID for ElasticSearch to use when indexing the specified object. Defaults to ``obj.pk``. Must be unique over :attr:`doc_type`.
         """
-        return unicode(obj.pk)
+        return six.text_type(obj.pk)
 
     def get_data(self, obj):
         """
-        Returns a dictionary mapping field names to values. Values are generated by first "following" any relations (i.e. traversing __ field notation),
-        then calling :meth:`MappingType.to_elastic` on the resulting value.
+        Returns a dictionary mapping field names to values.
+
+        Values are generated by first "following" any relations
+        (i.e. traversing __ field notation), then calling
+        :meth:`MappingType.to_elastic` on the resulting value.
         """
         return object_data(obj, self.field_map, preparer=self)
 
@@ -517,7 +536,7 @@ class Mapping (object):
         """
         try:
             self.es.delete(index=self.index_name, doc_type=self.doc_type, id=self.get_id(obj), refresh=refresh)
-        except elasticsearch.TransportError, e:
+        except elasticsearch.TransportError as e:
             # Ignore 404 errors here, since the record doesn't exist anyway.
             if e.status_code != 404:
                 raise e

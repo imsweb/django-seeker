@@ -1,3 +1,8 @@
+import six
+import datetime
+import string
+import re
+
 from django import template
 from django.template import loader
 from django.utils.html import escape
@@ -7,31 +12,34 @@ from django.utils import dateformat
 from django.utils.safestring import mark_safe
 from django.core.paginator import Paginator
 from django.contrib.humanize.templatetags.humanize import intcomma
-import datetime
-import string
-import re
+
 
 register = template.Library()
+
 
 @register.filter
 def facet_key(facet, value):
     return facet.get_key(value)
+
 
 @register.simple_tag
 def facet_checkbox(facet, value, filters=None, missing='MISSING', count_prefix=''):
     if filters is None:
         filters = {}
     key = facet.get_key(value)
-    html = '<label><input type="checkbox" name="%(name)s" value="%(key)s"%(checked)s data-count="%(count)s" /> %(key_fmt)s (%(count_prefix)s%(count_fmt)s)</label>' % {
-        'name': facet.field,
-        'key': key or '',
-        'key_fmt': key or missing,
-        'count': value['doc_count'],
-        'count_fmt': intcomma(value['doc_count']),
-        'count_prefix': count_prefix,
-        'checked': ' checked="checked"' if facet.field in filters and key in filters[facet.field] else '',
-    }
+    html = ('<label><input type="checkbox" name="%(name)s" '
+            'value="%(key)s"%(checked)s data-count="%(count)s" /> '
+            '%(key_fmt)s (%(count_prefix)s%(count_fmt)s)</label>') % {
+                'name': facet.field,
+                'key': key or '',
+                'key_fmt': key or missing,
+                'count': value['doc_count'],
+                'count_fmt': intcomma(value['doc_count']),
+                'count_prefix': count_prefix,
+                'checked': ' checked="checked"' if facet.field in filters and key in filters[facet.field] else '',
+            }
     return mark_safe(html)
+
 
 @register.simple_tag
 def facet_values(facet, filters, missing='MISSING', remove='&times;'):
@@ -39,9 +47,11 @@ def facet_values(facet, filters, missing='MISSING', remove='&times;'):
     for term in filters.get(facet.field, []):
         if not term:
             term = missing
-        html += '<li><a class="remove" data-term="%(term)s" title="Remove this term">%(remove)s</a> %(term)s</li>' % {'term': escape(term), 'remove': remove}
+        html += '<li><a class="remove" data-term="%(term)s" title="Remove this term">%(remove)s</a> %(term)s</li>' % {
+            'term': escape(term), 'remove': remove}
     html += '</ul>'
     return mark_safe(html)
+
 
 @register.filter
 def string_format(value):
@@ -55,19 +65,22 @@ def string_format(value):
         return dateformat.format(value, settings.DATETIME_FORMAT)
     if isinstance(value, datetime.date):
         return dateformat.format(value, settings.DATE_FORMAT)
-    return unicode(value)
+    return six.text_type(value)
+
 
 @register.filter
 def list_display(values, sep=', '):
     return sep.join(string_format(v) for v in values)
 
+
 @register.filter
 def dict_display(d, sep=', '):
     parts = []
-    for key, value in d.items():
+    for key, value in list(d.items()):
         if key and value:
             parts.append('%s: %s' % (key, string_format(value)))
     return sep.join(parts)
+
 
 @register.simple_tag
 def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None, sort_overrides=None):
@@ -95,22 +108,27 @@ def sort_link(sort_by, label=None, querystring='', name='sort', mapping=None, so
     sr_label = (' <span class="sr-only">(%s)</span>' % ('Ascending' if cur == 'asc' else 'Descending')) if cur else ''
     return mark_safe('<a href="?%s" class="sort %s">%s%s</a>' % (q.urlencode(), cur, escape(label), sr_label))
 
+
 @register.simple_tag
 def field_label(mapping, field_name):
     return mapping.field_label(field_name)
 
+
 def _find_hilight_words(highlight):
     words = set()
-    for matches in highlight.values():
+    for matches in list(highlight.values()):
         for m in matches:
             words.update(re.findall(r'<em>([^<]+)</em>', m))
     return words
 
+
 class HighlightList (list):
     highlighted = False
 
+
 class HighlightDict (dict):
     highlighted = False
+
 
 def _highlight(obj, words):
     was_highlighted = False
@@ -124,19 +142,20 @@ def _highlight(obj, words):
         return values, was_highlighted
     elif isinstance(obj, dict):
         values = HighlightDict()
-        for k, v in obj.items():
+        for k, v in list(obj.items()):
             val, h = _highlight(v, words)
             was_highlighted |= h
             values[k] = val
         values.highlighted = was_highlighted
         return values, was_highlighted
-    elif isinstance(obj, (unicode, str, int)):
-        s = escape(unicode(obj))
+    elif isinstance(obj, (six.string_types, int)):
+        s = escape(six.text_type(obj))
         for w in words:
             was_highlighted |= w in s
             s = s.replace(w, '<em>%s</em>' % w)
         return mark_safe(s), was_highlighted
     return obj, was_highlighted
+
 
 @register.simple_tag
 def result_value(result, field_name, highlight=True, template=None):
@@ -159,10 +178,11 @@ def result_value(result, field_name, highlight=True, template=None):
             'value': value,
             'highlighted': was_highlighted,
         })
-    except:
+    except Exception:
         pass
     # Otherwise, do our best to render the value as a string.
     return string_format(value)
+
 
 @register.simple_tag
 def result_link(result, field_name, view=None):
@@ -171,27 +191,29 @@ def result_link(result, field_name, view=None):
     else:
         try:
             return result.instance.get_absolute_url()
-        except:
+        except Exception:
             pass
     return ''
+
 
 @register.simple_tag
 def suggest_link(suggestions, querystring='', name='q'):
     q = QueryDict(querystring).copy()
     keywords = q.get(name, '').strip()
-    for term, replacement in suggestions.iteritems():
+    for term, replacement in suggestions.items():
         keywords = keywords.replace(term, replacement)
     q[name] = keywords
     return mark_safe('<a href="?%s" class="suggest">%s</a>' % (q.urlencode(), escape(keywords)))
 
+
 @register.inclusion_tag('seeker/pager.html')
 def pager(total, page_size=10, page=1, param='page', querystring='', spread=7):
-    paginator = Paginator(range(total), page_size)
+    paginator = Paginator(list(range(total)), page_size)
     page = paginator.page(page)
     if paginator.num_pages > spread:
         start = max(1, min(paginator.num_pages + 1 - spread, page.number - (spread // 2)))
         end = min(start + spread, paginator.num_pages + 1)
-        page_range = range(start, end)
+        page_range = list(range(start, end))
     else:
         page_range = paginator.page_range
     return {

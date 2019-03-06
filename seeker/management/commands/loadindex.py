@@ -4,20 +4,21 @@ from seeker.utils import get_app_mappings
 from elasticsearch.helpers import bulk
 import json
 
+
 class Command (BaseCommand):
     help = 'Loads data for the specified applications from a JSON dump file'
 
     def add_arguments(self, parser):
         parser.add_argument('app_labels',
-            nargs='*',
-            default=[],
-            help='Optional (space delimited) list of apps: <app1 app2 ...>'
-        )
+                            nargs='*',
+                            default=[],
+                            help='Optional (space delimited) list of apps: <app1 app2 ...>'
+                            )
         parser.add_argument('--filename', '-f',
-            dest='filename',
-            default=None,
-            help='The file to load index data from'
-        )
+                            dest='filename',
+                            default=None,
+                            help='The file to load index data from'
+                            )
 
     def handle(self, *args, **options):
         if not options['filename']:

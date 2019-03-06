@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 
 from django.db import models, migrations
 import django.utils.timezone
@@ -22,11 +22,11 @@ class Migration(migrations.Migration):
                 ('querystring', models.TextField(blank=True)),
                 ('default', models.BooleanField(default=False)),
                 ('date_created', models.DateTimeField(default=django.utils.timezone.now, editable=False)),
-                ('user', models.ForeignKey(related_name=b'seeker_searches', to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)),
+                ('user', models.ForeignKey(related_name='seeker_searches', to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)),
             ],
             options={
-                'ordering': (b'name',),
-                'verbose_name_plural': b'saved searches',
+                'ordering': ('name',),
+                'verbose_name_plural': 'saved searches',
             },
             bases=(models.Model,),
         ),

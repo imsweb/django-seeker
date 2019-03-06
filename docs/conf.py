@@ -12,6 +12,7 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+from django.conf import settings
 import sys
 import os
 
@@ -19,7 +20,6 @@ import os
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
-from django.conf import settings
 settings.configure()
 
 # -- General configuration ------------------------------------------------
@@ -47,8 +47,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Seeker'
-copyright = u'2014, Dan Watson'
+project = 'Seeker'
+copyright = '2014, Dan Watson'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -186,22 +186,22 @@ htmlhelp_basename = 'Seekerdoc'
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
-# The paper size ('letterpaper' or 'a4paper').
-# 'papersize': 'letterpaper',
+    # The paper size ('letterpaper' or 'a4paper').
+    # 'papersize': 'letterpaper',
 
-# The font size ('10pt', '11pt' or '12pt').
-# 'pointsize': '10pt',
+    # The font size ('10pt', '11pt' or '12pt').
+    # 'pointsize': '10pt',
 
-# Additional stuff for the LaTeX preamble.
-# 'preamble': '',
+    # Additional stuff for the LaTeX preamble.
+    # 'preamble': '',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'Seeker.tex', u'Seeker Documentation',
-   u'Dan Watson', 'manual'),
+    ('index', 'Seeker.tex', 'Seeker Documentation',
+     'Dan Watson', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -230,8 +230,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'seeker', u'Seeker Documentation',
-     [u'Dan Watson'], 1)
+    ('index', 'seeker', 'Seeker Documentation',
+     ['Dan Watson'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -244,9 +244,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'Seeker', u'Seeker Documentation',
-   u'Dan Watson', 'Seeker', 'One line description of project.',
-   'Miscellaneous'),
+    ('index', 'Seeker', 'Seeker Documentation',
+     'Dan Watson', 'Seeker', 'One line description of project.',
+     'Miscellaneous'),
 ]
 
 # Documents to append as an appendix to all manuals.

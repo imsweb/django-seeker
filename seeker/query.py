@@ -1,11 +1,15 @@
-from django.conf import settings
-from .utils import get_search_query_type
+import six
 import collections
 import operator
 import logging
 import copy
+from functools import reduce
+
+from .utils import get_search_query_type
+
 
 logger = logging.getLogger(__name__)
+
 
 class Result (object):
 
@@ -21,7 +25,7 @@ class Result (object):
     def data(self):
         if self._data is None:
             self._data = collections.OrderedDict()
-            for name, t in self.mapping.field_map.iteritems():
+            for name, t in self.mapping.field_map.items():
                 self._data[name] = t.to_python(self.hit['_source'].get(name))
         return self._data
 
@@ -59,16 +63,17 @@ class Result (object):
             self._instance = self.mapping.queryset().get(pk=self.id)
         return self._instance
 
+
 class ResultSet (object):
 
     def __init__(self, mapping, query=None, filters=None, facets=None, highlight=None, suggest=None, limit=10, offset=0, sort=None, prefetch=False):
         self.mapping = mapping
         self.query = query or {}
-        if isinstance(self.query, basestring):
+        if isinstance(self.query, six.string_types):
             self.query = self.get_search_query_type()
         self.filters = filters or []
         if isinstance(self.filters, dict):
-            self.filters = [F(**{name: values}) for name, values in self.filters.iteritems()]
+            self.filters = [F(**{name: values}) for name, values in self.filters.items()]
         elif isinstance(self.filters, F):
             self.filters = [self.filters]
         self.facets = facets or []
@@ -77,15 +82,15 @@ class ResultSet (object):
         self.highlight = highlight or {}
         if isinstance(self.highlight, (list, tuple)):
             self.highlight = {'fields': {f: {'number_of_fragments': 0} for f in self.highlight}}
-        elif isinstance(self.highlight, basestring):
+        elif isinstance(self.highlight, six.string_types):
             self.highlight = {'fields': {self.highlight: {'number_of_fragments': 0}}}
         self.suggest = suggest
-        if isinstance(self.suggest, basestring):
+        if isinstance(self.suggest, six.string_types):
             self.suggest = {'suggest-all': {'text': self.suggest, 'term': {'field': '_all'}}}
         self.limit = limit
         self.offset = offset
         self.sort = sort or None
-        if isinstance(self.sort, basestring):
+        if isinstance(self.sort, six.string_types):
             parts = self.sort.split(':', 1)
             name = parts[0]
             if name in mapping.field_map:
@@ -156,7 +161,12 @@ class ResultSet (object):
         if self._response is None:
             query = self.to_elastic()
             logger.debug('Querying %s/%s: %s', self.mapping.index_name, self.mapping.doc_type, query)
-            self._response = self.mapping.es.search(index=self.mapping.index_name, doc_type=self.mapping.doc_type, body=query, size=self.limit, from_=self.offset)
+            self._response = self.mapping.es.search(
+                index=self.mapping.index_name,
+                doc_type=self.mapping.doc_type,
+                body=query,
+                size=self.limit,
+                from_=self.offset)
         return self._response
 
     @property
@@ -175,7 +185,7 @@ class ResultSet (object):
                 if s['options']:
                     suggs[s['text']] = s['options'][0]['text']
             return suggs
-        except:
+        except Exception:
             return {}
 
     def __len__(self):
@@ -205,6 +215,7 @@ class ResultSet (object):
     def aggregates(self):
         return collections.OrderedDict(self.facet_values())
 
+
 class Aggregate (object):
     def __init__(self, field, name=None, label=None, description=None):
         self.field = field
@@ -223,6 +234,7 @@ class Aggregate (object):
 
     def get_key(self, value):
         return value['key']
+
 
 class TermAggregate (Aggregate):
     def __init__(self, field, name=None, label=None, description=None, size=10, include=None, exclude=None, filter_operator='or'):
@@ -246,9 +258,11 @@ class TermAggregate (Aggregate):
         else:
             return F(**{self.field: values})
 
+
 class StatsAggregate (Aggregate):
     def to_elastic(self):
         return {'stats': {'field': self.field}}
+
 
 class YearHistogram (Aggregate):
     def to_elastic(self):
@@ -259,6 +273,7 @@ class YearHistogram (Aggregate):
 
     def get_key(self, value):
         return value['key_as_string']
+
 
 class RangeAggregate (Aggregate):
     separator = '-'
@@ -299,10 +314,11 @@ class RangeAggregate (Aggregate):
 # Basically taken from ElasticUtils, and simplified to generate Query DSL directly and not handle inverts.
 # Ideally, I'd like to eventually just use ElasticUtils, but they don't support ES 1.0 yet.
 
+
 class F (object):
 
     def __init__(self, **filters):
-        filters = filters.items()
+        filters = list(filters.items())
         if len(filters) > 1:
             self.filters = [{'and': filters}]
         else:
@@ -343,7 +359,7 @@ class F (object):
         return self._combine(other, 'and')
 
     def filter_spec(self, val):
-        if isinstance(val[1], (basestring, bool, int)):
+        if isinstance(val[1], (six.string_types, bool, int)):
             return {'term': {val[0]: val[1]}}
         else:
             return {'terms': {val[0]: list(val[1])}}
@@ -351,7 +367,7 @@ class F (object):
     def to_elastic(self):
         def _es(val):
             if isinstance(val, dict):
-                for conn, vals in val.iteritems():
+                for conn, vals in val.items():
                     return {conn: [_es(v) for v in vals]}
             else:
                 if hasattr(val, 'filter_spec'):
@@ -363,6 +379,7 @@ class F (object):
         else:
             return _es(self.filters[0])
 
+
 class AndSpec (object):
     def __init__(self, field, values):
         self.field = field
@@ -371,9 +388,11 @@ class AndSpec (object):
     def filter_spec(self):
         return {'terms': {self.field: self.values, 'execution': 'and'}}
 
+
 class And (F):
     def __init__(self, field, values):
         self.filters = [AndSpec(field, values)]
+
 
 class RangeSpec (object):
     def __init__(self, field, min_value, max_value, min_oper='gte', max_oper='lte'):
@@ -391,9 +410,11 @@ class RangeSpec (object):
             r[self.max_oper] = self.max_value
         return {'range': {self.field: r}}
 
+
 class Range (F):
     def __init__(self, field, min_value, max_value, min_oper='gte', max_oper='lte'):
         self.filters = [RangeSpec(field, min_value, max_value, min_oper=min_oper, max_oper=max_oper)]
+
 
 class IdsSpec (object):
     def __init__(self, values):
@@ -401,6 +422,7 @@ class IdsSpec (object):
 
     def filter_spec(self):
         return {'ids': {'values': self.values}}
+
 
 class Ids (F):
     def __init__(self, values):

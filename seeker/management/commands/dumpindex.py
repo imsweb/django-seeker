@@ -4,16 +4,19 @@ from seeker.utils import get_app_mappings
 from elasticsearch.helpers import scan
 import json
 
+
 class Command (BaseCommand):
     help = 'Dumps out data from the specified applications'
 
     def add_arguments(self, parser):
-        parser.add_argument('app_labels',
+        parser.add_argument(
+            'app_labels',
             nargs='*',
             default=[],
             help='Optional (space delimited) list of apps: <app1 app2 ...>'
         )
-        parser.add_argument('--indent',
+        parser.add_argument(
+            '--indent',
             type='int',
             dest='indent',
             default=None,

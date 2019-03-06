@@ -1,15 +1,18 @@
+import six
+from six.moves.urllib.parse import parse_qsl, urlencode
+
 from django.views.generic import TemplateView
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.http import StreamingHttpResponse, Http404
 from django.utils.encoding import force_text
+
+from elasticsearch.helpers import scan
+
 from .query import TermAggregate
 from .utils import get_facet_filters
 from .mapping import StringType, ObjectType
-from elasticsearch.helpers import scan
-from urlparse import parse_qsl
-import urllib
-import re
+
 
 class SeekerView (TemplateView):
     mapping = None
@@ -82,7 +85,7 @@ class SeekerView (TemplateView):
             sort = [part for part in qs_parts if part[0] == 'sort' and part[1]]
             if not sort:
                 qs_parts.append(('sort', self.sort))
-        qs = urllib.urlencode(qs_parts)
+        qs = urlencode(qs_parts)
         return qs
 
     def get_facets(self):
@@ -91,7 +94,7 @@ class SeekerView (TemplateView):
         instance for any mapping fields with ``facet=True``.
         """
         mapping = self.mapping.instance()
-        for name, t in mapping.field_map.iteritems():
+        for name, t in mapping.field_map.items():
             if isinstance(t, StringType) and t.facet:
                 field_name = name + '.raw' if t.index else name
                 yield TermAggregate(field_name, label=mapping.field_label(name))
@@ -104,7 +107,7 @@ class SeekerView (TemplateView):
         if self.display:
             return self.display
         mapping = self.mapping.instance()
-        return mapping.field_map.keys()
+        return list(mapping.field_map.keys())
 
     def get_selectable_fields(self):
         """
@@ -122,7 +125,7 @@ class SeekerView (TemplateView):
         """
         try:
             return result.instance.get_absolute_url()
-        except:
+        except Exception:
             return ''
 
     def get_query(self):
@@ -218,11 +221,18 @@ class SeekerView (TemplateView):
                     highlight.append('%s.*' % name)
                 else:
                     highlight.append(name)
-            except:
+            except Exception:
                 pass
 
         facet_filters.extend(self.extra_filters())
-        results = mapping.query(query=keywords, filters=facet_filters, facets=facets, highlight=highlight, limit=self.page_size, offset=offset, sort=sort)
+        results = mapping.query(
+            query=keywords,
+            filters=facet_filters,
+            facets=facets,
+            highlight=highlight,
+            limit=self.page_size,
+            offset=offset,
+            sort=sort)
 
         querystring = self._querystring()
         saved_search = None
@@ -274,8 +284,8 @@ class SeekerView (TemplateView):
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(unicode(v) for v in value)
-            return '"%s"' % unicode(value).replace('"', '""')
+                value = '; '.join(six.text_type(v) for v in value)
+            return '"%s"' % six.text_type(value).replace('"', '""')
 
         def csv_generator():
             yield ','.join(force_text(mapping.field_label(f)) for f in display_fields) + '\n'
@@ -317,7 +327,7 @@ class SeekerView (TemplateView):
                 default = request.user.seeker_searches.get(url=request.path, default=True)
                 if default.querystring != querystring:
                     return redirect(default)
-        except:
+        except Exception:
             pass
         return super(SeekerView, self).get(request, *args, **kwargs)
 
