@@ -163,7 +163,7 @@ class SeekerView(View):
 
     index = None
     """
-    The ES index to use. Defaults to the SEEKER_INDEX setting.
+    The ES index to use. Will use the index set on the mapping if this is not set.
     """
 
     template_name = 'seeker/seeker.html'
@@ -656,7 +656,7 @@ class SeekerView(View):
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
         using = self.using or self.document._index._using or 'default'
-        index = self.index or self.document._index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
@@ -1134,8 +1134,8 @@ class AdvancedSeekerView(SeekerView):
         return s
 
     def get_dsl_search(self):
-        using = self.using or self.document._doc_type.using or 'default'
-        index = self.index or self.document._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        using = self.using or self.document._index._using or 'default'
+        index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
         return self.document.search().index(index).using(using).extra(track_scores=True)
 
