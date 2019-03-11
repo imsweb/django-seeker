@@ -152,8 +152,9 @@ class TextFacet(Facet):
     template = 'seeker/facets/text.html'
     advanced_template = 'advanced_seeker/facets/text.html'
 
-    def __init__(self, field, delimiter=',', **kwargs):
+    def __init__(self, field, delimiter=',', placeholder_text='', **kwargs):
         self.delimiter = delimiter
+        self.placeholder_text = placeholder_text
         super(TextFacet, self).__init__(field, **kwargs)
         
     def _get_aggregation(self, **extra):
