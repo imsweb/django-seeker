@@ -1165,7 +1165,8 @@ class AdvancedSeekerView(SeekerView):
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
             'facets': facets,
             'search_url': self.search_url,
-            'save_search_url': self.save_search_url
+            'save_search_url': self.save_search_url,
+            'selected_facets': self.initial_facets
         }
 
         if self.extra_context:
