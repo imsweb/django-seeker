@@ -143,6 +143,45 @@ class TermsFacet(Facet):
             return search.filter('term', **{self.field: values[0]})
         return search
 
+class TextFacet(Facet):
+    """
+        TextFacet is essentnially a keyword search on a specific field.  It can handle multiple search terms.
+        Each search term is (by default) comma seperated.  That can be customized by setting delimiter in the facet initialization.
+        This facet does a "starts with" wildcard query on each of the search terms. Each wild card query is "OR"ed together.
+    """
+    template = 'seeker/facets/text.html'
+    advanced_template = 'advanced_seeker/facets/text.html'
+
+    def __init__(self, field, delimiter=',', **kwargs):
+        self.delimiter = delimiter
+        super(TextFacet, self).__init__(field, **kwargs)
+        
+    def _get_aggregation(self, **extra):
+        """TexFacet isn't designed to aggregate as it acts as a keyword search, so we return None."""
+        return None
+
+    def apply(self, search, **extra):
+        """There are no aggregations to apply so we just return the search object."""
+        return search
+
+    def es_query(self, operator, value):
+        """
+        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        'complex query' functionality.
+        """
+        values = value.split(self.delimiter)
+        queries = []
+        for term in values:
+            queries.append(Q('wildcard', **{self.field: '{}*'.format(term.strip())}))
+        return Q('bool', should=queries)
+
+    def filter(self, search, value):
+        values = value.split(self.delimiter)
+        filters = []
+        for term in values:
+            filters.append(Q('wildcard', **{self.field: '{}*'.format(term.strip())}))
+        return search.query(functools.reduce(operator.or_, filters))
+
 
 class GlobalTermsFacet(TermsFacet):
 
