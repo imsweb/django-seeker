@@ -173,8 +173,9 @@ class TextFacet(Facet):
         values = value.split(self.delimiter)
         queries = []
         for term in values:
+            term = term.strip()
             if term:
-                queries.append(Q('wildcard', **{self.field: '{}*'.format(term.strip())}))
+                queries.append(Q('wildcard', **{self.field: '{}*'.format(term)}))
         return Q('bool', should=queries)
 
     def filter(self, search, value):
