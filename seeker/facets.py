@@ -158,7 +158,7 @@ class TextFacet(Facet):
         super(TextFacet, self).__init__(field, **kwargs)
         
     def _get_aggregation(self, **extra):
-        """TexFacet isn't designed to aggregate as it acts as a keyword search, so we return None."""
+        """TextFacet isn't designed to aggregate as it acts as a keyword search, so we return None."""
         return None
 
     def apply(self, search, **extra):
