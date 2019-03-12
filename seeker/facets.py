@@ -147,14 +147,15 @@ class TextFacet(Facet):
     """
         TextFacet is essentnially a keyword search on a specific field.  It can handle multiple search terms.
         Each search term is (by default) comma seperated.  That can be customized by setting delimiter in the facet initialization.
-        This facet does a "starts with" wildcard query on each of the search terms. Each wild card query is "OR"ed together.
+        This facet does a prefix query on each of the search terms. Each query is "OR"ed together.
     """
     template = 'seeker/facets/text.html'
     advanced_template = 'advanced_seeker/facets/text.html'
 
-    def __init__(self, field, delimiter=',', placeholder_text='', **kwargs):
+    def __init__(self, field, delimiter=',', placeholder_text='', lowercase_search_terms=False, **kwargs):
         self.delimiter = delimiter
         self.placeholder_text = placeholder_text
+        self.lowercase_search_terms = lowercase_search_terms
         super(TextFacet, self).__init__(field, **kwargs)
         
     def _get_aggregation(self, **extra):
@@ -174,15 +175,20 @@ class TextFacet(Facet):
         queries = []
         for term in values:
             term = term.strip()
+            if self.lowercase_search_terms:
+                term = term.lower()
             if term:
-                queries.append(Q('wildcard', **{self.field: '{}*'.format(term)}))
+                queries.append(Q('prefix', **{self.field: term}))
         return Q('bool', should=queries)
 
     def filter(self, search, value):
         values = value.split(self.delimiter)
         filters = []
         for term in values:
-            filters.append(Q('wildcard', **{self.field: '{}*'.format(term.strip())}))
+            term = term.strip()
+            if self.lowercase_search_terms:
+                term = term.lower()
+            filters.append(Q('prefix', **{self.field: term}))
         return search.query(functools.reduce(operator.or_, filters))
 
 
