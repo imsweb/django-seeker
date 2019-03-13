@@ -1,0 +1,4 @@
+{% load seeker %}
+
+<label for="{{ facet.name }}_text">{{ facet.label|capfirst }}</label>
+<input type='text' name="{{ facet.field }}" class="form-control" id="{{ facet.name }}_text" data-delimiter={{ facet.delimiter }} {% if facet.placeholder_text %}placeholder='{{ facet.placeholder_text }}'{% endif %} />
