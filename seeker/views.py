@@ -1091,18 +1091,21 @@ class AdvancedSeekerView(SeekerView):
         """
         pass
 
-    def get_display(self, display_list, facets_searched):
+    def get_display(self, display_list, facets_searched, facet_lookup=None):
         """
         Returns a list of display field names. If the user has selected display fields and display_list is not empty those are used otherwise
         the default list is returned. If no default list is specified, all fields are displayed.
         """
+        if not facet_lookup:
+            facet_lookup = { facet.field: facet for facet in self.get_facets() }
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
         display_list = display_list or default
 
         if self.add_facets_to_display:
             for field in facets_searched:
-                if field not in display_list + self.required_display:
-                    display_list.append(field)
+                related_column_name = facet_lookup[field].related_column_name
+                if related_column_name not in display_list + self.required_display:
+                    display_list.append(related_column_name)
 
         display_fields = [f for f in display_list if f not in self.required_display_fields]
         for field, i in self.required_display:
@@ -1234,7 +1237,7 @@ class AdvancedSeekerView(SeekerView):
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
 
-        display = self.get_display(self.search_object['display'], facets_searched)
+        display = self.get_display(self.search_object['display'], facets_searched, facet_lookup)
         columns = self.get_columns(display)
         if export:
             return self.export(search, columns)

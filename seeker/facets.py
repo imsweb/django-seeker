@@ -22,13 +22,14 @@ class Facet(object):
     template = getattr(settings, 'SEEKER_DEFAULT_FACET_TEMPLATE', 'seeker/facets/terms.html')
     advanced_template = getattr(settings, 'ADVANCED_SEEKER_DEFAULT_FACET_TEMPLATE', 'advanced_seeker/facets/terms.html')
 
-    def __init__(self, field, label=None, name=None, description=None, template=None, advanced_template=None, **kwargs):
+    def __init__(self, field, label=None, name=None, description=None, template=None, advanced_template=None, related_column_name='', **kwargs):
         self.field = field
         self.label = label or self.field.replace('_', ' ').replace('.raw', '').replace('.', ' ').capitalize()
         self.name = (name or self.field).replace('.', '_')
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
+        self.related_column_name = related_column_name or self.field.split('.')[0]
         self.kwargs = kwargs
         
     @property
