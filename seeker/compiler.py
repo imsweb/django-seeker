@@ -18,7 +18,7 @@ def cursor_iter(cursor, fetch_size=1000):
         cursor.close()
 
 
-class CursorCompiler (SQLCompiler):
+class CursorCompiler(SQLCompiler):
 
     def execute_sql(self, result_type=MULTI):
         if result_type != MULTI:
@@ -30,7 +30,7 @@ class CursorCompiler (SQLCompiler):
         return cursor_iter(cursor, fetch_size=getattr(settings, 'SEEKER_BATCH_SIZE', 1000))
 
 
-class CursorQuery (Query):
+class CursorQuery(Query):
 
     def get_compiler(self, using=None, connection=None):
         if using:

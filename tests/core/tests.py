@@ -8,7 +8,7 @@ from .mappings import BookDocument, DerivedDocument, DjangoBookDocument
 from .models import Book, Category
 
 
-class QueryTests (TestCase):
+class QueryTests(TestCase):
     fixtures = ('books',)
 
     def setUp(self):

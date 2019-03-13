@@ -1,14 +1,16 @@
-from django.conf import settings
-from django.utils.encoding import force_text
-from elasticsearch import NotFoundError
-from elasticsearch_dsl.connections import connections
-import elasticsearch_dsl as dsl
-
-from .registry import model_documents
+from __future__ import division
 
 import importlib
 import sys
 import time
+
+import elasticsearch_dsl as dsl
+from django.conf import settings
+from django.utils.encoding import force_text
+from elasticsearch import NotFoundError
+from elasticsearch_dsl.connections import connections
+
+from .registry import model_documents
 
 
 def import_class(fq_name):
@@ -69,7 +71,7 @@ def search(models=None, using='default'):
     types = []
     indices = []
     if models is None:
-        models = model_documents.keys()
+        models = model_documents
     for model_class in models:
         for doc_class in model_documents.get(model_class, []):
             indices.append(doc_class._doc_type.index)
@@ -88,16 +90,16 @@ def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.std
 
     try:
         count = len(iterator)
-    except:
+    except Exception:
         pass
 
     start = time.time()
 
     def show(i):
         if count:
-            x = int(size * i / count)
+            x = int(size * i // count)
             bar = '[%s%s]' % (chars[0] * x, chars[1] * (size - x))
-            pct = int((100.0 * i) / count)
+            pct = int((100.0 * i) // count)
             status = '%s/%s %s%%' % (i, count, pct)
         else:
             bar = ''

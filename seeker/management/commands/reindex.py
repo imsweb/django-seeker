@@ -27,49 +27,51 @@ def reindex(doc_class, index, using, options):
     es.indices.refresh(index=index)
 
 
-class Command (BaseCommand):
+class Command(BaseCommand):
     args = '<app1 app2 ...>'
     help = 'Re-indexes the specified applications'
 
     def add_arguments(self, parser):
         parser.add_argument('--using',
-            dest='using',
-            default=None,
-            help='The ES connection alias to use'
+                            dest='using',
+                            default=None,
+                            help='The ES connection alias to use',
         )
         parser.add_argument('--index',
-            dest='index',
-            default=None,
-            help='The ES index to store data in'
+                            dest='index',
+                            default=None,
+                            help='The ES index to store data in',
         )
         parser.add_argument('--quiet',
-            action='store_true',
-            dest='quiet',
-            default=False,
-            help='Do not produce any output while indexing')
+                            action='store_true',
+                            dest='quiet',
+                            default=False,
+                            help='Do not produce any output while indexing',
+        )
         parser.add_argument('--drop',
-            action='store_true',
-            dest='drop',
-            default=False,
-            help='Drops the index before re-indexing'
+                            action='store_true',
+                            dest='drop',
+                            default=False,
+                            help='Drops the index before re-indexing',
         )
         parser.add_argument('--clear',
-            action='store_true',
-            dest='clear',
-            default=False,
-            help='Deletes all documents before re-indexing'
+                            action='store_true',
+                            dest='clear',
+                            default=False,
+                            help='Deletes all documents before re-indexing',
         )
         parser.add_argument('--no-data',
-            action='store_false',
-            dest='data',
-            default=True,
-            help='Only create the mappings, do not index any data'
+                            action='store_false',
+                            dest='data',
+                            default=True,
+                            help='Only create the mappings, do not index any data',
         )
         parser.add_argument('--cursor',
-            action='store_true',
-            dest='cursor',
-            default=False,
-            help='Use a server-side cursor when fetching data for indexing')
+                            action='store_true',
+                            dest='cursor',
+                            default=False,
+                            help='Use a server-side cursor when fetching data for indexing',
+        )
         parser.add_argument('args', nargs=argparse.REMAINDER)
 
     def handle(self, *args, **options):

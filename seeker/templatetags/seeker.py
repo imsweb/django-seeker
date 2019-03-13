@@ -1,3 +1,9 @@
+from __future__ import division
+
+import datetime
+import re
+
+import six
 from django import template
 from django.contrib.humanize.templatetags.humanize import intcomma
 from django.core.paginator import Paginator
@@ -5,10 +11,6 @@ from django.template import loader
 from django.utils.encoding import force_text
 from django.utils.safestring import mark_safe
 from six.moves.urllib.parse import parse_qsl, urlencode
-import six
-
-import datetime
-import re
 
 
 register = template.Library()
@@ -79,7 +81,7 @@ def seeker_score(result, max_score=None, template='seeker/score.html'):
 
 @register.simple_tag
 def seeker_pager(total, page_size=10, page=1, param='p', querystring='', spread=7, template='seeker/pager.html'):
-    paginator = Paginator(range(total), page_size)
+    paginator = Paginator(list(range(total)), page_size)
     if paginator.num_pages < 2:
         return ''
     page = paginator.page(page)
@@ -109,7 +111,7 @@ def seeker_highlight(text, query, algorithm='english'):
         stemmer = snowballstemmer.stemmer(algorithm)
         stemWord = stemmer.stemWord
         stemWords = stemmer.stemWords
-    except:
+    except Exception:
         stemWord = lambda word: word
         stemWords = lambda words: words
     phrases = _phrase_re.findall(query)
