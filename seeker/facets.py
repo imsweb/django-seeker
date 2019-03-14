@@ -5,6 +5,7 @@ import operator
 
 import six
 from django.conf import settings
+from django.utils.encoding import smart_text
 from elasticsearch_dsl import A, Q
 from elasticsearch_dsl.aggs import Terms
 
@@ -124,7 +125,7 @@ class TermsFacet(Facet):
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
         data = self.data(results)
-        values = [''] + sorted([str(bucket['key']) for bucket in data['buckets']], key=lambda item: str(item).lower())
+        values = [''] + sorted([smart_text(bucket['key']) for bucket in data['buckets']], key=lambda item: smart_text(item).lower())
         filter_dict.update({
             'input': 'select',
             'values': values,
