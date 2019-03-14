@@ -5,6 +5,7 @@ import operator
 
 import six
 from django.conf import settings
+from django.utils.encoding import smart_text
 from elasticsearch_dsl import A, Q
 from elasticsearch_dsl.aggs import Terms
 
@@ -29,6 +30,11 @@ class Facet(object):
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
+
+        default_related_column_name = self.field.split('.')[0]
+        related_column_name = kwargs.get('related_column_name')
+        self.related_column_name = related_column_name if isinstance(related_column_name, six.string_types) else default_related_column_name
+
         self.kwargs = kwargs
         
     @property
@@ -94,8 +100,7 @@ class Facet(object):
 
 class TermsFacet(Facet):
 
-    def __init__(self, field, size=2147483647, **kwargs):
-        # Elasticsearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
+    def __init__(self, field, size=0, **kwargs):
         self.size = size
         self.filter_operator = kwargs.pop('filter_operator', 'or')
         super(TermsFacet, self).__init__(field, **kwargs)
@@ -125,7 +130,7 @@ class TermsFacet(Facet):
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
         data = self.data(results)
-        values = [''] + sorted([str(bucket['key']) for bucket in data['buckets']], key=lambda item: str(item).lower())
+        values = [''] + sorted([smart_text(bucket['key']) for bucket in data['buckets']], key=lambda item: smart_text(item).lower())
         filter_dict.update({
             'input': 'select',
             'values': values,
@@ -143,6 +148,54 @@ class TermsFacet(Facet):
         elif len(values) == 1:
             return search.filter('term', **{self.field: values[0]})
         return search
+
+class TextFacet(Facet):
+    """
+        TextFacet is essentnially a keyword search on a specific field.  It can handle multiple search terms.
+        Each search term is (by default) comma seperated.  That can be customized by setting delimiter in the facet initialization.
+        This facet does a prefix query on each of the search terms. Each query is "OR"ed together.
+    """
+    template = 'seeker/facets/text.html'
+    advanced_template = 'advanced_seeker/facets/text.html'
+
+    def __init__(self, field, delimiter=',', placeholder_text='', lowercase_search_terms=False, **kwargs):
+        self.delimiter = delimiter
+        self.placeholder_text = placeholder_text
+        self.lowercase_search_terms = lowercase_search_terms
+        super(TextFacet, self).__init__(field, **kwargs)
+        
+    def _get_aggregation(self, **extra):
+        """TextFacet isn't designed to aggregate as it acts as a keyword search, so we return None."""
+        return None
+
+    def apply(self, search, **extra):
+        """There are no aggregations to apply so we just return the search object."""
+        return search
+
+    def es_query(self, operator, value):
+        """
+        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        'complex query' functionality.
+        """
+        values = value.split(self.delimiter)
+        queries = []
+        for term in values:
+            term = term.strip()
+            if self.lowercase_search_terms:
+                term = term.lower()
+            if term:
+                queries.append(Q('prefix', **{self.field: term}))
+        return Q('bool', should=queries)
+
+    def filter(self, search, value):
+        values = value.split(self.delimiter)
+        filters = []
+        for term in values:
+            term = term.strip()
+            if self.lowercase_search_terms:
+                term = term.lower()
+            filters.append(Q('prefix', **{self.field: term}))
+        return search.query(functools.reduce(operator.or_, filters))
 
 
 class GlobalTermsFacet(TermsFacet):
