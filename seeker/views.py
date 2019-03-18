@@ -124,7 +124,8 @@ class Column(object):
             
         if self.value_format:
             value = self.value_format(value)
-            highlight = self.value_format(highlight)
+            if highlight:
+                highlight = self.value_format(highlight)
 
         params = {
             'result': result,
