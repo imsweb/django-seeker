@@ -163,7 +163,7 @@ class SeekerView(View):
 
     index = None
     """
-    The ES index to use. Defaults to the SEEKER_INDEX setting.
+    The ES index to use. Will use the index set on the mapping if this is not set.
     """
 
     template_name = 'seeker/seeker.html'
@@ -595,6 +595,9 @@ class SeekerView(View):
     def get_facets(self):
         return list(self.facets) if self.facets else []
 
+    def get_sorts(self):
+        return self.request.GET.getlist('s', None)
+
     def get_display(self):
         """
         Returns a list of display field names. If the user has selected display fields, those are used, otherwise
@@ -656,7 +659,7 @@ class SeekerView(View):
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
         using = self.using or self.document._index._using or 'default'
-        index = self.index or self.document._index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
@@ -717,7 +720,7 @@ class SeekerView(View):
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = {c.field: c for c in columns}
-        sorts = self.request.GET.getlist('s', None)
+        sorts = self.get_sorts()
         if not sorts:
             if keywords:
                 sorts = []
@@ -1106,13 +1109,15 @@ class AdvancedSeekerView(SeekerView):
         Returns a list of display field names. If the user has selected display fields and display_list is not empty those are used otherwise
         the default list is returned. If no default list is specified, all fields are displayed.
         """
+        facet_lookup = { facet.field: facet for facet in self.get_facets() }
         default = list(self.display) if self.display else list(self.document._doc_type.mapping)
         display_list = display_list or default
 
         if self.add_facets_to_display:
             for field in facets_searched:
-                if field not in display_list + self.required_display:
-                    display_list.append(field)
+                related_column_name = facet_lookup[field].related_column_name
+                if related_column_name not in display_list + self.required_display:
+                    display_list.append(related_column_name)
 
         display_fields = [f for f in display_list if f not in self.required_display_fields]
         for field, i in self.required_display:
@@ -1134,8 +1139,8 @@ class AdvancedSeekerView(SeekerView):
         return s
 
     def get_dsl_search(self):
-        using = self.using or self.document._doc_type.using or 'default'
-        index = self.index or self.document._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        using = self.using or self.document._index._using or 'default'
+        index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
         return self.document.search().index(index).using(using).extra(track_scores=True)
 
@@ -1175,7 +1180,8 @@ class AdvancedSeekerView(SeekerView):
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
             'facets': facets,
             'search_url': self.search_url,
-            'save_search_url': self.save_search_url
+            'save_search_url': self.save_search_url,
+            'selected_facets': self.initial_facets
         }
 
         if self.extra_context:
@@ -1218,16 +1224,19 @@ class AdvancedSeekerView(SeekerView):
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
 
     def render_results(self, export):
-        facets = self.get_facets()
-        facet_lookup = { facet.field: facet for facet in facets }
-        search = self.get_dsl_search()
+        facet_lookup = { facet.field: facet for facet in self.get_facets() }
+        # This "query" is the dictionary of rules, conditions, etc. (see build_query)
         query = self.search_object.get('query')
-
-        # Hook to allow the search to be filtered before seeker begins it's work
-        search = self.additional_query_filters(search)
 
         # Build the actual query that will be applied via post_filter
         advanced_query, facets_searched = self.build_query(query, facet_lookup)
+        
+        # For issues with speed this function should be used to limit the number of facets as much as possible
+        facet_lookup = self.filter_facet_lookup(facet_lookup, facets_searched)
+
+        search = self.get_dsl_search()
+        # Hook to allow the search to be filtered before seeker begins it's work
+        search = self.additional_query_filters(search)
 
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
@@ -1284,7 +1293,7 @@ class AdvancedSeekerView(SeekerView):
         self.modify_results_context(context)
 
         json_response = {
-            'filters': [facet.build_filter_dict(results) for facet in facets], # Relies on the default 'apply_aggregations' being applied.
+            'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
         }
@@ -1318,6 +1327,14 @@ class AdvancedSeekerView(SeekerView):
         For that reason nothing is passed to this function except the search.
         """
         return search
+
+    def filter_facet_lookup(self, facet_lookup, facets_searched, **kwargs):
+        """
+        Allows the list of facets to be reduced as much as possible. The decision on what can be
+        reduced is up to the individual site so the default returns facet_lookup unaltered.
+        NOTE: The more facets that can be removed from this list the better the response time will be for the search.
+        """
+        return facet_lookup
 
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
