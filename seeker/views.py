@@ -93,8 +93,6 @@ class Column(object):
 
     def render(self, result, **kwargs):
         value = getattr(result, self.field, None)
-        if self.value_format:
-            value = self.value_format(value)
         try:
             if '*' in self.highlight:
                 # If highlighting was requested for multiple fields, grab any matching fields as a dictionary.
@@ -124,6 +122,10 @@ class Column(object):
                     modified_values[index_to_replace] = highlighted_value
             highlight = modified_values
             
+        if self.value_format:
+            value = self.value_format(value)
+            highlight = self.value_format(highlight)
+
         params = {
             'result': result,
             'field': self.field,
@@ -993,9 +995,11 @@ class AdvancedColumn(Column):
             value = getattr(result, export_field, '')
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
+            elif isinstance(value, AttrList):
+                value = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value)
             if self.value_format:
                 value = self.value_format(value)
-            export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+            export_val = seeker_format(value)
         else:
             export_val = ''
         return export_val
