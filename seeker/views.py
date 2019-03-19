@@ -1228,10 +1228,38 @@ class AdvancedSeekerView(SeekerView):
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
     
     def aggregate_search(self):
-        self.apply_aggregations(search, query, facet_lookup)
+        facet_lookup = { facet.field: facet for facet in self.get_facets() }
+        # This "query" is the dictionary of rules, conditions, etc. (see build_query)
+        query = self.search_object.get('query')
+
+        # Build the actual query that will be applied via post_filter
+        advanced_query, facets_searched = self.build_query(query, facet_lookup)
+
+        # For issues with speed this function should be used to limit the number of facets as much as possible
+        facet_lookup = self.filter_facet_lookup(facet_lookup, facets_searched)
+        
+        es_multi_search = dsl.MultiSearch()
+        
+        for facet_name, facet in facet_lookup.items():
+            restricted_advanced_query, facets_searched = self.build_query(query, facet_lookup, excluded_facets=[facet_name])
+
+            search = self.get_dsl_search()
+            # Hook to allow the search to be filtered before seeker begins it's work
+            search = self.additional_query_filters(search)
+
+            search = facet.apply(search)
+
+            es_multi_search = es_multi_search.add(search)
+
+        results_list = es_multi_search.execute()
+        
+        filters = []
+        for index, (facet_name, facet) in enumerate(facet_lookup.items()):
+            filters.append(facet.build_filter_dict(results_list[index]))
+        return filters
 
     def render_results(self, export):
-        search_results = perform_search(export, True)
+        search_results = self.perform_search(export, True)
         return JsonResponse(search_results)
     
     def perform_search(self, export, apply_aggregations, **kwargs):
@@ -1266,10 +1294,8 @@ class AdvancedSeekerView(SeekerView):
             return self.export(search, columns)
 
         # Hook to allow the search to be aggregated
-        json_response = {}
         if apply_aggregations:
             self.apply_aggregations(search, query, facet_lookup)
-            json_response.update({'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()]}) # Relies on the default 'apply_aggregations' being applied.
 
         # Highlight fields.
         if self.highlight:
@@ -1306,10 +1332,12 @@ class AdvancedSeekerView(SeekerView):
         }
         self.modify_results_context(context)
 
-        json_response.update({
+        json_response = {
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
-        })
+        }
+        if apply_aggregations:
+            json_response.update({'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()]}) # Relies on the default 'apply_aggregations' being applied.
 
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
