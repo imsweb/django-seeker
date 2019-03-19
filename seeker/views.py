@@ -3,6 +3,7 @@ import collections
 import copy
 import inspect
 import json
+import multiprocessing
 import re
 import warnings
 from datetime import datetime
@@ -1046,6 +1047,11 @@ class AdvancedSeekerView(SeekerView):
     If set to True, table headers will wrap to second line if they are longer than the content and have space available
     between words.
     """
+    
+    use_multiprocessing = False
+    """
+    Specify whether or not to use multiprocessing when rendering results.  One process will take care of getting the results, the other will apply the aggregations.
+    """
 
     @abc.abstractproperty
     def save_search_url(self):
@@ -1211,11 +1217,24 @@ class AdvancedSeekerView(SeekerView):
             # Sanity check that the search object has all of it's required components
             if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
                 return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
-            return self.render_results(export)
+
+            if self.use_multiprocessing and not export:
+                p1 = multiprocessing.Process(target=self.perform_search, args=(export, False))
+                p2 = multiprocessing.Process(target=self.aggregate_search)
+                return JsonResponse(results)
+            else:
+                return self.render_results(export)
         else:
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
+    
+    def aggregate_search(self):
+        self.apply_aggregations(search, query, facet_lookup)
 
     def render_results(self, export):
+        search_results = perform_search(export, True)
+        return JsonResponse(search_results)
+    
+    def perform_search(self, export, apply_aggregations, **kwargs):
         facet_lookup = { facet.field: facet for facet in self.get_facets() }
         # This "query" is the dictionary of rules, conditions, etc. (see build_query)
         query = self.search_object.get('query')
@@ -1247,7 +1266,10 @@ class AdvancedSeekerView(SeekerView):
             return self.export(search, columns)
 
         # Hook to allow the search to be aggregated
-        self.apply_aggregations(search, query, facet_lookup)
+        json_response = {}
+        if apply_aggregations:
+            self.apply_aggregations(search, query, facet_lookup)
+            json_response.update({'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()]}) # Relies on the default 'apply_aggregations' being applied.
 
         # Highlight fields.
         if self.highlight:
@@ -1284,14 +1306,15 @@ class AdvancedSeekerView(SeekerView):
         }
         self.modify_results_context(context)
 
-        json_response = {
-            'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
+        json_response.update({
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
-        }
+        })
+
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
-        return JsonResponse(json_response)
+
+        return json_response
 
     def calculate_page_and_offset(self, page, page_size, search):
         offset = (page - 1) * page_size
