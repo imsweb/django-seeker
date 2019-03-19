@@ -1240,6 +1240,7 @@ class AdvancedSeekerView(SeekerView):
         
         es_multi_search = dsl.MultiSearch()
         
+        ordered_facets = []
         for facet_name, facet in facet_lookup.items():
             restricted_advanced_query, facets_searched = self.build_query(query, facet_lookup, excluded_facets=[facet_name])
 
@@ -1247,15 +1248,20 @@ class AdvancedSeekerView(SeekerView):
             # Hook to allow the search to be filtered before seeker begins it's work
             search = self.additional_query_filters(search)
 
+            # We only apply the aggregation for the facet we are currently dealing with (it was excluded from the query)
             search = facet.apply(search)
 
             es_multi_search = es_multi_search.add(search)
 
+            ordered_facets.append(facet_name)
+
         results_list = es_multi_search.execute()
-        
+
         filters = []
-        for index, (facet_name, facet) in enumerate(facet_lookup.items()):
+        for index, facet_name in enumerate(ordered_facets):
+            facet = facet_lookup[facet_name]
             filters.append(facet.build_filter_dict(results_list[index]))
+
         return filters
 
     def render_results(self, export):
