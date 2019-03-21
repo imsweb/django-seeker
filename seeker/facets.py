@@ -130,7 +130,7 @@ class TermsFacet(Facet):
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
         data = self.data(results)
-        values = [''] + sorted([smart_text(bucket['key']) for bucket in data['buckets']], key=lambda item: smart_text(item).lower())
+        values = [''] + sorted([smart_text(bucket['key']) for bucket in data.get('buckets', [])], key=lambda item: smart_text(item).lower())
         filter_dict.update({
             'input': 'select',
             'values': values,

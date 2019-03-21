@@ -1246,8 +1246,11 @@ class AdvancedSeekerView(SeekerView):
         if export:
             return self.export(search, columns)
 
-        # Hook to allow the search to be aggregated
-        self.apply_aggregations(search, query, facet_lookup)
+        if self.search_object.get('update_aggregations', True):
+            # Hook to allow the search to be aggregated
+            self.apply_aggregations(search, query, facet_lookup)
+            # Since we are aggregating we ask elasticsearch to use it's cache
+            search = search.params(request_cache=True)
 
         # Highlight fields.
         if self.highlight:
@@ -1285,10 +1288,13 @@ class AdvancedSeekerView(SeekerView):
         self.modify_results_context(context)
 
         json_response = {
-            'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
         }
+        if self.search_object.get('update_aggregations', True):
+            # Relies on the default 'apply_aggregations' being applied.
+            json_response['filters'] = [facet.build_filter_dict(results) for facet in facet_lookup.values()]
+        
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
