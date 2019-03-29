@@ -440,7 +440,7 @@ class SeekerView(View):
             return f.verbose_name[0].upper() + f.verbose_name[1:]
         except Exception:
             try:
-                f = self.document.queryset().model.get_field(field_name)
+                f = self.document.queryset().model._meta.get_field(field_name)
                 return f.verbose_name[0].upper() + f.verbose_name[1:]
             except Exception:
             # Otherwise, just make the field name more human-readable.
