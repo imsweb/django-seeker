@@ -67,10 +67,21 @@ class Column(object):
                 self.template_obj = loader.get_template(self.template)
             else:
                 self.template_obj = self.view.get_field_template(self.field)
+        #Set the model_lower variable on Column to the lowercased name of the model on the mapping once view is set above
+        try:
+            self.model_lower = self.view.document._model
+        except Exception:
+            try:
+                self.model_lower = self.view.document.model.__name____lower__()
+                self.view.document._model = self.model_lower
+            except Exception:
+                self.model_lower = self.view.document.queryset().model.__name__.lower()
+                self.view.document._model = self.model_lower                
         return self
 
     def header(self):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
+        cls += ' %s_%s' % (self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         q = self.view.request.GET.copy()
@@ -125,12 +136,12 @@ class Column(object):
                 if index_to_replace is not None:
                     modified_values[index_to_replace] = highlighted_value
             highlight = modified_values
-            
         params = {
             'result': result,
             'field': self.field,
             'value': value,
             'highlight': highlight,
+            'model_lower': self.model_lower,
             'view': self.view,
             'user': self.view.request.user,
             'query': self.view.get_keywords(self.view.request.GET),
@@ -440,7 +451,7 @@ class SeekerView(View):
             return f.verbose_name[0].upper() + f.verbose_name[1:]
         except Exception:
             try:
-                f = self.document.queryset().model.get_field(field_name)
+                f = self.document.queryset().model._meta.get_field(field_name)
                 return f.verbose_name[0].upper() + f.verbose_name[1:]
             except Exception:
             # Otherwise, just make the field name more human-readable.
@@ -944,6 +955,7 @@ class SeekerView(View):
 class AdvancedColumn(Column):
     def header(self, results=None):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
+        cls += ' %s_%s' % (self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         current_sort = self.view.search_object['sort']

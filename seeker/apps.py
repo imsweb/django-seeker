@@ -1,7 +1,7 @@
 import importlib
 import inspect
 import logging
-
+logging.basicConfig()
 from django.apps import AppConfig, apps
 from django.conf import settings
 
@@ -25,6 +25,9 @@ class SeekerConfig(AppConfig):
             app_lkup = {app.name: app.label for app in apps.get_app_configs()}
             for mapping in mappings:
                 mapping_cls = import_class(mapping)
+                if not mapping_cls.model:
+                    logger.warning('model not defined on %s You must define the model for a significant speed increase', mapping)
+                    
                 # Figure out which app_label to use based on the longest matching module prefix.
                 app_label = None
                 for prefix in sorted(app_lkup):
@@ -40,6 +43,8 @@ class SeekerConfig(AppConfig):
                     imported_module = importlib.import_module(module)
                     clsmembers = inspect.getmembers(imported_module, lambda member: inspect.isclass(member) and issubclass(member, Indexable))
                     for name, cls in clsmembers:
+                        if not cls.model:
+                            logger.warning('model not defined on %s.%s You must define the model for a significant speed increase', cls.__module__, name)
                         if module_only and cls.__module__ != module:
                             logger.debug('Skipping registration of %s.%s (defined outside %s)', cls.__module__, name, module)
                             continue
