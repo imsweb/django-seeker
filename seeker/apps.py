@@ -44,7 +44,6 @@ class SeekerConfig(AppConfig):
                     clsmembers = inspect.getmembers(imported_module, lambda member: inspect.isclass(member) and issubclass(member, Indexable))
                     for name, cls in clsmembers:
                         if not cls.model:
-                            print('here')
                             logger.warning('model not defined on %s.%s You must define the model for a significant speed increase', cls.__module__, name)
                         if module_only and cls.__module__ != module:
                             logger.debug('Skipping registration of %s.%s (defined outside %s)', cls.__module__, name, module)
