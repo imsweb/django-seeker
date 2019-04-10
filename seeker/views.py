@@ -415,8 +415,8 @@ class SeekerView(View):
 
     def normalized_querystring(self, qs=None, ignore=None):
         """
-        Returns a querystring with empty keys removed, keys in sorted order, and values (for keys whose order does not
-        matter) in sorted order. Suitable for saving and comparing searches.
+        Returns a querystring with empty keys removed and keys in sorted order.
+        Suitable for saving and comparing searches.
 
         :param qs: (Optional) querystring to use; defaults to request.GET
         :param ignore: (Optional) list of keys to ignore when building the querystring
@@ -426,14 +426,11 @@ class SeekerView(View):
         for key in sorted(data):
             if ignore and key in ignore:
                 continue
-            if not data[key]:
+            values = data.getlist(key)
+            if not any(values):
                 continue
             if key == 'p' and data[key] == '1':
                 continue
-            values = data.getlist(key)
-            # Make sure display/facet/sort fields maintain their order. Everything else can be sorted alphabetically for consistency.
-            if key not in ('d', 'f', 's', 'so'):
-                values = sorted(values)
             parts.extend(urlencode({key: val}) for val in values)
         return '&'.join(parts)
 
