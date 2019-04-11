@@ -1216,6 +1216,7 @@ class AdvancedSeekerView(SeekerView):
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
 
     def render_results(self, export):
+        aggregate = self.search_object.get('aggregate', True)
         facet_lookup = { facet.field: facet for facet in self.get_facets() }
         # This "query" is the dictionary of rules, conditions, etc. (see build_query)
         query = self.search_object.get('query')
@@ -1229,14 +1230,21 @@ class AdvancedSeekerView(SeekerView):
         search = self.get_dsl_search()
         # Hook to allow the search to be filtered before seeker begins it's work
         search = self.additional_query_filters(search)
+        
+        # The default aggregation is across all available documents (minus additional_query_filters)
+        # If a subclass would like to aggregate in a different way (post filter for example) they have access
+        # to self.search_object, which they can use to do so.
+        if aggregate:
+            aggregation_search = self.apply_aggregations(search, facet_lookup)
+            aggregation_results = aggregation_search.size(0).execute()
 
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
         if keywords:
             search = self.get_search_query_type(search, keywords)
 
-        # We use post_filter to allow the aggregations to be run before applying the filter
-        search = search.post_filter(advanced_query)
+        # We apply the actual query (keywords have been applied already, if applicable)
+        search = search.query(advanced_query)
         
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
@@ -1245,9 +1253,6 @@ class AdvancedSeekerView(SeekerView):
         columns = self.get_columns(display)
         if export:
             return self.export(search, columns)
-
-        # Hook to allow the search to be aggregated
-        self.apply_aggregations(search, query, facet_lookup)
 
         # Highlight fields.
         if self.highlight:
@@ -1285,10 +1290,12 @@ class AdvancedSeekerView(SeekerView):
         self.modify_results_context(context)
 
         json_response = {
-            'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
         }
+        if aggregate:
+            json_response['filters'] = [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()]
+
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
@@ -1301,7 +1308,7 @@ class AdvancedSeekerView(SeekerView):
             offset = 0
         return page, offset
 
-    def apply_aggregations(self, search, query, facet_lookup):
+    def apply_aggregations(self, search, facet_lookup):
         """
         Applies the desired aggregations to the search.
         By default this function applies each facet individually.
@@ -1310,7 +1317,8 @@ class AdvancedSeekerView(SeekerView):
               If that doesn't happen then the 'filters' dictionary may not be build appropriately.
         """
         for facet in facet_lookup.values():
-            facet.apply(search)
+            search = facet.apply(search)
+        return search
 
     def additional_query_filters(self, search):
         """
