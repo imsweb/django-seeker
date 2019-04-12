@@ -1234,9 +1234,14 @@ class AdvancedSeekerView(SeekerView):
         # The default aggregation is across all available documents (minus additional_query_filters)
         # If a subclass would like to aggregate in a different way (post filter for example) they have access
         # to self.search_object, which they can use to do so.
+        aggregation_results = None
         if aggregate:
-            aggregation_search = self.apply_aggregations(search, facet_lookup)
-            aggregation_results = aggregation_search.size(0).execute()
+            # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
+            aggregation_search = self.get_dsl_search()
+            aggregation_search = self.additional_query_filters(aggregation_search)
+            aggregation_search = self.apply_aggregations(aggregation_search, facet_lookup)
+            # In order to utilize cache we need to set the size to 0 and turn off scoring
+            aggregation_results = aggregation_search[0:0].extra(track_scores=False).execute()
 
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
@@ -1281,6 +1286,7 @@ class AdvancedSeekerView(SeekerView):
             'available_page_sizes': self.available_page_sizes,
             'page_size': page_size,
             'query': query,
+            'aggregation_results': aggregation_results,
             'results': results,
             'show_rank': self.show_rank,
             'sort': sort,
