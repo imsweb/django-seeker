@@ -1081,6 +1081,11 @@ class AdvancedSeekerView(SeekerView):
     value_formats are used for creating columns and exporting values in csv files.
     """
 
+    separate_aggregation_search = False
+    """
+    If True, aggregations will be executed in a separate DSL Search object.  This will allows sites to cache aggregation searches.
+    """
+
     def __init__(self):
         if vars(SeekerView).get('get_search_query_type') != getattr(self, 'get_search_query_type').__func__:
             warnings.warn(
@@ -1229,14 +1234,30 @@ class AdvancedSeekerView(SeekerView):
         search = self.get_dsl_search()
         # Hook to allow the search to be filtered before seeker begins it's work
         search = self.additional_query_filters(search)
+        
+        # The default aggregation is across all available documents (minus additional_query_filters)
+        # If a subclass would like to aggregate in a different way (post filter for example) they have access
+        # to self.search_object, which they can use to do so.
+        aggregation_results = None
+        if self.separate_aggregation_search:
+            # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
+            aggregation_search = self.get_dsl_search()
+            aggregation_search = self.additional_query_filters(aggregation_search)
+            self.apply_aggregations(aggregation_search, query, facet_lookup)
+            # In order to utilize cache we need to set the size to 0 and turn off scoring
+            aggregation_results = aggregation_search[0:0].extra(track_scores=False).execute()
 
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
         if keywords:
             search = self.get_search_query_type(search, keywords)
 
-        # We use post_filter to allow the aggregations to be run before applying the filter
-        search = search.post_filter(advanced_query)
+        if self.separate_aggregation_search:
+            # We apply the actual query (keywords have been applied already, if applicable)
+            search = search.query(advanced_query)
+        else:
+            # We use post_filter to allow the aggregations to be run before applying the filter
+            search = search.post_filter(advanced_query)
         
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
@@ -1246,8 +1267,8 @@ class AdvancedSeekerView(SeekerView):
         if export:
             return self.export(search, columns)
 
-        # Hook to allow the search to be aggregated
-        self.apply_aggregations(search, query, facet_lookup)
+        if not self.separate_aggregation_search:
+            self.apply_aggregations(search, query, facet_lookup)
 
         # Highlight fields.
         if self.highlight:
@@ -1261,6 +1282,9 @@ class AdvancedSeekerView(SeekerView):
             results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
         else:
             results = search[offset:offset + page_size].execute()
+
+        if not self.separate_aggregation_search:
+            aggregation_results = results
 
         # TODO clean this up (may not need everything)
         context = {
@@ -1276,6 +1300,7 @@ class AdvancedSeekerView(SeekerView):
             'available_page_sizes': self.available_page_sizes,
             'page_size': page_size,
             'query': query,
+            'aggregation_results': aggregation_results,
             'results': results,
             'show_rank': self.show_rank,
             'sort': sort,
@@ -1285,10 +1310,11 @@ class AdvancedSeekerView(SeekerView):
         self.modify_results_context(context)
 
         json_response = {
-            'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
+            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
         }
+
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
