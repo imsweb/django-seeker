@@ -1081,6 +1081,11 @@ class AdvancedSeekerView(SeekerView):
     value_formats are used for creating columns and exporting values in csv files.
     """
 
+    separate_aggregation_search = False
+    """
+    If True, aggregations will be executed in a separate DSL Search object.  This will allows sites to cache aggregation searches.
+    """
+
     def __init__(self):
         if vars(SeekerView).get('get_search_query_type') != getattr(self, 'get_search_query_type').__func__:
             warnings.warn(
@@ -1216,7 +1221,6 @@ class AdvancedSeekerView(SeekerView):
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
 
     def render_results(self, export):
-        aggregate = self.search_object.get('aggregate', True)
         facet_lookup = { facet.field: facet for facet in self.get_facets() }
         # This "query" is the dictionary of rules, conditions, etc. (see build_query)
         query = self.search_object.get('query')
@@ -1235,7 +1239,7 @@ class AdvancedSeekerView(SeekerView):
         # If a subclass would like to aggregate in a different way (post filter for example) they have access
         # to self.search_object, which they can use to do so.
         aggregation_results = None
-        if aggregate:
+        if self.separate_aggregation_search:
             # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
             aggregation_search = self.get_dsl_search()
             aggregation_search = self.additional_query_filters(aggregation_search)
@@ -1248,8 +1252,12 @@ class AdvancedSeekerView(SeekerView):
         if keywords:
             search = self.get_search_query_type(search, keywords)
 
-        # We apply the actual query (keywords have been applied already, if applicable)
-        search = search.query(advanced_query)
+        if self.separate_aggregation_search:
+            # We apply the actual query (keywords have been applied already, if applicable)
+            search = search.query(advanced_query)
+        else:
+            # We use post_filter to allow the aggregations to be run before applying the filter
+            search = search.post_filter(advanced_query)
         
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
@@ -1258,6 +1266,9 @@ class AdvancedSeekerView(SeekerView):
         columns = self.get_columns(display)
         if export:
             return self.export(search, columns)
+
+        if not self.separate_aggregation_search:
+            self.apply_aggregations(search, query, facet_lookup)
 
         # Highlight fields.
         if self.highlight:
@@ -1271,6 +1282,9 @@ class AdvancedSeekerView(SeekerView):
             results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
         else:
             results = search[offset:offset + page_size].execute()
+
+        if not self.separate_aggregation_search:
+            aggregation_results = results
 
         # TODO clean this up (may not need everything)
         context = {
@@ -1296,11 +1310,10 @@ class AdvancedSeekerView(SeekerView):
         self.modify_results_context(context)
 
         json_response = {
+            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
         }
-        if aggregate:
-            json_response['filters'] = [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()] # Relies on the default 'apply_aggregations' being applied.
 
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
