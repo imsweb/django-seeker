@@ -1239,7 +1239,7 @@ class AdvancedSeekerView(SeekerView):
             # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
             aggregation_search = self.get_dsl_search()
             aggregation_search = self.additional_query_filters(aggregation_search)
-            aggregation_search = self.apply_aggregations(aggregation_search, facet_lookup)
+            self.apply_aggregations(aggregation_search, query, facet_lookup)
             # In order to utilize cache we need to set the size to 0 and turn off scoring
             aggregation_results = aggregation_search[0:0].extra(track_scores=False).execute()
 
@@ -1300,7 +1300,7 @@ class AdvancedSeekerView(SeekerView):
             'search_object': self.search_object
         }
         if aggregate:
-            json_response['filters'] = [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()]
+            json_response['filters'] = [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()] # Relies on the default 'apply_aggregations' being applied.
 
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
@@ -1314,7 +1314,7 @@ class AdvancedSeekerView(SeekerView):
             offset = 0
         return page, offset
 
-    def apply_aggregations(self, search, facet_lookup):
+    def apply_aggregations(self, search, query, facet_lookup):
         """
         Applies the desired aggregations to the search.
         By default this function applies each facet individually.
@@ -1323,8 +1323,7 @@ class AdvancedSeekerView(SeekerView):
               If that doesn't happen then the 'filters' dictionary may not be build appropriately.
         """
         for facet in facet_lookup.values():
-            search = facet.apply(search)
-        return search
+            facet.apply(search)
 
     def additional_query_filters(self, search):
         """
