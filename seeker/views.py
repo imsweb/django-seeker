@@ -1047,6 +1047,11 @@ class AdvancedSeekerView(SeekerView):
     between words.
     """
 
+    search_timeout = 10
+    """
+    The number of seconds to allow any DSL search to execute before a timeout error is raised.
+    """
+
     @abc.abstractproperty
     def save_search_url(self):
         pass
@@ -1245,7 +1250,7 @@ class AdvancedSeekerView(SeekerView):
             aggregation_search = self.additional_query_filters(aggregation_search)
             self.apply_aggregations(aggregation_search, query, facet_lookup)
             # In order to utilize cache we need to set the size to 0 and turn off scoring
-            aggregation_results = aggregation_search[0:0].extra(track_scores=False).execute()
+            aggregation_results = aggregation_search[0:0].extra(track_scores=False).params(request_timeout=self.search_timeout).execute()
 
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
@@ -1279,9 +1284,9 @@ class AdvancedSeekerView(SeekerView):
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
-            results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
+            results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
         else:
-            results = search[offset:offset + page_size].execute()
+            results = search[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
@@ -1321,7 +1326,7 @@ class AdvancedSeekerView(SeekerView):
 
     def calculate_page_and_offset(self, page, page_size, search):
         offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total
+        results_count = search[0:0].params(request_timeout=self.search_timeout).execute().hits.total
         if results_count < offset:
             page = 1
             offset = 0
