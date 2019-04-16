@@ -43,7 +43,7 @@ class Column(object):
     view = None
     visible = False
 
-    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None):
+    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None, field_definition=None):
         self.field = field
         self.label = label if label is not None else field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
@@ -52,6 +52,7 @@ class Column(object):
         self.header_html = escape(self.label) if header is None else header
         self.export = export
         self.highlight = highlight
+        self.field_definition = field_definition
 
     def __str__(self):
         return self.label
@@ -98,7 +99,11 @@ class Column(object):
             q['s'] = self.field
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
-        html = '<th class="%s"><a href="?%s" title="Click to sort %s" data-sort="%s">%s%s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label)
+        if self.field_definition:
+            span = '<span title="%s" class ="fa fa-question-circle"></span>'.format(self.field_definition)
+        else:
+            span = ''
+        html = '<th class="%s"><a href="?%s" title="Click to sort %s" data-sort="%s">%s%s %s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label, span)
         return mark_safe(html)
 
     def context(self, result, **kwargs):
@@ -291,6 +296,11 @@ class SeekerView(View):
     field_labels = {}
     """
     A dictionary of field label overrides.
+    """
+
+    field_definitions = {}
+    """
+    A dictionary of field definitions. These appear in the header of a column.
     """
 
     sort_fields = {}
@@ -538,7 +548,8 @@ class SeekerView(View):
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
-        return Column(field_name, label=label, sort=sort, highlight=highlight, header=header)
+        field_definition  = self.field_definitions.get(field_name)
+        return Column(field_name, label=label, sort=sort, highlight=highlight, header=header, field_definition=field_definition)
 
     def get_columns(self, display=None):
         """
@@ -977,7 +988,11 @@ class AdvancedColumn(Column):
         if results and ' ' in self.header_html and not '<br' in self.header_html:
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
-        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label)
+        if self.field_definition:
+            span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
+        else:
+            span = ''
+        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
         return mark_safe(html)
 
     def get_data_max_length(self, results):
@@ -1167,7 +1182,8 @@ class AdvancedSeekerView(SeekerView):
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
         val_format = self.value_formats.get(field_name, None)
-        return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header, value_format=val_format)
+        field_definition  = self.field_definitions.get(field_name)
+        return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header, value_format=val_format, field_definition=field_definition)
 
     def get_sort_field(self, columns, sort, display):
         """
