@@ -87,7 +87,7 @@ class Column(object):
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
         if self.field_definition:
-            span = '<span title="%s" class ="fa fa-question-circle"></span>'.format(self.field_definition)
+            span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
         html = '<th class="%s"><a href="?%s" title="Click to sort %s" data-sort="%s">%s%s %s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label, span)
