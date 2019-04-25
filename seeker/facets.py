@@ -131,7 +131,7 @@ class TermsFacet(Facet):
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
         data = self.data(results)
-        values = [''] + sorted([smart_text(bucket['key']) for bucket in data['buckets']], key=lambda item: smart_text(item).lower())
+        values = [''] + sorted([smart_text(bucket['key']) for bucket in data.get('buckets', [])], key=lambda item: smart_text(item).lower())
         filter_dict.update({
             'input': 'select',
             'values': values,
@@ -437,7 +437,7 @@ class RangeFilter(Facet):
         if self.ranges and self.use_ranges_in_filter_dict:
             # If we have self.ranges, the filter is defaulted to a select box for those ranges 
             data = self.data(results)
-            values = [''] + sorted([str(bucket['key']) for bucket in data['buckets']], key=lambda item: str(item).lower())
+            values = [''] + sorted([str(bucket['key']) for bucket in data.get('buckets', [])], key=lambda item: str(item).lower())
             filter_dict.update({
                 'input': 'select',
                 'values': values,
