@@ -1287,6 +1287,10 @@ class AdvancedSeekerView(SeekerView):
         if self.separate_aggregation_search:
             # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
             aggregation_search = self.get_dsl_search()
+            keywords = self.search_object['keywords'].strip()
+            # Make sure the keywords get applied to the aggregations
+            if keywords:
+                aggregation_search = self.get_search_query_type(aggregation_search, keywords)
             aggregation_search = self.additional_query_filters(aggregation_search)
             self.apply_aggregations(aggregation_search, query, facet_lookup)
             # In order to utilize cache we need to set the size to 0 and turn off scoring
