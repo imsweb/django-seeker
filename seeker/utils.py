@@ -6,6 +6,7 @@ import time
 
 import elasticsearch_dsl as dsl
 from django.conf import settings
+from django.http import QueryDict
 from django.utils.encoding import force_text
 from elasticsearch import NotFoundError
 from elasticsearch_dsl.connections import connections
@@ -126,3 +127,27 @@ def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.std
 
     output.write('\n')
     output.flush()
+
+
+def convert_saved_search_to_search_object(saved_search):
+    """
+    This function helps create a search_object from a SavedSearch.
+    This util function can be helpful when upgrading from SavedSearch to AdvancedSavedSearch
+    """
+    querystring_list_keys = {'d': 'display', 'f': 'selected_facets', 'so': 'displaySortOrder'}
+    querystring_string_keys = {'s': 'sort', 'q': 'keywords', 'p': 'page'}
+    data = QueryDict(saved_search.querystring)
+    search_object = {querystring_list_keys[key]: data.getlist(key) for key in querystring_list_keys}
+    search_object.update({querystring_string_keys[key]: data.get(key, '') for key in querystring_string_keys})
+    search_object['url'] = saved_search.url
+    search_object['page'] = int(search_object['page']) if search_object['page'] else 1
+    rules = []
+    for facet in search_object['selected_facets']:
+        values = data.getlist(facet)
+        facet_rules = []
+        for value in values:
+            facet_rules.append({'operator': 'equal', 'id': facet, 'value': value})
+        rules.append({'rules': facet_rules, 'condition': "OR"})
+    search_object['query'] = {"condition": "AND", "rules": rules}
+
+    return search_object

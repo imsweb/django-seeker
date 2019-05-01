@@ -111,8 +111,6 @@ class Column(object):
 
     def render(self, result, **kwargs):
         value = getattr(result, self.field, None)
-        if self.value_format:
-            value = self.value_format(value)
         try:
             if '*' in self.highlight:
                 # If highlighting was requested for multiple fields, grab any matching fields as a dictionary.
@@ -141,6 +139,12 @@ class Column(object):
                 if index_to_replace is not None:
                     modified_values[index_to_replace] = highlighted_value
             highlight = modified_values
+            
+        if self.value_format:
+            value = self.value_format(value)
+            if highlight:
+                highlight = self.value_format(highlight)
+
         params = {
             'result': result,
             'field': self.field,
@@ -425,8 +429,8 @@ class SeekerView(View):
 
     def normalized_querystring(self, qs=None, ignore=None):
         """
-        Returns a querystring with empty keys removed, keys in sorted order, and values (for keys whose order does not
-        matter) in sorted order. Suitable for saving and comparing searches.
+        Returns a querystring with empty keys removed and keys in sorted order.
+        Suitable for saving and comparing searches.
 
         :param qs: (Optional) querystring to use; defaults to request.GET
         :param ignore: (Optional) list of keys to ignore when building the querystring
@@ -436,14 +440,11 @@ class SeekerView(View):
         for key in sorted(data):
             if ignore and key in ignore:
                 continue
-            if not data[key]:
+            values = data.getlist(key)
+            if not any(values):
                 continue
             if key == 'p' and data[key] == '1':
                 continue
-            values = data.getlist(key)
-            # Make sure display/facet/sort fields maintain their order. Everything else can be sorted alphabetically for consistency.
-            if key not in ('d', 'f', 's', 'so'):
-                values = sorted(values)
             parts.extend(urlencode({key: val}) for val in values)
         return '&'.join(parts)
 
@@ -980,6 +981,7 @@ class AdvancedColumn(Column):
             data_sort = '{}{}'.format(d, self.field)
         else:
             data_sort = self.field
+            
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
 
@@ -1033,9 +1035,11 @@ class AdvancedColumn(Column):
             value = getattr(result, export_field, '')
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
+            elif isinstance(value, AttrList):
+                value = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value)
             if self.value_format:
                 value = self.value_format(value)
-            export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+            export_val = seeker_format(value)
         else:
             export_val = ''
         return export_val
@@ -1082,6 +1086,11 @@ class AdvancedSeekerView(SeekerView):
     between words.
     """
 
+    search_timeout = 10
+    """
+    The number of seconds to allow any DSL search to execute before a timeout error is raised.
+    """
+
     @abc.abstractproperty
     def save_search_url(self):
         pass
@@ -1114,6 +1123,11 @@ class AdvancedSeekerView(SeekerView):
     key: field_name, value: value_format function
     A dictionary of custom formats used for extracting values from mappings. 
     value_formats are used for creating columns and exporting values in csv files.
+    """
+
+    separate_aggregation_search = False
+    """
+    If True, aggregations will be executed in a separate DSL Search object.  This will allows sites to cache aggregation searches.
     """
 
     def __init__(self):
@@ -1265,14 +1279,34 @@ class AdvancedSeekerView(SeekerView):
         search = self.get_dsl_search()
         # Hook to allow the search to be filtered before seeker begins it's work
         search = self.additional_query_filters(search)
+        
+        # The default aggregation is across all available documents (minus additional_query_filters)
+        # If a subclass would like to aggregate in a different way (post filter for example) they have access
+        # to self.search_object, which they can use to do so.
+        aggregation_results = None
+        if self.separate_aggregation_search:
+            # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
+            aggregation_search = self.get_dsl_search()
+            keywords = self.search_object['keywords'].strip()
+            # Make sure the keywords get applied to the aggregations
+            if keywords:
+                aggregation_search = self.get_search_query_type(aggregation_search, keywords)
+            aggregation_search = self.additional_query_filters(aggregation_search)
+            self.apply_aggregations(aggregation_search, query, facet_lookup)
+            # In order to utilize cache we need to set the size to 0 and turn off scoring
+            aggregation_results = aggregation_search[0:0].extra(track_scores=False).params(request_timeout=self.search_timeout).execute()
 
         # If there are any keywords passed in, we combine the advanced query with the keyword query
         keywords = self.search_object['keywords'].strip()
         if keywords:
             search = self.get_search_query_type(search, keywords)
 
-        # We use post_filter to allow the aggregations to be run before applying the filter
-        search = search.post_filter(advanced_query)
+        if self.separate_aggregation_search:
+            # We apply the actual query (keywords have been applied already, if applicable)
+            search = search.query(advanced_query)
+        else:
+            # We use post_filter to allow the aggregations to be run before applying the filter
+            search = search.post_filter(advanced_query)
         
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
@@ -1282,8 +1316,8 @@ class AdvancedSeekerView(SeekerView):
         if export:
             return self.export(search, columns)
 
-        # Hook to allow the search to be aggregated
-        self.apply_aggregations(search, query, facet_lookup)
+        if not self.separate_aggregation_search:
+            self.apply_aggregations(search, query, facet_lookup)
 
         # Highlight fields.
         if self.highlight:
@@ -1294,9 +1328,12 @@ class AdvancedSeekerView(SeekerView):
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
-            results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
+            results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
         else:
-            results = search[offset:offset + page_size].execute()
+            results = search[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+
+        if not self.separate_aggregation_search:
+            aggregation_results = results
 
         # TODO clean this up (may not need everything)
         context = {
@@ -1312,6 +1349,7 @@ class AdvancedSeekerView(SeekerView):
             'available_page_sizes': self.available_page_sizes,
             'page_size': page_size,
             'query': query,
+            'aggregation_results': aggregation_results,
             'results': results,
             'show_rank': self.show_rank,
             'sort': sort,
@@ -1321,17 +1359,18 @@ class AdvancedSeekerView(SeekerView):
         self.modify_results_context(context)
 
         json_response = {
-            'filters': [facet.build_filter_dict(results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
+            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
         }
+
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
 
     def calculate_page_and_offset(self, page, page_size, search):
         offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total
+        results_count = search[0:0].params(request_timeout=self.search_timeout).execute().hits.total
         if results_count < offset:
             page = 1
             offset = 0
