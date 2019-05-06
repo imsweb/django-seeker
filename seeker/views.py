@@ -236,7 +236,7 @@ class SeekerView (TemplateView):
 
         querystring = self._querystring()
         saved_search = None
-        if self.request.user and self.request.user.is_authenticated():
+        if self.request.user and self.request.user.is_authenticated:
             saved_search_pk = self.get_saved_search()
             if saved_search_pk:
                 from .models import SavedSearch
