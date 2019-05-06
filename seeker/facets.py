@@ -183,7 +183,7 @@ class TextFacet(Facet):
         return Q('bool', should=queries)
 
     def filter(self, search, value):
-        values = value.split(self.delimiter)
+        values = value[0].split(self.delimiter)
         filters = []
         for term in values:
             term = term.strip()
