@@ -25,8 +25,8 @@ class Migration(migrations.Migration):
                 ('user', models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)),
             ],
             options={
-                'ordering': (b'name',),
-                'verbose_name_plural': b'saved searches',
+                'ordering': ('name',),
+                'verbose_name_plural': 'saved searches',
             },
             bases=(models.Model,),
         ),
