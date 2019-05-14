@@ -1084,6 +1084,16 @@ class AdvancedSeekerView(SeekerView):
     It is set to abstract because it needs to be defined on a site by site basis.
     Generally, this will be a 'reverse' call to the URL associated with this view.
     """
+    
+    @abc.abstractproperty
+    def filter_facet_url(self):
+        pass
+    """
+    This property should return the url of the view that will handle get suggested buckets for Filter Facets.
+    It is set to abstract because it needs to be defined on a site by site basis.
+    Generally, this will be a 'reverse' call to the URL associated with this view.
+    Seeker provides a default view called FilterFacetView.
+    """
 
     sort = ''
     """
@@ -1679,3 +1689,30 @@ class AdvancedSavedSearchView(View):
             else:
                 return SavedSearchModel.objects.none()
         return SavedSearchModel.objects.filter(**filter_kwargs)
+
+class FilterFacetView(AdvancedSeekerView): # TODO: Rename this
+    
+    def get(self, request, *args, **kwargs):
+        return HttpResponseBadRequest('Request method GET not implemented for this view.')
+
+    def post(self, request, *args, **kwargs):
+        if request.is_ajax():
+            try:
+                string_search_object = request.POST.get('search_object')
+                # We attach this to self so AdvancedColumn can have access to it
+                self.search_object = json.loads(string_search_object)
+            except KeyError:
+                return HttpResponseBadRequest("No 'search_object' found in the request data.")
+            except ValueError:
+                return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
+
+            # Sanity check that the search object has all of it's required components
+            if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
+                return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
+            facet_options = self.get_filter_facet_options(request)
+            return JsonResponse({'facet_options': facet_options})
+        else:
+            return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
+
+    def get_filter_facet_options(self, request):
+        return []

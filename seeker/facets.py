@@ -480,3 +480,9 @@ class DateRangeFacet(RangeFilter):
         _range = super(DateRangeFacet, self)._get_filter_from_range_list(_range)
         _range._params[self.field]['format'] = self.format
         return _range
+
+class FilterFacet(TermsFacet):
+    advanced_template = 'advanced_seeker/facets/filter.html'
+    
+    def __init__(self, field, size=10, **kwargs):
+        super(FilterFacet, self).__init__(field, size, **kwargs)

@@ -1,0 +1,4 @@
+{% load seeker %}
+
+<label for="{{ facet.name }}_filter">{{ facet.label|capfirst }}</label>
+<input name="{{ facet.field }}" class="form-control facet-filter" multiple="multiple" id="{{ facet.name }}_filter">
