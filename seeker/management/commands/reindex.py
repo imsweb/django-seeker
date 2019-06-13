@@ -74,8 +74,20 @@ class Command (BaseCommand):
 
     def handle(self, *args, **options):
         doc_classes = []
+        # #1986 - Let "reindex" command accept individual mappings as arguments.
         for label in args:
-            doc_classes.extend(app_documents.get(label, []))
+            # Individual mapping is formatted as app.SomeMapping
+            if '.' in label:
+                app_label = label.split('.')[0]
+                mapping_label = label.split('.')[1]
+                all_app_mappings = app_documents.get(app_label, [])
+                for mapping in all_app_mappings:
+                    if mapping_label.lower() == mapping.__name__.lower():
+                        doc_classes.append(mapping)
+            # App label can still be used to reindex all associated mappings
+            else:
+                doc_classes.extend(app_documents.get(label, []))
+
         if not args:
             doc_classes.extend(documents)
         if options['drop']:
