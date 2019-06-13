@@ -110,10 +110,10 @@ class Indexable (dsl.Document):
 
 def index_factory(model):
     """
-        Sets index name to ``SEEKER_INDEX_PREFIX``-``model._meta.app_label``
+        Sets index name to ``SEEKER_INDEX_PREFIX``-``model._meta.app_label``-``model._meta.model_name``
         Sets index settings as ``SEEKER_INDEX_SETTINGS``
     """
-    index_suffix = model._meta.app_label
+    index_suffix = '{}-{}'.format(model._meta.app_label, model._meta.model_name)
     class Index:
         name = "{}{}".format(getattr(settings, 'SEEKER_INDEX_PREFIX', 'seeker'), index_suffix)
         settings = getattr(settings, 'SEEKER_INDEX_SETTINGS', {})
