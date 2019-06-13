@@ -108,18 +108,34 @@ class Indexable (dsl.Document):
             es.indices.refresh(index=index)
 
 
+def index_factory(model):
+    """
+        Sets index name to ``SEEKER_INDEX_PREFIX``-``model._meta.app_label``
+        Sets index settings as ``SEEKER_INDEX_SETTINGS``
+    """
+    index_suffix = model._meta.app_label
+    class Index:
+        name = "{}{}".format(getattr(settings, 'SEEKER_INDEX_PREFIX', 'seeker'), index_suffix)
+        settings = getattr(settings, 'SEEKER_INDEX_SETTINGS', {})
+    return Index
+    
 class ModelIndex(Indexable):
     """
     A subclass of ``Indexable`` that returns document data based on Django models.
     """
 
-
     # Set this to the class of the model being indexed. Note the model class can be grabbed from the queryset but for large querysets this offers a performance boost
     model = None
-
-    # You must define this for each ModelIndex subclass in your project, no two ModelIndex's should share the same index
-    # Name needs to be set as a unique string per elasticsearch instance
+    
     class Index:
+        """
+            Define in subclass. No two ModelIndex's should share the same index. Name needs to be set as a unique string per elasticsearch instance.
+            Most subclasses can use ``seeker.index_factory`` for creation: 
+                ``
+                class Index(index_factory(model)):
+                    pass
+                ``
+        """
         name = None
 
     @classmethod
