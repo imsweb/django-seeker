@@ -78,8 +78,7 @@ class Command (BaseCommand):
         for label in args:
             # Individual mapping is formatted as app.SomeMapping
             if '.' in label:
-                app_label = label.split('.')[0]
-                mapping_label = label.split('.')[1]
+                app_label, mapping_label = label.split('.', 1)
                 all_app_mappings = app_documents.get(app_label, [])
                 for mapping in all_app_mappings:
                     if mapping_label.lower() == mapping.__name__.lower():
