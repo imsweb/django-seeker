@@ -304,18 +304,17 @@ def document_from_model(model_class, document_class=ModelIndex, fields=None, exc
                         extra=None, module='seeker.mappings'):
     """
     Returns an instance of ``document_class`` with a ``Meta`` inner class and default ``queryset`` class method.
-    """
-    if index is None:
-        index = getattr(django_settings, 'SEEKER_INDEX_PREFIX', '').lower() + model_class.__name__.lower()
+    """        
+    IndexMeta = index_factory(model_class)
+    IndexMeta.using = using
+    if index is not None:
+        IndexMeta.name = index
     return type('%sDoc' % model_class.__name__, (document_class,), {
         'model' : model_class,
         'Meta': type('Meta', (object,), {
             'mapping': build_mapping(model_class, fields=fields, exclude=exclude, field_factory=field_factory, extra=extra),
         }),
-        'Index': type('Index', (object,), {
-            'name': index,
-            'using': using,
-        }),
+        'Index': IndexMeta,
         'queryset': classmethod(lambda cls: model_class.objects.all()),
         '__module__': module,
     })
