@@ -13,7 +13,7 @@ The name of the ES index that should be used by default. This can be overridden 
 
 
 SEEKER_INDEX_PREFIX
-~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Default: ``seeker``
 
@@ -21,7 +21,7 @@ The PREFIX used for each ES index created.
 
 
 SEEKER_INDEX_SETTINGS
-~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Default: ``{}``
 
