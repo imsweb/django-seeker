@@ -2,7 +2,7 @@ import logging
 
 import elasticsearch_dsl as dsl
 import six
-from django.conf import settings
+from django.conf import settings as django_settings
 from django.db import models
 from elasticsearch.helpers import bulk, scan
 from elasticsearch_dsl.connections import connections
@@ -12,7 +12,7 @@ from elasticsearch_dsl.field import Object
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_ANALYZER = getattr(settings, 'SEEKER_DEFAULT_ANALYZER', 'snowball')
+DEFAULT_ANALYZER = getattr(django_settings, 'SEEKER_DEFAULT_ANALYZER', 'snowball')
 
 
 def follow(obj, path, force_string=False):
@@ -93,7 +93,7 @@ class Indexable (dsl.Document):
         Deletes the Elasticsearch mapping associated with this document type.
         """
         using = using or cls._index._using or 'default'
-        index = index or cls._index._name or getattr(settings, 'SEEKER_INDEX', 'seeker')
+        index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(using)
         if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
             def get_actions():
@@ -108,18 +108,34 @@ class Indexable (dsl.Document):
             es.indices.refresh(index=index)
 
 
+def index_factory(model):
+    """
+        Sets index name to ``SEEKER_INDEX_PREFIX``-``model._meta.app_label``-``model._meta.model_name``
+        Sets index settings as ``SEEKER_INDEX_SETTINGS``
+    """
+    index_suffix = '{}-{}'.format(model._meta.app_label, model._meta.model_name)
+    class Index:
+        name = "{}-{}".format(getattr(django_settings, 'SEEKER_INDEX_PREFIX', 'seeker'), index_suffix)
+        settings = getattr(django_settings, 'SEEKER_INDEX_SETTINGS', {})
+    return Index
+    
 class ModelIndex(Indexable):
     """
     A subclass of ``Indexable`` that returns document data based on Django models.
     """
 
-
     # Set this to the class of the model being indexed. Note the model class can be grabbed from the queryset but for large querysets this offers a performance boost
     model = None
-
-    # You must define this for each ModelIndex subclass in your project, no two ModelIndex's should share the same index
-    # Name needs to be set as a unique string per elasticsearch instance
+    
     class Index:
+        """
+            Define in subclass. No two ModelIndex's should share the same index. Name needs to be set as a unique string per elasticsearch instance.
+            Most subclasses can use ``seeker.index_factory`` for creation: 
+                ``
+                class Index(index_factory(model)):
+                    pass
+                ``
+        """
         name = None
 
     @classmethod
@@ -156,7 +172,7 @@ class ModelIndex(Indexable):
         else:
             qs = cls.queryset().order_by('pk')
             total = qs.count()
-            batch_size = getattr(settings, 'SEEKER_BATCH_SIZE', 1000)
+            batch_size = getattr(django_settings, 'SEEKER_BATCH_SIZE', 1000)
             for start in range(0, total, batch_size):
                 end = min(start + batch_size, total)
                 for obj in qs.all()[start:end]:
@@ -288,18 +304,17 @@ def document_from_model(model_class, document_class=ModelIndex, fields=None, exc
                         extra=None, module='seeker.mappings'):
     """
     Returns an instance of ``document_class`` with a ``Meta`` inner class and default ``queryset`` class method.
-    """
-    if index is None:
-        index = getattr(settings, 'SEEKER_INDEX_PREFIX', '').lower() + model_class.__name__.lower()
+    """        
+    IndexMeta = index_factory(model_class)
+    IndexMeta.using = using
+    if index is not None:
+        IndexMeta.name = index
     return type('%sDoc' % model_class.__name__, (document_class,), {
         'model' : model_class,
         'Meta': type('Meta', (object,), {
             'mapping': build_mapping(model_class, fields=fields, exclude=exclude, field_factory=field_factory, extra=extra),
         }),
-        'Index': type('Index', (object,), {
-            'name': index,
-            'using': using,
-        }),
+        'Index': IndexMeta,
         'queryset': classmethod(lambda cls: model_class.objects.all()),
         '__module__': module,
     })
