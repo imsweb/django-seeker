@@ -12,6 +12,21 @@ Default: ``seeker``
 The name of the ES index that should be used by default. This can be overridden per mapping.
 
 
+SEEKER_INDEX_PREFIX
+~~~~~~~~~~~~~~~~~~~
+
+Default: ``seeker``
+
+The PREFIX used for each ES index created.
+
+
+SEEKER_INDEX_SETTINGS
+~~~~~~~~~~~~~~~~~~~~~
+
+Default: ``{}``
+
+Default settings to be used for Indexes
+
 SEEKER_DEFAULT_OPERATOR
 ~~~~~~~~~~~~~~~~~~~~~~~
 
