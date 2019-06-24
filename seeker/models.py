@@ -15,7 +15,8 @@ class SavedSearch(models.Model):
 
     class Meta:
         ordering = ('name',)
-        verbose_name_plural = 'saved searches'
+        verbose_name = 'Saved Search'
+        verbose_name_plural = 'Saved Searches'
 
     def __str__(self):
         return self.name
@@ -33,6 +34,10 @@ class SavedSearch(models.Model):
 @python_2_unicode_compatible
 class AdvancedSavedSearch(SavedSearch):
     search_object = models.TextField()
+    
+    class Meta(SavedSearch.Meta):
+        verbose_name = 'Advanced Saved Search'
+        verbose_name_plural = 'Advanced Saved Searches'
 
     def __str__(self):
         return self.name
