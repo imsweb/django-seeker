@@ -35,7 +35,8 @@ class SavedSearch(models.Model):
 class AdvancedSavedSearch(SavedSearch):
     search_object = models.TextField()
     
-    class Meta(SavedSearch.Meta):
+    class Meta:
+        ordering = ('name',)
         verbose_name = 'Advanced Saved Search'
         verbose_name_plural = 'Advanced Saved Searches'
 
