@@ -1145,6 +1145,13 @@ class AdvancedSeekerView(SeekerView):
         """
         pass
 
+    def modify_aggregation_json_response(self, json_response, context):
+        """
+        This function allows modifications to the json data that will be returned when rendering facet aggregations.
+        NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
+        """
+        pass
+
     def get_display(self, display_list, facets_searched):
         """
         Returns a list of display field names. If the user has selected display fields and display_list is not empty those are used otherwise
@@ -1261,45 +1268,87 @@ class AdvancedSeekerView(SeekerView):
             # Sanity check that the search object has all of it's required components
             if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
                 return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
-            return self.render_results(export)
+
+            # If the search_object has an active_facet, seeker will aggregate and return aggregation results
+            if self.search_object.get('active_facet'):
+                return self.get_facet_aggregations()
+            else:
+                return self.render_results(export)
         else:
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
 
-    def render_results(self, export):
+    def _get_processing_data(self):
+        """A helper function that generates common data shared between get_facet_aggregations and render_results"""
         facet_lookup = { facet.field: facet for facet in self.get_facets() }
+
         # This "query" is the dictionary of rules, conditions, etc. (see build_query)
         query = self.search_object.get('query')
 
         # Build the actual query that will be applied via post_filter
         advanced_query, facets_searched = self.build_query(query, facet_lookup)
-        
+
         # For issues with speed this function should be used to limit the number of facets as much as possible
         facet_lookup = self.filter_facet_lookup(facet_lookup, facets_searched)
 
+        return facet_lookup, query, advanced_query, facets_searched
+
+    def apply_keywords(self, search):
+        """Applies keywords to the search if they exist in the search_object"""
+        keywords = self.search_object['keywords'].strip()
+        if keywords:
+            search = self.get_search_query_type(search, keywords)
+        return search
+
+    def get_aggregated_results(self, query, facet_lookup):
+        """This function gets the aggregation results for a query.  It does not get the search results"""
+        # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
+        aggregation_search = self.get_dsl_search()
+        aggregation_search = self.apply_keywords(aggregation_search)
+        aggregation_search = self.additional_query_filters(aggregation_search)
+        self.apply_aggregations(aggregation_search, query, facet_lookup)
+        # In order to utilize cache we need to set the size to 0 and turn off scoring
+        aggregation_results = aggregation_search[0:0].extra(track_scores=False).params(request_timeout=self.search_timeout).execute()
+
+        return aggregation_search, aggregation_results
+
+    def get_facet_aggregations(self):
+        facet_lookup, query, advanced_query, facets_searched = self._get_processing_data()
+        aggregation_search, aggregation_results = self.get_aggregated_results(query, facet_lookup)
+        context = {
+            'facet_lookup': facet_lookup,
+            'query': query,
+            'advanced_query': advanced_query,
+            'facets_searched': facets_searched,
+            'aggregation_search': aggregation_search,
+            'aggregation_results': aggregation_results
+        }
+
+        json_response = {
+            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
+            'search_object': self.search_object
+        }
+
+        self.modify_aggregation_json_response(json_response, context)
+
+        return JsonResponse(json_response)
+
+    def render_results(self, export):
+        facet_lookup, query, advanced_query, facets_searched = self._get_processing_data()
+
         search = self.get_dsl_search()
+
         # Hook to allow the search to be filtered before seeker begins it's work
         search = self.additional_query_filters(search)
-        
+
         # The default aggregation is across all available documents (minus additional_query_filters)
         # If a subclass would like to aggregate in a different way (post filter for example) they have access
         # to self.search_object, which they can use to do so.
         aggregation_results = None
         if self.separate_aggregation_search:
-            # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
-            aggregation_search = self.get_dsl_search()
-            keywords = self.search_object['keywords'].strip()
-            # Make sure the keywords get applied to the aggregations
-            if keywords:
-                aggregation_search = self.get_search_query_type(aggregation_search, keywords)
-            aggregation_search = self.additional_query_filters(aggregation_search)
-            self.apply_aggregations(aggregation_search, query, facet_lookup)
-            # In order to utilize cache we need to set the size to 0 and turn off scoring
-            aggregation_results = aggregation_search[0:0].extra(track_scores=False).params(request_timeout=self.search_timeout).execute()
+            aggregation_search, aggregation_results = self.get_aggregated_results(query, facet_lookup)
 
         # If there are any keywords passed in, we combine the advanced query with the keyword query
-        keywords = self.search_object['keywords'].strip()
-        if keywords:
-            search = self.get_search_query_type(search, keywords)
+        search = self.apply_keywords(search)
 
         if self.separate_aggregation_search:
             # We apply the actual query (keywords have been applied already, if applicable)
@@ -1307,7 +1356,7 @@ class AdvancedSeekerView(SeekerView):
         else:
             # We use post_filter to allow the aggregations to be run before applying the filter
             search = search.post_filter(advanced_query)
-        
+
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
 
@@ -1384,8 +1433,12 @@ class AdvancedSeekerView(SeekerView):
         NOTE: It is recommended that any function overwriting this should call super (or replicate the aggregations done here).
               If that doesn't happen then the 'filters' dictionary may not be build appropriately.
         """
-        for facet in facet_lookup.values():
+        if self.search_object.get('active_facet'):
+            facet = facet_lookup[facet_name]
             facet.apply(search)
+        else:
+            for facet in facet_lookup.values():
+                facet.apply(search)
 
     def additional_query_filters(self, search):
         """
