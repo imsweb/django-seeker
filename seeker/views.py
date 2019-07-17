@@ -26,6 +26,7 @@ from django.views.generic.edit import CreateView, FormView
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.utils import AttrList
 
+from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
@@ -1279,6 +1280,8 @@ class AdvancedSeekerView(SeekerView):
 
     def _get_processing_data(self):
         """A helper function that generates common data shared between get_facet_aggregations and render_results"""
+        if 'selected_facets' not in self.search_object.keys():
+            self.search_object['query'] = self.initial_facet_query()
         facet_lookup = { facet.field: facet for facet in self.get_facets() }
 
         # This "query" is the dictionary of rules, conditions, etc. (see build_query)
@@ -1331,6 +1334,54 @@ class AdvancedSeekerView(SeekerView):
         self.modify_aggregation_json_response(json_response, context)
 
         return JsonResponse(json_response)
+
+    def initial_terms_facet(self, facet):
+        facet_query = {'condition': facet.filter_operator.upper(), 'rules': []}
+        for val in self.initial_facets[facet.field]:
+            rule = {
+                'id': facet.field,
+                'operator': 'equal',
+                'value': val}
+            facet_query['rules'].append(rule)
+        return facet_query
+    
+    def initial_range_filter(self, facet):
+        if 'operator' in self.initial_facets[facet.field].keys():
+            operator = self.initial_facets[facet.field].pop('operator')
+        else:
+            operator = 'between'
+        rule = {
+            'id': facet.field,
+            'operator': operator,
+            'value': self.initial_facets[facet.field]}
+        return rule
+    
+    def initial_text_facet(self, facet):
+        facet_query = {'condition': 'OR',
+                   'rules': [{
+                       'id': facet.field,
+                       'operator': 'equal',
+                       'value': self.initial_facets[facet.field]}]}
+        return facet_query
+
+    def initial_facet_query(self):
+
+        if 'condition' in self.initial_facets.keys():
+            fake_query = {'condition': self.initial_facets['condition'], 'rules': []}
+        else:
+            fake_query = {'condition': 'AND', 'rules': [] }
+        for facet in self.get_facets():
+            if facet.field in self.initial_facets:
+                self.search_object.setdefault('selected_facets',[]).append(facet.field)
+                if isinstance(facet, TermsFacet):
+                    fake_query['rules'].append(self.initial_terms_facet(facet))
+                elif isinstance(facet, RangeFilter):
+                    if self.initial_facets[facet.field]:
+                        fake_query['rules'].append(self.initial_range_filter(facet))
+                elif isinstance(facet, TextFacet):
+                    if self.initial_facets[facet.field]:
+                        fake_query['rules'].append(self.initial_text_facet(facet))
+        return fake_query
 
     def render_results(self, export):
         facet_lookup, query, advanced_query, facets_searched = self._get_processing_data()
