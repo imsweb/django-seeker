@@ -1335,34 +1335,6 @@ class AdvancedSeekerView(SeekerView):
 
         return JsonResponse(json_response)
 
-    def initial_terms_facet(self, facet):
-        facet_query = {'condition': facet.filter_operator.upper(), 'rules': []}
-        for val in self.initial_facets[facet.field]:
-            rule = {
-                'id': facet.field,
-                'operator': 'equal',
-                'value': val}
-            facet_query['rules'].append(rule)
-        return facet_query
-    
-    def initial_range_filter(self, facet):
-        if 'operator' in self.initial_facets[facet.field].keys():
-            operator = self.initial_facets[facet.field].pop('operator')
-        else:
-            operator = 'between'
-        rule = {
-            'id': facet.field,
-            'operator': operator,
-            'value': self.initial_facets[facet.field]}
-        return rule
-    
-    def initial_text_facet(self, facet):
-        facet_query = {'condition': 'OR',
-                   'rules': [{
-                       'id': facet.field,
-                       'operator': 'equal',
-                       'value': self.initial_facets[facet.field]}]}
-        return facet_query
 
     def initial_facet_query(self):
 
@@ -1372,15 +1344,13 @@ class AdvancedSeekerView(SeekerView):
             fake_query = {'condition': 'AND', 'rules': [] }
         for facet in self.get_facets():
             if facet.field in self.initial_facets:
-                self.search_object.setdefault('selected_facets',[]).append(facet.field)
+                self.search_object.setdefault('selected_facets', []).append(facet.field)
                 if isinstance(facet, TermsFacet):
-                    fake_query['rules'].append(self.initial_terms_facet(facet))
+                    fake_query['rules'].append(facet.initialize(self.initial_facets))
                 elif isinstance(facet, RangeFilter):
-                    if self.initial_facets[facet.field]:
-                        fake_query['rules'].append(self.initial_range_filter(facet))
+                    fake_query['rules'].append(facet.initialize(self.initial_facets))
                 elif isinstance(facet, TextFacet):
-                    if self.initial_facets[facet.field]:
-                        fake_query['rules'].append(self.initial_text_facet(facet))
+                    fake_query['rules'].append(facet.initialize(self.initial_facets))
         return fake_query
 
     def render_results(self, export):
