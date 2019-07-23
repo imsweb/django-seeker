@@ -1345,11 +1345,7 @@ class AdvancedSeekerView(SeekerView):
         for facet in self.get_facets():
             if facet.field in self.initial_facets:
                 self.search_object.setdefault('selected_facets', []).append(facet.field)
-                if isinstance(facet, TermsFacet):
-                    fake_query['rules'].append(facet.initialize(self.initial_facets))
-                elif isinstance(facet, RangeFilter):
-                    fake_query['rules'].append(facet.initialize(self.initial_facets))
-                elif isinstance(facet, TextFacet):
+                if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
                     fake_query['rules'].append(facet.initialize(self.initial_facets))
         return fake_query
 
