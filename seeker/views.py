@@ -834,8 +834,6 @@ class SeekerView(View):
             'saved_searches': list(saved_searches),
             'use_save_form': self.use_save_form,
         }
-        for facet, values in facets_selected_and_results.items():
-            print facet.label
         if self.use_save_form:
             SavedSearchForm = self.get_saved_search_form()
             form = SavedSearchForm(saved_searches=saved_searches)
