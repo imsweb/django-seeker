@@ -191,6 +191,11 @@ class SeekerView(View):
     The overall seeker template to render.
     """
 
+    form_template = 'seeker/form.html'
+    """
+    The template to render seeker form
+    """
+
     header_template = 'seeker/header.html'
     """
     The template used to render the search results header.
@@ -215,10 +220,21 @@ class SeekerView(View):
     """
     A list of field names to exclude when generating columns.
     """
+    
+    hidden_columns = []
+    """
+    A list of field names to hide from display in columns but still allows templates to access the field
+    """
 
     display = None
     """
     A list of field/column names to display by default.
+    """
+
+    is_dynamic = False
+    """
+    A boolean set to optionally define a dynamic response in the facets and results after a change to the form
+    You will need to set javascript and ajax on the seeker template in order to fully enable these features
     """
 
     required_display = []
@@ -355,11 +371,12 @@ class SeekerView(View):
     NOTE: The form used is defined in "get_saved_search_form"
     """
 
-    form_template = 'seeker/save_form.html'
+    save_form_template = 'seeker/save_form.html'
     """
     The form template used to display the save search form.
     NOTE: This is only used if the request is AJAX and 'use_save_form' is True.
     NOTE: This template will be used to render the form defined in 'get_saved_search_form"
+    TODO: This form does not exist in template and is unknown if this functionality works on SeekerView...
     """
 
     enforce_unique_name = True
@@ -740,6 +757,19 @@ class SeekerView(View):
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
+        if self.is_dynamic:
+            executed_search = search.execute()
+            facets_selected_and_results = collections.OrderedDict()
+            for facet in facets:
+                if self.request.GET.get(facet.field):
+                    stored_facet_data = facets[facet]
+                    facets[facet] = []
+                    facets_selected_and_results[facet] = (stored_facet_data, self.get_search(keywords, facets).execute())
+                    facets[facet] = stored_facet_data
+                else:
+                    facets_selected_and_results[facet] = (facets[facet], executed_search)
+        else:
+            facets_selected_and_results = None
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = {c.field: c for c in columns}
@@ -779,9 +809,11 @@ class SeekerView(View):
             'document': self.document,
             'keywords': keywords,
             'columns': columns,
-            'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
-            'display_columns': [c for c in columns if c.visible],
+            'optional_columns': [c for c in columns if c.field not in self.required_display_fields and c.field not in self.hidden_columns],
+            'display_columns': [c for c in columns if c.visible and c not in self.hidden_columns],
             'facets': facets,
+            'is_dynamic': self.is_dynamic,
+            'facets_selected_and_results': facets_selected_and_results,
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
             'form_action': self.request.path,
             'results': results,
@@ -795,19 +827,21 @@ class SeekerView(View):
             'export_name': self.export_name,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated,
             'header_template': self.header_template,
+            'form_template': self.form_template,
             'results_template': self.results_template,
             'footer_template': self.footer_template,
             'saved_search': saved_search,
             'saved_searches': list(saved_searches),
             'use_save_form': self.use_save_form,
         }
-
+        for facet, values in facets_selected_and_results.items():
+            print facet.label
         if self.use_save_form:
             SavedSearchForm = self.get_saved_search_form()
             form = SavedSearchForm(saved_searches=saved_searches)
             context.update({
                 'save_form': form,
-                'save_form_template': self.form_template
+                'save_form_template': self.save_form_template
             })
 
         if self.extra_context:
@@ -827,7 +861,11 @@ class SeekerView(View):
             }
             if self.use_save_form:
                 ajax_data.update({
-                    'save_form_html': loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+                    'save_form_html': loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
+                })
+            if self.is_dynamic:
+                ajax_data.update({
+                    'form_html': loader.render_to_string(self.form_template, context, request=self.request)
                 })
             return JsonResponse(ajax_data)
         else:
@@ -920,7 +958,7 @@ class SeekerView(View):
                 else:
                     response_data['redirect_url'] = None
 
-                response_data['save_form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=request)
+                response_data['save_form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=request)
 
                 # We came in via ajax so we return via JSON
                 return JsonResponse(response_data)
@@ -1570,7 +1608,7 @@ class AdvancedSavedSearchView(View):
     If users should only be able to view their own saved searches.
     """
 
-    form_template = 'advanced_seeker/save_form.html'
+    save_form_template = 'advanced_seeker/save_form.html'
     """
     The form template used to display the save search form.
     """
@@ -1618,7 +1656,7 @@ class AdvancedSavedSearchView(View):
             self.update_GET_response_data(data, saved_search)
 
             form = SavedSearchForm(saved_searches=saved_searches)
-            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            data['form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
 
             return JsonResponse(data)
         else:
@@ -1695,7 +1733,7 @@ class AdvancedSavedSearchView(View):
                 form = SavedSearchForm(**form_kwargs)
 
             # We add the form here because we want to return the most up-to-date version of the form
-            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            data['form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
 
             # 'current_search' is included in 'all_searches' but seperated for convenience
             data['current_search'] = saved_search.get_details_dict() if saved_search else None
