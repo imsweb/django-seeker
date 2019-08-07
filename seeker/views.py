@@ -864,7 +864,7 @@ class SeekerView(View):
                 })
             if self.is_dynamic:
                 ajax_data.update({
-                    'form_html': loader.render_to_string(self.seach_form_template, context, request=self.request)
+                    'form_html': loader.render_to_string(self.search_form_template, context, request=self.request)
                 })
             return JsonResponse(ajax_data)
         else:
