@@ -191,7 +191,7 @@ class SeekerView(View):
     The overall seeker template to render.
     """
 
-    form_template = 'seeker/form.html'
+    search_form_template = 'seeker/form.html'
     """
     The template to render seeker form
     """
@@ -371,12 +371,13 @@ class SeekerView(View):
     NOTE: The form used is defined in "get_saved_search_form"
     """
 
-    save_form_template = 'seeker/save_form.html'
+    form_template = 'seeker/save_form.html'
     """
     The form template used to display the save search form.
     NOTE: This is only used if the request is AJAX and 'use_save_form' is True.
     NOTE: This template will be used to render the form defined in 'get_saved_search_form"
     TODO: This form does not exist in template and is unknown if this functionality works on SeekerView...
+    TODO: Change name for clarity on next major release (save_form_template)
     """
 
     enforce_unique_name = True
@@ -827,7 +828,7 @@ class SeekerView(View):
             'export_name': self.export_name,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated,
             'header_template': self.header_template,
-            'form_template': self.form_template,
+            'form_template': self.search_form_template,
             'results_template': self.results_template,
             'footer_template': self.footer_template,
             'saved_search': saved_search,
@@ -839,7 +840,7 @@ class SeekerView(View):
             form = SavedSearchForm(saved_searches=saved_searches)
             context.update({
                 'save_form': form,
-                'save_form_template': self.save_form_template
+                'save_form_template': self.form_template
             })
 
         if self.extra_context:
@@ -859,11 +860,11 @@ class SeekerView(View):
             }
             if self.use_save_form:
                 ajax_data.update({
-                    'save_form_html': loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
+                    'save_form_html': loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
                 })
             if self.is_dynamic:
                 ajax_data.update({
-                    'form_html': loader.render_to_string(self.form_template, context, request=self.request)
+                    'form_html': loader.render_to_string(self.seach_form_template, context, request=self.request)
                 })
             return JsonResponse(ajax_data)
         else:
@@ -956,7 +957,7 @@ class SeekerView(View):
                 else:
                     response_data['redirect_url'] = None
 
-                response_data['save_form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=request)
+                response_data['save_form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=request)
 
                 # We came in via ajax so we return via JSON
                 return JsonResponse(response_data)
@@ -1606,7 +1607,7 @@ class AdvancedSavedSearchView(View):
     If users should only be able to view their own saved searches.
     """
 
-    save_form_template = 'advanced_seeker/save_form.html'
+    form_template = 'advanced_seeker/save_form.html'
     """
     The form template used to display the save search form.
     """
@@ -1654,7 +1655,7 @@ class AdvancedSavedSearchView(View):
             self.update_GET_response_data(data, saved_search)
 
             form = SavedSearchForm(saved_searches=saved_searches)
-            data['form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
+            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
 
             return JsonResponse(data)
         else:
@@ -1731,7 +1732,7 @@ class AdvancedSavedSearchView(View):
                 form = SavedSearchForm(**form_kwargs)
 
             # We add the form here because we want to return the most up-to-date version of the form
-            data['form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
+            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
 
             # 'current_search' is included in 'all_searches' but seperated for convenience
             data['current_search'] = saved_search.get_details_dict() if saved_search else None
