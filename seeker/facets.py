@@ -9,6 +9,8 @@ from django.utils.encoding import smart_text
 from elasticsearch_dsl import A, Q
 from elasticsearch_dsl.aggs import Terms
 
+from .utils import validate_date_format
+
 
 class Facet(object):
     bool_operators = {
@@ -381,7 +383,7 @@ class RangeFilter(Facet):
                 if isinstance(_range[0], numbers.Number) or _range[0].isdigit():
                     r['gte'] = _range[0]
                 if isinstance(_range[1], numbers.Number) or _range[1].isdigit():
-                    r['lt'] = _range[1]
+                    r['lte'] = _range[1]
             else:
                 raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(_range), _range))
         else:
@@ -473,11 +475,29 @@ class RangeFilter(Facet):
 class DateRangeFacet(RangeFilter):
     advanced_template = 'advanced_seeker/facets/date_range.html'
 
-    def __init__(self, field, format="MM/dd/yyyy", **kwargs):
+    def __init__(self, field, format="MM/dd/yyyy", format_validator='%m/%d/%Y', **kwargs):
         self.format = format
+        self.format_validator = format_validator
         super(DateRangeFacet, self).__init__(field, **kwargs)
 
     def _get_filter_from_range_list(self, _range):
-        _range = super(DateRangeFacet, self)._get_filter_from_range_list(_range)
+        """
+        This helper function is designed to take a list of 2 values and build a range query.
+        """
+        if isinstance(_range, dict):
+            r = _range
+        elif isinstance(_range, list):
+            if len(_range) == 2:
+                r = {}
+                # This function validates that the ranges have the correct date format
+                if validate_date_format(_range[0], self.format_validator):
+                    r['gte'] = _range[0]
+                if validate_date_format(_range[1], self.format_validator):
+                    r['lte'] = _range[1]
+            else:
+                raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(_range), _range))
+        else:
+            raise ValueError(u"Range must either be a list or a dict.  Received: {}".format(type(_range)))
+        _range = self._build_query(r)    
         _range._params[self.field]['format'] = self.format
         return _range
