@@ -828,7 +828,7 @@ class SeekerView(View):
             'export_name': self.export_name,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated,
             'header_template': self.header_template,
-            'form_template': self.search_form_template,
+            'search_form_template': self.search_form_template,
             'results_template': self.results_template,
             'footer_template': self.footer_template,
             'saved_search': saved_search,
