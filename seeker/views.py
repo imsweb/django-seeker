@@ -1337,10 +1337,7 @@ class AdvancedSeekerView(SeekerView):
 
     def initial_facet_query(self):
 
-        if 'condition' in self.initial_facets.keys():
-            fake_query = {'condition': self.initial_facets['condition'], 'rules': []}
-        else:
-            fake_query = {'condition': 'AND', 'rules': [] }
+        fake_query = {'condition': self.initial_facets.get('condition', 'AND'), 'rules': []}
         for facet in self.get_facets():
             if facet.field in self.initial_facets:
                 if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:

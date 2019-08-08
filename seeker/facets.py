@@ -151,13 +151,13 @@ class TermsFacet(Facet):
         return search
 
     def initialize(self, initial_facets):
-        facet_query = {'condition': self.filter_operator.upper(), 'rules': []}
+        facet_query = {"condition": self.filter_operator.upper(), "rules": []}
         for val in initial_facets[self.field]:
             rule = {
-                'id': self.field,
-                'operator': 'equal',
-                'value': val}
-            facet_query['rules'].append(rule)
+                "id": self.field,
+                "operator": "equal",
+                "value": val}
+            facet_query["rules"].append(rule)
         return facet_query
 
 
@@ -210,11 +210,11 @@ class TextFacet(Facet):
         return search.query(functools.reduce(operator.or_, filters))
 
     def initialize(self, initial_facets):
-        facet_query = {'condition': 'OR',
-                   'rules': [{
-                       'id': facet.field,
-                       'operator': 'equal',
-                       'value': initial_facets[self.field]}]}
+        facet_query = {"condition": "OR",
+                   "rules": [{
+                       "id": self.field,
+                       "operator": 'equal',
+                       "value": initial_facets[self.field]}]}
         return facet_query
 
 
@@ -489,14 +489,11 @@ class RangeFilter(Facet):
             return {}
 
     def initialize(self, initial_facets):
-        if 'operator' in initial_facets[self.field].keys():
-            operator = initial_facets[self.field].pop('operator')
-        else:
-            operator = 'between'
+        operator = initial_facets[self.field].pop('operator', 'between')
         rule = {
-            'id': self.field,
-            'operator': operator,
-            'value': initial_facets[self.field]}
+            "id": self.field,
+            "operator": operator,
+            "value": initial_facets[self.field]}
         return rule
 
 
