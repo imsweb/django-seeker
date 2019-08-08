@@ -1231,7 +1231,8 @@ class AdvancedSeekerView(SeekerView):
             'facets': facets,
             'search_url': self.search_url,
             'save_search_url': self.save_search_url,
-            'selected_facets': self.initial_facets
+            'selected_facets': self.initial_facets,
+            'initial_search_object': self.initial_facet_query()
         }
 
         if self.extra_context:
@@ -1280,8 +1281,6 @@ class AdvancedSeekerView(SeekerView):
 
     def _get_processing_data(self):
         """A helper function that generates common data shared between get_facet_aggregations and render_results"""
-        if 'selected_facets' not in self.search_object.keys():
-            self.search_object['query'] = self.initial_facet_query()
         facet_lookup = { facet.field: facet for facet in self.get_facets() }
 
         # This "query" is the dictionary of rules, conditions, etc. (see build_query)
@@ -1347,7 +1346,7 @@ class AdvancedSeekerView(SeekerView):
                 self.search_object.setdefault('selected_facets', []).append(facet.field)
                 if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
                     fake_query['rules'].append(facet.initialize(self.initial_facets))
-        return fake_query
+        return json.dumps(fake_query)
 
     def render_results(self, export):
         facet_lookup, query, advanced_query, facets_searched = self._get_processing_data()
