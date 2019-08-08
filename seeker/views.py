@@ -1343,7 +1343,6 @@ class AdvancedSeekerView(SeekerView):
             fake_query = {'condition': 'AND', 'rules': [] }
         for facet in self.get_facets():
             if facet.field in self.initial_facets:
-                self.search_object.setdefault('selected_facets', []).append(facet.field)
                 if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
                     fake_query['rules'].append(facet.initialize(self.initial_facets))
         return json.dumps(fake_query)
