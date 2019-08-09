@@ -223,7 +223,7 @@ class SeekerView(View):
     
     hidden_columns = []
     """
-    A list of field names to hide from display in columns but still allows templates to access the field
+    A list of field names to hide from display in columns but still allows templates to access the field with highlighting
     """
 
     display = None
@@ -788,7 +788,7 @@ class SeekerView(View):
 
         # Highlight fields.
         if self.highlight:
-            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
+            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if (c.visible or c.field in self.hidden_columns) and c.highlight]
             # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
             search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
 
