@@ -268,6 +268,11 @@ class SeekerView(View):
     'default' (no encoding) or 'html' (will escape html, if you use html highlighting tags).
     """
 
+    number_of_fragments = 0
+    """
+    The number of fragments returned by highlighted search, set to 0 by default (which gives all results)
+    """
+
     facets = []
     """
     A list of :class:`seeker.Facet` objects that are available to facet the results by.
@@ -790,7 +795,7 @@ class SeekerView(View):
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if (c.visible or c.field in self.hidden_columns) and c.highlight]
             # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
-            search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
+            search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
 
         # Calculate paging information.
         page = self.request.GET.get('p', '').strip()
@@ -1409,7 +1414,7 @@ class AdvancedSeekerView(SeekerView):
         if self.highlight:
             highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
             # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
-            search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
+            search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
 
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
