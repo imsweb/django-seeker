@@ -287,6 +287,11 @@ class SeekerView(View):
     """
     The number of results to show per page.
     """
+    
+    page_size_options = []
+    """
+    If set allows user to set options for page size to be changed
+    """
 
     page_spread = 7
     """
@@ -419,6 +424,13 @@ class SeekerView(View):
         NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
+
+    def set_page_size(self):
+        ps = self.request.GET.get('page_size', '').strip()
+        try:
+            self.page_size = int(ps) if int(ps) > 0 and int(ps) in self.page_size_options else self.page_size
+        except ValueError:
+            pass
 
     def modify_results_context(self, context):
         """
@@ -798,6 +810,7 @@ class SeekerView(View):
             search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
 
         # Calculate paging information.
+        self.set_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * self.page_size
@@ -825,6 +838,7 @@ class SeekerView(View):
             'results': results,
             'page': page,
             'page_size': self.page_size,
+            'page_size_options': self.page_size_options,
             'page_spread': self.page_spread,
             'sort': sort,
             'querystring': context_querystring,
