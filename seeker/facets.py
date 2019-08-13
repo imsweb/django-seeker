@@ -102,14 +102,18 @@ class Facet(object):
 
 class TermsFacet(Facet):
 
-    def __init__(self, field, size=2147483647, **kwargs):
+    def __init__(self, field, size=2147483647, sorted_by_key=False, **kwargs):
         # Elasticsearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
         self.size = size
         self.filter_operator = kwargs.pop('filter_operator', 'or')
+        #option to override default sort by doc_count, can be set to other values by adding the desired values in kwargs
+        self.sorted_by_key = sorted_by_key
         super(TermsFacet, self).__init__(field, **kwargs)
 
     def _get_aggregation(self, **extra):
         params = {'field': self.field, 'size': self.size}
+        if self.sorted_by_key:
+            params.update({'order': {'_key': 'asc'}})
         params.update(self.kwargs)
         params.update(extra)
         return A('terms', **params)
@@ -383,7 +387,7 @@ class RangeFilter(Facet):
                 if isinstance(_range[0], numbers.Number) or _range[0].isdigit():
                     r['gte'] = _range[0]
                 if isinstance(_range[1], numbers.Number) or _range[1].isdigit():
-                    r['lte'] = _range[1]
+                    r['lt'] = _range[1]
             else:
                 raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(_range), _range))
         else:
