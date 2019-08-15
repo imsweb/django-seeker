@@ -152,7 +152,7 @@ class TermsFacet(Facet):
 
     def initialize(self, initial_facets):
         facet_query = {"condition": self.filter_operator.upper(), "rules": []}
-        for val in initial_facets[self.field]:
+        for val in initial_facets:
             rule = {
                 "id": self.field,
                 "operator": "equal",

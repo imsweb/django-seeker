@@ -1232,7 +1232,7 @@ class AdvancedSeekerView(SeekerView):
             'search_url': self.search_url,
             'save_search_url': self.save_search_url,
             'selected_facets': self.initial_facets,
-            'initial_search_object': self.initial_facet_query()
+            'initial_search_object_query': self.initial_facet_query()
         }
 
         if self.extra_context:
@@ -1337,12 +1337,12 @@ class AdvancedSeekerView(SeekerView):
 
     def initial_facet_query(self):
 
-        fake_query = {'condition': self.initial_facets.get('condition', 'AND'), 'rules': []}
+        initial_query = {'condition': self.initial_facets.get('condition', 'AND'), 'rules': []}
         for facet in self.get_facets():
             if facet.field in self.initial_facets:
                 if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
-                    fake_query['rules'].append(facet.initialize(self.initial_facets))
-        return json.dumps(fake_query)
+                    initial_query['rules'].append(facet.initialize(self.initial_facets[facet.field]))
+        return json.dumps(initial_query)
 
     def render_results(self, export):
         facet_lookup, query, advanced_query, facets_searched = self._get_processing_data()
