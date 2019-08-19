@@ -231,7 +231,7 @@ class SeekerView(View):
     A list of field/column names to display by default.
     """
 
-    is_dynamic = False
+    post_filter_facets = False
     """
     A boolean set to optionally define a dynamic response in the facets and results after a change to the form
     You will need to set javascript and ajax on the seeker template in order to fully enable these features
@@ -775,7 +775,7 @@ class SeekerView(View):
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
-        if self.is_dynamic:
+        if self.post_filter_facets:
             executed_search = search.execute()
             facets_selected_and_results = collections.OrderedDict()
             for facet in facets:
@@ -831,7 +831,7 @@ class SeekerView(View):
             'optional_columns': [c for c in columns if c.field not in self.required_display_fields and c.field not in self.hidden_columns],
             'display_columns': [c for c in columns if c.visible and c not in self.hidden_columns],
             'facets': facets,
-            'is_dynamic': self.is_dynamic,
+            'post_filter_facets': self.post_filter_facets,
             'facets_selected_and_results': facets_selected_and_results,
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
             'form_action': self.request.path,
@@ -881,7 +881,7 @@ class SeekerView(View):
                 ajax_data.update({
                     'save_form_html': loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
                 })
-            if self.is_dynamic:
+            if self.post_filter_facets:
                 ajax_data.update({
                     'form_html': loader.render_to_string(self.search_form_template, context, request=self.request)
                 })
