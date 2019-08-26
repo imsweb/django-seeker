@@ -158,8 +158,8 @@ class TermsFacet(Facet):
 
 class TextFacet(Facet):
     """
-        TextFacet is essentnially a keyword search on a specific field.  It can handle multiple search terms.
-        Each search term is (by default) comma seperated.  That can be customized by setting delimiter in the facet initialization.
+        TextFacet is essentially a keyword search on a specific field.  It can handle multiple search terms.
+        Each search term is (by default) comma separated.  That can be customized by setting delimiter in the facet initialization.
         This facet does a prefix query on each of the search terms. Each query is "OR"ed together.
     """
     template = 'seeker/facets/text.html'

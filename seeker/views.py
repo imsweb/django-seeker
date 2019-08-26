@@ -288,9 +288,9 @@ class SeekerView(View):
     The number of results to show per page.
     """
     
-    page_size_options = []
+    available_page_sizes = []
     """
-    If set allows user to set options for page size to be changed
+    If set allows user to set options for page size to be changed, (must include the default page_size)
     """
 
     page_spread = 7
@@ -425,12 +425,12 @@ class SeekerView(View):
         """
         pass
 
-    def set_page_size(self):
+    def get_page_size(self):
         ps = self.request.GET.get('page_size', '').strip()
         try:
-            self.page_size = int(ps) if int(ps) > 0 and int(ps) in self.page_size_options else self.page_size
+            return int(ps) if int(ps) > 0 and int(ps) in self.available_page_sizes else self.page_size
         except ValueError:
-            pass
+            return self.page_size
 
     def modify_results_context(self, context):
         """
@@ -810,7 +810,7 @@ class SeekerView(View):
             search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
 
         # Calculate paging information.
-        self.set_page_size()
+        page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * self.page_size
@@ -820,7 +820,7 @@ class SeekerView(View):
             offset = 0
 
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
+        results = search.sort(*sort_fields)[offset:offset + page_size].execute()
 
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
@@ -837,8 +837,8 @@ class SeekerView(View):
             'form_action': self.request.path,
             'results': results,
             'page': page,
-            'page_size': self.page_size,
-            'page_size_options': self.page_size_options,
+            'page_size': page_size,
+            'available_page_sizes': self.available_page_sizes,
             'page_spread': self.page_spread,
             'sort': sort,
             'querystring': context_querystring,
