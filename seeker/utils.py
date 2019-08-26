@@ -159,8 +159,6 @@ def convert_saved_search_to_search_object(saved_search):
 
 def validate_date_format(date_text, date_format):
     try:
-        if date_text != datetime.strptime(date_text, date_format).strftime(date_format):
-            raise ValueError
-        return True
+        return date_text == datetime.strptime(date_text, date_format).strftime(date_format)
     except ValueError:
         return False
