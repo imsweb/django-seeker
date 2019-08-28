@@ -221,11 +221,6 @@ class SeekerView(View):
     A list of field names to exclude when generating columns.
     """
     
-    hidden_columns = []
-    """
-    A list of field names to hide from display in columns but still allows templates to access the field with highlighting
-    """
-
     display = None
     """
     A list of field/column names to display by default.
@@ -747,6 +742,12 @@ class SeekerView(View):
             }
         }
 
+    def apply_highlight(self, search, columns):
+        highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
+        # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
+        search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
+        return search
+
     def render(self):
         SavedSearchModel = self.get_saved_search_model()
 
@@ -805,9 +806,7 @@ class SeekerView(View):
 
         # Highlight fields.
         if self.highlight:
-            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if (c.visible or c.field in self.hidden_columns) and c.highlight]
-            # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
-            search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
+            search = self.apply_highlight(search, columns)
 
         # Calculate paging information.
         page_size = self.get_page_size()
@@ -828,8 +827,8 @@ class SeekerView(View):
             'document': self.document,
             'keywords': keywords,
             'columns': columns,
-            'optional_columns': [c for c in columns if c.field not in self.required_display_fields and c.field not in self.hidden_columns],
-            'display_columns': [c for c in columns if c.visible and c not in self.hidden_columns],
+            'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
+            'display_columns': [c for c in columns if c.visible],
             'facets': facets,
             'post_filter_facets': self.post_filter_facets,
             'facets_selected_and_results': facets_selected_and_results,
@@ -1426,9 +1425,7 @@ class AdvancedSeekerView(SeekerView):
 
         # Highlight fields.
         if self.highlight:
-            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
-            # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
-            search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
+            search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
