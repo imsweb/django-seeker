@@ -191,6 +191,11 @@ class SeekerView(View):
     The overall seeker template to render.
     """
 
+    search_form_template = 'seeker/form.html'
+    """
+    The template to render seeker form
+    """
+
     header_template = 'seeker/header.html'
     """
     The template used to render the search results header.
@@ -215,10 +220,16 @@ class SeekerView(View):
     """
     A list of field names to exclude when generating columns.
     """
-
+    
     display = None
     """
     A list of field/column names to display by default.
+    """
+
+    post_filter_facets = False
+    """
+    A boolean set to optionally define a dynamic response in the facets and results after a change to the form
+    You will need to set javascript and ajax on the seeker template in order to fully enable these features
     """
 
     required_display = []
@@ -252,6 +263,11 @@ class SeekerView(View):
     'default' (no encoding) or 'html' (will escape html, if you use html highlighting tags).
     """
 
+    number_of_fragments = 0
+    """
+    The number of fragments returned by highlighted search, set to 0 by default (which gives all results)
+    """
+
     facets = []
     """
     A list of :class:`seeker.Facet` objects that are available to facet the results by.
@@ -265,6 +281,11 @@ class SeekerView(View):
     page_size = 10
     """
     The number of results to show per page.
+    """
+    
+    available_page_sizes = []
+    """
+    If set allows user to set options for page size to be changed, (must include the default page_size)
     """
 
     page_spread = 7
@@ -360,6 +381,8 @@ class SeekerView(View):
     The form template used to display the save search form.
     NOTE: This is only used if the request is AJAX and 'use_save_form' is True.
     NOTE: This template will be used to render the form defined in 'get_saved_search_form"
+    TODO: This form does not exist in template and is unknown if this functionality works on SeekerView...
+    TODO: Change name for clarity on next major release (save_form_template)
     """
 
     enforce_unique_name = True
@@ -396,6 +419,13 @@ class SeekerView(View):
         NOTE: The changes to context should be done in place. This function does not have a return (similar to 'dict.update()').
         """
         pass
+
+    def get_page_size(self):
+        ps = self.request.GET.get('page_size', '').strip()
+        try:
+            return int(ps) if int(ps) > 0 and int(ps) in self.available_page_sizes else self.page_size
+        except ValueError:
+            return self.page_size
 
     def modify_results_context(self, context):
         """
@@ -712,6 +742,12 @@ class SeekerView(View):
             }
         }
 
+    def apply_highlight(self, search, columns):
+        highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
+        # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
+        search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
+        return search
+
     def render(self):
         SavedSearchModel = self.get_saved_search_model()
 
@@ -740,6 +776,19 @@ class SeekerView(View):
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
+        if self.post_filter_facets:
+            executed_search = search.execute()
+            facets_selected_and_results = collections.OrderedDict()
+            for facet in facets:
+                if self.request.GET.get(facet.field):
+                    stored_facet_data = facets[facet]
+                    facets[facet] = []
+                    facets_selected_and_results[facet] = (stored_facet_data, self.get_search(keywords, facets).execute())
+                    facets[facet] = stored_facet_data
+                else:
+                    facets_selected_and_results[facet] = (facets[facet], executed_search)
+        else:
+            facets_selected_and_results = None
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = {c.field: c for c in columns}
@@ -757,11 +806,10 @@ class SeekerView(View):
 
         # Highlight fields.
         if self.highlight:
-            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
-            # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
-            search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
+            search = self.apply_highlight(search, columns)
 
         # Calculate paging information.
+        page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * self.page_size
@@ -771,7 +819,7 @@ class SeekerView(View):
             offset = 0
 
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:offset + self.page_size].execute()
+        results = search.sort(*sort_fields)[offset:offset + page_size].execute()
 
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
@@ -782,11 +830,14 @@ class SeekerView(View):
             'optional_columns': [c for c in columns if c.field not in self.required_display_fields],
             'display_columns': [c for c in columns if c.visible],
             'facets': facets,
+            'post_filter_facets': self.post_filter_facets,
+            'facets_selected_and_results': facets_selected_and_results,
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
             'form_action': self.request.path,
             'results': results,
             'page': page,
-            'page_size': self.page_size,
+            'page_size': page_size,
+            'available_page_sizes': self.available_page_sizes,
             'page_spread': self.page_spread,
             'sort': sort,
             'querystring': context_querystring,
@@ -795,13 +846,13 @@ class SeekerView(View):
             'export_name': self.export_name,
             'can_save': self.can_save and self.request.user and self.request.user.is_authenticated,
             'header_template': self.header_template,
+            'search_form_template': self.search_form_template,
             'results_template': self.results_template,
             'footer_template': self.footer_template,
             'saved_search': saved_search,
             'saved_searches': list(saved_searches),
             'use_save_form': self.use_save_form,
         }
-
         if self.use_save_form:
             SavedSearchForm = self.get_saved_search_form()
             form = SavedSearchForm(saved_searches=saved_searches)
@@ -828,6 +879,10 @@ class SeekerView(View):
             if self.use_save_form:
                 ajax_data.update({
                     'save_form_html': loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+                })
+            if self.post_filter_facets:
+                ajax_data.update({
+                    'form_html': loader.render_to_string(self.search_form_template, context, request=self.request)
                 })
             return JsonResponse(ajax_data)
         else:
@@ -1370,9 +1425,7 @@ class AdvancedSeekerView(SeekerView):
 
         # Highlight fields.
         if self.highlight:
-            highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
-            # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
-            search = search.highlight(*highlight_fields, number_of_fragments=0).highlight_options(encoder=self.highlight_encoder)
+            search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)

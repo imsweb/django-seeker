@@ -12,11 +12,19 @@
                 <label class="sr-only" for="q">{% trans "Keywords" %}</label>
                 <input type="text" class="form-control" placeholder="{% trans "Keywords" %}" name="q" id="q" value="{{ keywords }}" autofocus="autofocus" />
             </div>
-            {% for facet, selected in facets.items %}
-                <div class="form-group">
-                    {% seeker_facet facet results selected %}
-                </div>
-            {% endfor %}
+            {% if post_filter_facets and facets_selected_and_results %}
+                {% for facet, values in facets_selected_and_results.items %}
+                    <div class="form-group">
+                        {% seeker_facet facet values.1 values.0 %}
+                    </div>
+                {% endfor %}
+            {% else %}            
+	            {% for facet, selected in facets.items %}
+	                <div class="form-group">
+	                    {% seeker_facet facet results selected %}
+	                </div>
+	            {% endfor %}
+	        {% endif %}
         </div>
         <div role="tabpanel" class="tab-pane" id="display">
             {% for c in optional_columns %}

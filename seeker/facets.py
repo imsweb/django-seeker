@@ -9,6 +9,8 @@ from django.utils.encoding import smart_text
 from elasticsearch_dsl import A, Q
 from elasticsearch_dsl.aggs import Terms
 
+from .utils import validate_date_format
+
 
 class Facet(object):
     bool_operators = {
@@ -100,14 +102,18 @@ class Facet(object):
 
 class TermsFacet(Facet):
 
-    def __init__(self, field, size=2147483647, **kwargs):
+    def __init__(self, field, size=2147483647, sorted_by_key=False, **kwargs):
         # Elasticsearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
         self.size = size
         self.filter_operator = kwargs.pop('filter_operator', 'or')
+        #option to override default sort by doc_count, can be set to other values by adding the desired values in kwargs
+        self.sorted_by_key = sorted_by_key
         super(TermsFacet, self).__init__(field, **kwargs)
 
     def _get_aggregation(self, **extra):
         params = {'field': self.field, 'size': self.size}
+        if self.sorted_by_key:
+            params.update({'order': {'_key': 'asc'}})
         params.update(self.kwargs)
         params.update(extra)
         return A('terms', **params)
@@ -152,8 +158,8 @@ class TermsFacet(Facet):
 
 class TextFacet(Facet):
     """
-        TextFacet is essentnially a keyword search on a specific field.  It can handle multiple search terms.
-        Each search term is (by default) comma seperated.  That can be customized by setting delimiter in the facet initialization.
+        TextFacet is essentially a keyword search on a specific field.  It can handle multiple search terms.
+        Each search term is (by default) comma separated.  That can be customized by setting delimiter in the facet initialization.
         This facet does a prefix query on each of the search terms. Each query is "OR"ed together.
     """
     template = 'seeker/facets/text.html'
@@ -473,11 +479,29 @@ class RangeFilter(Facet):
 class DateRangeFacet(RangeFilter):
     advanced_template = 'advanced_seeker/facets/date_range.html'
 
-    def __init__(self, field, format="MM/dd/yyyy", **kwargs):
+    def __init__(self, field, format="MM/dd/yyyy", format_validator='%m/%d/%Y', **kwargs):
         self.format = format
+        self.format_validator = format_validator
         super(DateRangeFacet, self).__init__(field, **kwargs)
 
     def _get_filter_from_range_list(self, _range):
-        _range = super(DateRangeFacet, self)._get_filter_from_range_list(_range)
+        """
+        This helper function is designed to take a list of 2 values and build a range query.
+        """
+        if isinstance(_range, dict):
+            r = _range
+        elif isinstance(_range, list):
+            if len(_range) == 2:
+                r = {}
+                # This function validates that the ranges have the correct date format
+                if validate_date_format(_range[0], self.format_validator):
+                    r['gte'] = _range[0]
+                if validate_date_format(_range[1], self.format_validator):
+                    r['lte'] = _range[1]
+            else:
+                raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(_range), _range))
+        else:
+            raise ValueError(u"Range must either be a list or a dict.  Received: {}".format(type(_range)))
+        _range = self._build_query(r)    
         _range._params[self.field]['format'] = self.format
         return _range

@@ -5,9 +5,13 @@ import sys
 import time
 
 import elasticsearch_dsl as dsl
+
+from datetime import datetime
+
 from django.conf import settings
 from django.http import QueryDict
 from django.utils.encoding import force_text
+
 from elasticsearch import NotFoundError
 from elasticsearch_dsl.connections import connections
 
@@ -151,3 +155,10 @@ def convert_saved_search_to_search_object(saved_search):
     search_object['query'] = {"condition": "AND", "rules": rules}
 
     return search_object
+
+
+def validate_date_format(date_text, date_format):
+    try:
+        return date_text == datetime.strptime(date_text, date_format).strftime(date_format)
+    except ValueError:
+        return False
