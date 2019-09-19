@@ -7,7 +7,7 @@
 
 {% block results-table %}
     <div class="table-responsive">
-        <table class="table table-striped table-condensed table-seeker">
+        <table class="{% block results-table-classes %}table table-striped table-condensed table-seeker{% endblock results-table-classes %}">
             <thead>
                 <tr>
                     {% block pre-table-headers %}{% endblock pre-table-headers %}
