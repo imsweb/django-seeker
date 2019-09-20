@@ -1,2 +1,2 @@
 {% load seeker %}
-<td class="{{ result.meta.doc_type }}_{{ field }} {{ model_lower }}_{{ field }}">{% if highlight %}{{ highlight|seeker_format|safe }}{% else %}{{ value|seeker_format }}{% endif %}</td>
+<td class="{{ result.meta.doc_type }}_{{ field }} {% if model_lower %}{{ model_lower }}_{{ field }}{% endif %} {{ doc_class_name }}_{{ field }}">{% if highlight %}{{ highlight|seeker_format|safe }}{% else %}{{ value|seeker_format }}{% endif %}</td>
