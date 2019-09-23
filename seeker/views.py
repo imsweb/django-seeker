@@ -71,13 +71,16 @@ class Column(object):
         #Set the model_lower variable on Column to the lowercased name of the model on the mapping once view is set above
         try:
             self.model_lower = self.view.document._model
-        except Exception:
-            try:
-                self.model_lower = self.view.document.model.__name____lower__()
-                self.view.document._model = self.model_lower
-            except Exception:
-                self.model_lower = self.view.document.queryset().model.__name__.lower()
-                self.view.document._model = self.model_lower                
+        except AttributeError:
+            document = self.view.document
+            if hasattr(document, 'model'):
+                self.model_lower = document.model.__name__.lower()
+            elif hasattr(document, 'queryset'):
+                self.model_lower = document.queryset().model.__name__.lower()
+            else:
+                self.model_lower = ''
+            self.view.document._model = self.model_lower
+
         return self
 
     def header(self):
@@ -151,6 +154,7 @@ class Column(object):
             'value': value,
             'highlight': highlight,
             'model_lower': self.model_lower,
+            'doc_class_name': result.__class__.__name__.lower(),
             'view': self.view,
             'user': self.view.request.user,
             'query': self.view.get_keywords(self.view.request.GET),
@@ -541,13 +545,14 @@ class SeekerView(View):
         search_templates = []
         if field_name in self.field_templates:
             search_templates.append(self.field_templates[field_name])
-        try:
-            search_templates.append('seeker/%s/%s.html' % (self.document.model.__name__.lower(), field_name))
-        except Exception:
-            search_templates.append('seeker/%s/%s.html' % (self.document.queryset().model.__name__.lower(), field_name))
+        if hasattr(self.document, 'model'):
+            search_templates.append('seeker/{}/{}.html'.format(self.document.model.__name__.lower(), field_name))
+        elif hasattr(self.document, 'queryset'):
+            search_templates.append('seeker/{}/{}.html'.format(self.document.queryset().model.__name__.lower(), field_name))
         for _cls in inspect.getmro(self.document):
             if issubclass(_cls, dsl.DocType):
-                search_templates.append('seeker/%s/%s.html' % (_cls._doc_type.name, field_name))
+                search_templates.append('seeker/{}/{}.html'.format(_cls.__name__.lower(), field_name))
+                search_templates.append('seeker/{}/{}.html'.format(_cls._doc_type.name, field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
         existing_templates = list(set(self._field_templates.values()))
@@ -1021,8 +1026,10 @@ class SeekerView(View):
 
 class AdvancedColumn(Column):
     def header(self, results=None):
-        cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
-        cls += ' %s_%s' % (self.model_lower, self.field.replace('.', '_'))
+        cls = '{}_{}'.format(self.view.document._doc_type.name, self.field.replace('.', '_'))
+        cls += ' {}_{}'.format(self.view.document.__name__.lower(), self.field.replace('.', '_'))
+        if self.model_lower:
+            cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         current_sort = self.view.search_object['sort']
