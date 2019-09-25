@@ -819,7 +819,7 @@ class SeekerView(View):
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * page_size
         results_count = search[0:0].execute().hits.total
-        if results_count < offset:
+        if results_count <= offset:
             page = 1
             offset = 0
 
