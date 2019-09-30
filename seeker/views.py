@@ -817,9 +817,9 @@ class SeekerView(View):
         page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
-        offset = (page - 1) * self.page_size
+        offset = (page - 1) * page_size
         results_count = search[0:0].execute().hits.total
-        if results_count < offset:
+        if results_count <= offset:
             page = 1
             offset = 0
 
@@ -1480,7 +1480,7 @@ class AdvancedSeekerView(SeekerView):
     def calculate_page_and_offset(self, page, page_size, search):
         offset = (page - 1) * page_size
         results_count = search[0:0].params(request_timeout=self.search_timeout).execute().hits.total
-        if results_count < offset:
+        if results_count <= offset:
             page = 1
             offset = 0
         return page, offset
