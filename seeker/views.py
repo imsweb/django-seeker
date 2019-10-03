@@ -1288,7 +1288,7 @@ class AdvancedSeekerView(SeekerView):
     def get(self, request, *args, **kwargs):
         facets = self.get_facets()
         context = {
-            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated(),
+            'can_save': self.can_save and self.request.user and self.request.user.is_authenticated,
             'facets': facets,
             'search_url': self.search_url,
             'save_search_url': self.save_search_url,
