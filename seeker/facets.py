@@ -220,7 +220,7 @@ class TextFacet(Facet):
                    "rules": [{
                        "id": self.field,
                        "operator": 'equal',
-                       "value": initial_facets[self.field]}]}
+                       "value": initial_facets}]}
         return facet_query
 
 
@@ -495,11 +495,11 @@ class RangeFilter(Facet):
             return {}
 
     def initialize(self, initial_facets):
-        operator = initial_facets[self.field].pop('operator', 'between')
+        operator = initial_facets.pop('operator', 'between')
         rule = {
             "id": self.field,
             "operator": operator,
-            "value": initial_facets[self.field]}
+            "value": initial_facets}
         return rule
 
 
