@@ -69,6 +69,17 @@ The analyzer to use by default when creating ``elasticsearch_dsl.String`` fields
 to determine how query strings should be analyzed (it's important that queries are analyzed the same way as your data).
 
 
+SEEKER_DOCUMENT_FIELD_OVERRIDE
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Default: ``{}``
+
+Allows the user to set django models to the desired dsl, instead of using provided defaults. This overrides to update
+ the document_field method defaults, and to add keys, for example can be used to add TextField = dsl.Text() to the default
+instead of using RawString, with setting: SEEKER_DOCUMENT_FIELD_OVERRIDE = {models.TextField: dsl.Text()}
+
+
+
 Model Indexing Middleware
 -------------------------
 
