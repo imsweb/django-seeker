@@ -70,7 +70,7 @@ to determine how query strings should be analyzed (it's important that queries a
 
 
 SEEKER_DOCUMENT_FIELD_OVERRIDE
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Default: ``{}``
 
