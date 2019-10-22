@@ -144,10 +144,11 @@ def convert_saved_search_to_search_object(saved_search):
     rules = []
     for facet in search_object['selected_facets']:
         values = data.getlist(facet)
-        facet_rules = []
-        for value in values:
-            facet_rules.append({'operator': 'equal', 'id': facet, 'value': value})
-        rules.append({'rules': facet_rules, 'condition': "OR"})
+        if values:
+            facet_rules = []
+            for value in values:
+                facet_rules.append({'operator': 'equal', 'id': facet, 'value': value})
+            rules.append({'rules': facet_rules, 'condition': "OR"})
     search_object['query'] = {"condition": "AND", "rules": rules}
 
     return search_object
