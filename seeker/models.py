@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.html import escape
 from django.utils.encoding import python_2_unicode_compatible
 
 
@@ -28,7 +29,7 @@ class SavedSearch(models.Model):
             return self.url
 
     def get_details_dict(self):
-        return { 'pk': self.pk, 'name': self.name, 'url': self.url, 'default': self.default }
+        return { 'pk': self.pk, 'name': escape(self.name), 'url': self.url, 'default': self.default }
 
 
 @python_2_unicode_compatible
