@@ -21,6 +21,7 @@ setup(
     install_requires=[
         'elasticsearch-dsl>=6.0.0,<7.0.0',
         'snowballstemmer',
+        'bleach',
     ],
     include_package_data=True,
     classifiers=[
