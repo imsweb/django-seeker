@@ -26,6 +26,7 @@ from django.views.generic.edit import CreateView, FormView
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.utils import AttrList
 
+from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
@@ -1292,7 +1293,8 @@ class AdvancedSeekerView(SeekerView):
             'facets': facets,
             'search_url': self.search_url,
             'save_search_url': self.save_search_url,
-            'selected_facets': self.initial_facets
+            'selected_facets': self.initial_facets,
+            'initial_search_object_query': self.initial_facet_query()
         }
 
         if self.extra_context:
@@ -1393,6 +1395,16 @@ class AdvancedSeekerView(SeekerView):
         self.modify_aggregation_json_response(json_response, context)
 
         return JsonResponse(json_response)
+
+
+    def initial_facet_query(self):
+
+        initial_query = {'condition': self.initial_facets.get('condition', 'AND'), 'rules': []}
+        for facet in self.get_facets():
+            if facet.field in self.initial_facets:
+                if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
+                    initial_query['rules'].append(facet.initialize(self.initial_facets[facet.field]))
+        return json.dumps(initial_query)
 
     def render_results(self, export):
         facet_lookup, query, advanced_query, facets_searched = self._get_processing_data()
