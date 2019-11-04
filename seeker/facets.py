@@ -156,6 +156,17 @@ class TermsFacet(Facet):
             return search.filter('term', **{self.field: values[0]})
         return search
 
+    def initialize(self, initial_facets):
+        facet_query = {"condition": self.filter_operator.upper(), "rules": []}
+        for val in initial_facets:
+            rule = {
+                "id": self.field,
+                "operator": "equal",
+                "value": val}
+            facet_query["rules"].append(rule)
+        return facet_query
+
+
 class TextFacet(Facet):
     """
         TextFacet is essentially a keyword search on a specific field.  It can handle multiple search terms.
@@ -203,6 +214,14 @@ class TextFacet(Facet):
                 term = term.lower()
             filters.append(Q('prefix', **{self.field: term}))
         return search.query(functools.reduce(operator.or_, filters))
+
+    def initialize(self, initial_facets):
+        facet_query = {"condition": "OR",
+                   "rules": [{
+                       "id": self.field,
+                       "operator": 'equal',
+                       "value": initial_facets}]}
+        return facet_query
 
 
 class GlobalTermsFacet(TermsFacet):
@@ -474,6 +493,14 @@ class RangeFilter(Facet):
             return facet_data
         except Exception:
             return {}
+
+    def initialize(self, initial_facets):
+        operator = initial_facets.pop('operator', 'between')
+        rule = {
+            "id": self.field,
+            "operator": operator,
+            "value": initial_facets}
+        return rule
 
 
 class DateRangeFacet(RangeFilter):

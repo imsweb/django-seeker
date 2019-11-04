@@ -7,7 +7,7 @@
         {% if available_page_sizes %}
             <div class="page-size-selector">
 	            Display Per Page:
-	            <select id="seeker-page-size-select">
+	            <select id="seeker-page-size-select" aria-label='Display Per Page'>
 	                {% for size in available_page_sizes %}
 	                    <option value="{{ size }}" {% if size == page_size %}selected{% endif %}>{{ size }}</option>
 	                {% endfor %}

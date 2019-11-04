@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_ANALYZER = getattr(django_settings, 'SEEKER_DEFAULT_ANALYZER', 'snowball')
+DOCUMENT_FIELD_OVERRIDE = getattr(django_settings, 'SEEKER_DOCUMENT_FIELD_OVERRIDE', {})
+
 
 
 def follow(obj, path, force_string=False):
@@ -252,6 +254,7 @@ def document_field(field):
         models.DecimalField: dsl.Double(),
         models.FloatField: dsl.Float(),
     }
+    defaults.update(DOCUMENT_FIELD_OVERRIDE)
     return defaults.get(field.__class__, RawString)
 
 
