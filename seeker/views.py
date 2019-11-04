@@ -975,6 +975,7 @@ class SeekerView(View):
                     saved_search.querystring = qs
                     saved_search.url = request.path
                     saved_search.save()
+                    form.save_m2m()
                     messages.success(request, 'Successfully saved "%s".' % saved_search)
                     response_data['redirect_url'] = saved_search.get_absolute_url()
                 else:
@@ -1738,6 +1739,7 @@ class AdvancedSavedSearchView(View):
                     saved_search = form.save(commit=False)
                     saved_search.user = request.user
                     saved_search.save()
+                    form.save_m2m()
 
                     # TODO - Look for way to prevent us from needing to rerun this query to update results
                     saved_searches = self.get_saved_searches(url, SavedSearchModel)
