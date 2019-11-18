@@ -44,7 +44,7 @@ class Column(object):
     view = None
     visible = False
 
-    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None, field_definition=None):
+    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None, field_definition=None, custom_cls=None):
         self.field = field
         self.label = label if label is not None else field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
@@ -54,6 +54,7 @@ class Column(object):
         self.export = export
         self.highlight = highlight
         self.field_definition = field_definition
+        self.custom_cls = custom_cls
 
     def __str__(self):
         return self.label
@@ -87,6 +88,8 @@ class Column(object):
     def header(self):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' %s_%s' % (self.model_lower, self.field.replace('.', '_'))
+        if self.custom_cls:
+            cls += ' %s' % (self.custom_cls)
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         q = self.view.request.GET.copy()
@@ -403,10 +406,20 @@ class SeekerView(View):
     NOTE: The indexes defined in required_display are not used if display_column_sort_order has a value.
     """
 
+    custom_header_class = None
+    """
+    Customizable html class to add to all (non-rank) seeker column headers
+    """
+
     custom_column_headers = {}
     """
     This dictionary can be used to set custom text for a fields column header.  The key is the field_name.
     """
+
+    custom_column_header_classes = {}
+    """
+    This dictionary can be used to set custom html classes for a fields column header.  The key is the field_name.
+    """    
 
     analyzer = DEFAULT_ANALYZER
     """
@@ -585,8 +598,13 @@ class SeekerView(View):
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
+        custom_cls = self.custom_header_class
+        if custom_cls:
+            custom_cls += ' ' + self.custom_column_header_classes.get(field_name, '')
+        else:
+            custom_cls = self.custom_column_header_classes.get(field_name, '')
         field_definition  = self.field_definitions.get(field_name)
-        return Column(field_name, label=label, sort=sort, highlight=highlight, header=header, field_definition=field_definition)
+        return Column(field_name, label=label, sort=sort, highlight=highlight, header=header, field_definition=field_definition, custom_cls=custom_cls)
 
     def get_columns(self, display=None):
         """
@@ -1032,6 +1050,8 @@ class AdvancedColumn(Column):
         cls += ' {}_{}'.format(self.view.document.__name__.lower(), self.field.replace('.', '_'))
         if self.model_lower:
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
+        if self.custom_cls:
+            cls += ' {}'.format(self.custom_cls)
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         current_sort = self.view.search_object['sort']
