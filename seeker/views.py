@@ -748,6 +748,14 @@ class SeekerView(View):
             }
         }
 
+    def is_initial(self):
+        """
+        Returns true if the request is in an initial search, false if not
+        Can be overridden in case of non initial get requests that aren't ajax (submitted form)
+        This will depend on the seeker form html and the info coming in on the get request
+        """
+        return False if self.request.is_ajax() else True
+
     def apply_highlight(self, search, columns):
         highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
         # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
@@ -778,7 +786,7 @@ class SeekerView(View):
             saved_searches = []
 
         keywords = self.get_keywords(self.request.GET)
-        facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if not self.request.is_ajax() else None)
+        facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if self.is_initial()  else None)
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
@@ -786,7 +794,7 @@ class SeekerView(View):
             executed_search = search.execute()
             facets_selected_and_results = collections.OrderedDict()
             for facet in facets:
-                if self.request.GET.get(facet.field):
+                if self.request.GET.get(facet.field) or (self.is_initial() and facet.field in self.initial_facets):
                     stored_facet_data = facets[facet]
                     facets[facet] = []
                     facets_selected_and_results[facet] = (stored_facet_data, self.get_search(keywords, facets).execute())
