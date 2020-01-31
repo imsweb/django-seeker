@@ -754,7 +754,7 @@ class SeekerView(View):
         Can be overridden in case of non initial get requests that aren't ajax (submitted form)
         This will depend on the seeker form html and the info coming in on the get request
         """
-        return False if self.request.is_ajax() else True
+        return not self.request.is_ajax()
 
     def apply_highlight(self, search, columns):
         highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
