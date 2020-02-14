@@ -9,7 +9,6 @@ from seeker.registry import app_documents, documents
 from seeker.utils import progress
 
 
-
 def reindex(es, doc_class, index, options):
     """
     Index all the things, using ElasticSearch's bulk API for speed.
@@ -37,11 +36,11 @@ class Command(BaseCommand):
                             default=None,
                             help='The ES connection alias to use',
         )
-        parser.add_argument('--index',
-                            dest='index',
-                            default=None,
-                            help='The ES index to store data in',
-        )
+#         parser.add_argument('--index',
+#                             dest='index',
+#                             default=None,
+#                             help='The ES index to store data in',
+#         )
         parser.add_argument('--quiet',
                             action='store_true',
                             dest='quiet',
@@ -77,7 +76,15 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         doc_classes = []
         for label in args:
-            doc_classes.extend(app_documents.get(label, []))
+            if '.' in label:
+                app_name, doc_name = label.split('.', 1)
+                doc_name = doc_name.lower()
+                for doc_class in app_documents.get(app_name, []):
+                    if doc_name == doc_class.__name__.lower():
+                        doc_classes.append(doc_class)
+                        break
+            else:
+                doc_classes.extend(app_documents.get(label, []))
         if not args:
             doc_classes.extend(documents)
         deleted_indexes = []
