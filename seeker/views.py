@@ -699,8 +699,8 @@ class SeekerView(View):
             for field_name in mapping:
                 if mapping[field_name].to_dict().get('analyzer') == self.analyzer:
                     fields.append(prefix + field_name)
-                if hasattr(mapping[field_name], 'properties'):
-                    fields.extend(self.get_search_fields(mapping=mapping[field_name].properties, prefix=prefix + field_name + '.'))
+                if hasattr(mapping[field_name], '_mapping'):
+                    fields.extend(self.get_search_fields(mapping=mapping[field_name]._mapping, prefix=prefix + field_name + '.'))
             return fields
         else:
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
