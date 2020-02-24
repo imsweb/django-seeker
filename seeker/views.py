@@ -794,7 +794,7 @@ class SeekerView(View):
             executed_search = search.execute()
             facets_selected_and_results = collections.OrderedDict()
             for facet in facets:
-                if self.request.GET.get(facet.field) or (self.is_initial() and facet.field in self.initial_facets):
+                if facets[facet]:
                     stored_facet_data = facets[facet]
                     facets[facet] = []
                     facets_selected_and_results[facet] = (stored_facet_data, self.get_search(keywords, facets).execute())
