@@ -747,6 +747,8 @@ class SeekerView(View):
             }
 
     def sort_descriptor(self, sort):
+        if self.missing_sort is None or isinstance(sort, dict):
+            return sort
         if not isinstance(sort, list):
             return self.apply_sort_descriptor(sort)
         else:
@@ -1476,8 +1478,8 @@ class AdvancedSeekerView(SeekerView):
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
-            if self.missing_sort is None or isinstance(sort, dict):
-                results = search.sort(*sort)[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+            if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
+                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
             else:
                 results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
         else:
