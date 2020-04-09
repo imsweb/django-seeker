@@ -731,7 +731,7 @@ class SeekerView(View):
                     facet.apply(s)
         return s
 
-    def sort_descriptor_method(self, sort, sort_dict):
+    def apply_sort_descriptor(self, sort):
         desc = sort.startswith('-')
         field = sort.lstrip('-')
         missing = self.missing_sort
@@ -739,21 +739,20 @@ class SeekerView(View):
             missing = '_last' if desc else '_first'
         elif missing == '_high':
             missing = '_first' if desc else '_last'
-        sort_dict.update({
-            field: {
-                'order': 'desc' if desc else 'asc',
-                'missing': missing,
+        return {
+                field: {
+                    'order': 'desc' if desc else 'asc',
+                    'missing': missing,
+                }
             }
-        })
-        return sort_dict
 
     def sort_descriptor(self, sort):
-        sort_dict = {}
         if not isinstance(sort, list):
-            return self.sort_descriptor_method(sort, sort_dict)
+            return self.apply_sort_descriptor(sort)
         else:
+            sort_dict = {}
             for s in sort:
-                sort_dict = self.sort_descriptor_method(s, sort_dict)
+                sort_dict.update(self.apply_sort_descriptor(s))
             return sort_dict
                 
 
@@ -1287,11 +1286,11 @@ class AdvancedSeekerView(SeekerView):
         field_definition  = self.field_definitions.get(field_name)
         return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header, value_format=val_format, field_definition=field_definition)
 
-    def get_sort_field_method(self, column_lookup, sort, sort_fields):
+    def apply_sort_field(self, column_lookup, sort):
         c = column_lookup.get(sort.lstrip('-'))
         if c and c.sort:
-            sort_fields.append('-{}'.format(c.sort) if sort.startswith('-') else c.sort)
-        return sort_fields
+            return('-{}'.format(c.sort) if sort.startswith('-') else c.sort)
+        return sort
 
     def get_sort_field(self, columns, sort, display):
         """
@@ -1305,10 +1304,10 @@ class AdvancedSeekerView(SeekerView):
         sort = sort or self.sort or display[0] if len(display) else ''
         # Get the column based on the field name, and use it's "sort" field, if applicable.
         if not isinstance(sort, list):
-            sort_fields = self.get_sort_field_method(column_lookup, sort, sort_fields)
+            return self.apply_sort_field(column_lookup, sort)
         else:
             for s in sort:
-                sort_fields = self.get_sort_field_method(column_lookup, s, sort_fields)
+                sort_fields.append(self.apply_sort_field(column_lookup, s))
         return sort_fields
 
     def get_sorted_display_list(self):
