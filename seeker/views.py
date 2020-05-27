@@ -1173,7 +1173,7 @@ class AdvancedSeekerView(SeekerView):
     The number of seconds to allow any DSL search to execute before a timeout error is raised.
     """
 
-    always_display_highlighted_columns = True
+    always_display_highlighted_columns = False
     """
     If True, any column that includes a cell with highlighted text will be automaticaly displayed by the system.
     """
@@ -1394,7 +1394,7 @@ class AdvancedSeekerView(SeekerView):
         for column in columns:
             if not column.visible and column.field in highlighted_columns:
                 column.bind(self, True)
-                self.search_object.setdefault('system_added_display', []).append(column.field)
+                self.search_object['system_added_display'].append(column.field)
 
         columns = self.sort_columns(columns, display + self.search_object['system_added_display'])
 
