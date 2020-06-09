@@ -2,6 +2,7 @@ import abc
 import collections
 import copy
 import inspect
+import itertools
 import json
 import re
 import warnings
@@ -588,7 +589,28 @@ class SeekerView(View):
         field_definition  = self.field_definitions.get(field_name)
         return Column(field_name, label=label, sort=sort, highlight=highlight, header=header, field_definition=field_definition)
 
-    def get_columns(self, display=None):
+    def sort_columns(self, columns, display=None):
+        if not display:
+            display = self.get_display()
+
+        if self.display_column_sort_order:
+            sort_order = self.get_sort_order(columns)
+            columns.sort(key=lambda c: sort_order.index(c.field))
+            return columns
+        else:
+            visible_columns = []
+            non_visible_columns=[]
+            for c in columns:
+                if c.visible:
+                    visible_columns.append(c)
+                else:
+                    non_visible_columns.append(c)
+            visible_columns.sort(key=lambda  c: display.index(c.field))
+            non_visible_columns.sort(key=lambda c: c.label)
+
+            return visible_columns + non_visible_columns
+
+    def get_columns(self, display=None, sort=True):
         """
         Returns a list of :class:`seeker.Column` objects based on self.columns, converting any strings.
         """
@@ -614,25 +636,13 @@ class SeekerView(View):
         if not display:
             display = self.get_display()
 
-        if self.display_column_sort_order:
-            for c in columns:
-                c.bind(self, c.field in display)
-            sort_order = self.get_sort_order(columns)
-            columns.sort(key=lambda c: sort_order.index(c.field))
-            return columns
-        else:
-            visible_columns = []
-            non_visible_columns=[]
-            for c in columns:
-                c.bind(self, c.field in display)
-                if c.visible:
-                    visible_columns.append(c)
-                else:
-                    non_visible_columns.append(c)
-            visible_columns.sort(key=lambda  c: display.index(c.field))
-            non_visible_columns.sort(key=lambda c: c.label)
+        for c in columns:
+            c.bind(self, c.field in display)
 
-            return visible_columns + non_visible_columns
+        if sort:
+            columns = self.sort_columns(columns, display)
+
+        return columns
 
     def get_sorted_display_list(self):
         return self.request.GET.getlist("so")
@@ -731,9 +741,7 @@ class SeekerView(View):
                     facet.apply(s)
         return s
 
-    def sort_descriptor(self, sort):
-        if self.missing_sort is None or isinstance(sort, dict):
-            return sort
+    def apply_sort_descriptor(self, sort):
         desc = sort.startswith('-')
         field = sort.lstrip('-')
         missing = self.missing_sort
@@ -742,14 +750,34 @@ class SeekerView(View):
         elif missing == '_high':
             missing = '_first' if desc else '_last'
         return {
-            field: {
-                'order': 'desc' if desc else 'asc',
-                'missing': missing,
+                field: {
+                    'order': 'desc' if desc else 'asc',
+                    'missing': missing,
+                }
             }
-        }
+
+    def sort_descriptor(self, sort):
+        if self.missing_sort is None or isinstance(sort, dict):
+            return sort
+        if not isinstance(sort, list):
+            return self.apply_sort_descriptor(sort)
+        else:
+            sort_dict = {}
+            for s in sort:
+                sort_dict.update(self.apply_sort_descriptor(s))
+            return sort_dict
+                
+
+    def is_initial(self):
+        """
+        Returns true if the request is in an initial search, false if not
+        Can be overridden in case of non initial get requests that aren't ajax (submitted form)
+        This will depend on the seeker form html and the info coming in on the get request
+        """
+        return not self.request.is_ajax()
 
     def apply_highlight(self, search, columns):
-        highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.visible and c.highlight]
+        highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.highlight]
         # NOTE: If the option to customize the tags (via pre_tags and post_tags) is added then the Column "render" function will need to be updated.
         search = search.highlight(*highlight_fields, number_of_fragments=self.number_of_fragments).highlight_options(encoder=self.highlight_encoder)
         return search
@@ -778,7 +806,7 @@ class SeekerView(View):
             saved_searches = []
 
         keywords = self.get_keywords(self.request.GET)
-        facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if not self.request.is_ajax() else None)
+        facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if self.is_initial()  else None)
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
@@ -786,7 +814,7 @@ class SeekerView(View):
             executed_search = search.execute()
             facets_selected_and_results = collections.OrderedDict()
             for facet in facets:
-                if self.request.GET.get(facet.field):
+                if facets[facet]:
                     stored_facet_data = facets[facet]
                     facets[facet] = []
                     facets_selected_and_results[facet] = (stored_facet_data, self.get_search(keywords, facets).execute())
@@ -976,6 +1004,7 @@ class SeekerView(View):
                     saved_search.querystring = qs
                     saved_search.url = request.path
                     saved_search.save()
+                    form.save_m2m()
                     messages.success(request, 'Successfully saved "%s".' % saved_search)
                     response_data['redirect_url'] = saved_search.get_absolute_url()
                 else:
@@ -1154,6 +1183,11 @@ class AdvancedSeekerView(SeekerView):
     The number of seconds to allow any DSL search to execute before a timeout error is raised.
     """
 
+    always_display_highlighted_columns = False
+    """
+    If True, any column that includes a cell with highlighted text will be automaticaly displayed by the system.
+    """
+
     @abc.abstractproperty
     def save_search_url(self):
         pass
@@ -1269,19 +1303,29 @@ class AdvancedSeekerView(SeekerView):
         field_definition  = self.field_definitions.get(field_name)
         return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header, value_format=val_format, field_definition=field_definition)
 
+    def apply_sort_field(self, column_lookup, sort):
+        c = column_lookup.get(sort.lstrip('-'))
+        if c and c.sort:
+            return('-{}'.format(c.sort) if sort.startswith('-') else c.sort)
+        return sort
+
     def get_sort_field(self, columns, sort, display):
         """
         Returns the appropriate sort field for a given sort value.
         """
+        
         # Make sure we sanitize the sort fields.
+        sort_fields = []
         column_lookup = { c.field: c for c in columns }
         # Order of precedence for sort is: parameter, the default from the view, and then the first displayed column (if any are displayed)
         sort = sort or self.sort or display[0] if len(display) else ''
         # Get the column based on the field name, and use it's "sort" field, if applicable.
-        c = column_lookup.get(sort.lstrip('-'))
-        if c and c.sort:
-            return '-{}'.format(c.sort) if sort.startswith('-') else c.sort
-        return sort
+        if not isinstance(sort, list):
+            return self.apply_sort_field(column_lookup, sort)
+        else:
+            for s in sort:
+                sort_fields.append(self.apply_sort_field(column_lookup, s))
+        return sort_fields
 
     def get_sorted_display_list(self):
         return self.search_object.get("displaySortOrder")
@@ -1363,6 +1407,19 @@ class AdvancedSeekerView(SeekerView):
             search = self.get_search_query_type(search, keywords)
         return search
 
+    def display_highlighted_columns(self, columns, display, results):
+        highlight_results = [list(hit.meta.highlight.to_dict().keys()) for hit in results if hasattr(hit.meta, 'highlight')]
+        highlighted_columns = list(set(itertools.chain.from_iterable(highlight_results)))
+        self.search_object['system_added_display'] = []
+        for column in columns:
+            if not column.visible and column.field in highlighted_columns:
+                column.bind(self, True)
+                self.search_object['system_added_display'].append(column.field)
+
+        columns = self.sort_columns(columns, display + self.search_object['system_added_display'])
+
+        return columns
+
     def get_aggregated_results(self, query, facet_lookup):
         """This function gets the aggregation results for a query.  It does not get the search results"""
         # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
@@ -1435,7 +1492,7 @@ class AdvancedSeekerView(SeekerView):
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
 
         display = self.get_display(self.search_object['display'], facets_searched)
-        columns = self.get_columns(display)
+        columns = self.get_columns(display, sort=not self.always_display_highlighted_columns)
         if export:
             return self.export(search, columns)
 
@@ -1449,17 +1506,24 @@ class AdvancedSeekerView(SeekerView):
         # Finally, grab the results.
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
-            results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+            if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
+                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+            else:
+                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
         else:
             results = search[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
 
+        if self.always_display_highlighted_columns:
+            columns = self.display_highlighted_columns(columns, display, results)
+
         # TODO clean this up (may not need everything)
         context = {
             'columns': columns,
             'display_columns': [c for c in columns if c.visible],
+            'system_added_display': self.search_object.get('system_added_display', []),
             'facet_lookup': facet_lookup,
             'facets_searched': facets_searched,
             'footer_template': self.footer_template,
@@ -1750,6 +1814,7 @@ class AdvancedSavedSearchView(View):
                     saved_search = form.save(commit=False)
                     saved_search.user = request.user
                     saved_search.save()
+                    form.save_m2m()
 
                     # TODO - Look for way to prevent us from needing to rerun this query to update results
                     saved_searches = self.get_saved_searches(url, SavedSearchModel)
