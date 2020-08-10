@@ -8,12 +8,11 @@ from elasticsearch_dsl.connections import connections
 from seeker.registry import app_documents, documents
 from seeker.utils import progress
 
-
-
 def reindex(es, doc_class, index, options):
     """
     Index all the things, using ElasticSearch's bulk API for speed.
     """
+
     def get_actions():
         for doc in doc_class.documents(cursor=options['cursor']):
             action = {
@@ -22,10 +21,13 @@ def reindex(es, doc_class, index, options):
             }
             action.update(doc)
             yield action
-    actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
-    bulk(es, actions)
-    es.indices.refresh(index=index)
 
+    actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
+    bulk_kwargs = {}
+    if options['timeout']:
+        bulk_kwargs['request_timeout'] = options['timeout']
+    bulk(es, actions, **bulk_kwargs)
+    es.indices.refresh(index=index)
 
 class Command(BaseCommand):
     args = '<app1 app2 ...>'
@@ -72,6 +74,13 @@ class Command(BaseCommand):
                             default=False,
                             help='Use a server-side cursor when fetching data for indexing',
         )
+        parser.add_argument('--timeout',
+                            action='store',
+                            dest='timeout',
+                            default=None,
+                            type=int,
+                            help='Sets the ES request timeout length in ms for indexing',
+        )
         parser.add_argument('args', nargs=argparse.REMAINDER)
 
     def handle(self, *args, **options):
@@ -83,7 +92,7 @@ class Command(BaseCommand):
         deleted_indexes = []
         for doc_class in doc_classes:
             using = options['using'] or doc_class._index._using or 'default'
-            index = doc_class._index._name  # options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+            index = doc_class._index._name # options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
             es = connections.get_connection(using)
             if options['drop'] and index not in deleted_indexes:
                 if es.indices.exists(index=index):
