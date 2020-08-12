@@ -1227,6 +1227,16 @@ class AdvancedSeekerView(SeekerView):
     If True, aggregations will be executed in a separate DSL Search object.  This will allows sites to cache aggregation searches.
     """
 
+    default_column_class = AdvancedColumn
+    """
+    This is the default class that make_column will use when create seeker columns.
+    """
+
+    field_column_classes = {}
+    """
+    A dictionary of field_name -> AdvancedColumn class that allows you to easily customize a column class and still utilize the make_column method.
+    """
+
     def __init__(self):
         if vars(SeekerView).get('get_search_query_type') != getattr(self, 'get_search_query_type').__func__:
             warnings.warn(
@@ -1301,7 +1311,17 @@ class AdvancedSeekerView(SeekerView):
         header = self.custom_column_headers.get(field_name, None)
         val_format = self.value_formats.get(field_name, None)
         field_definition  = self.field_definitions.get(field_name)
-        return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header, value_format=val_format, field_definition=field_definition)
+
+        column_class = self.field_column_classes.get(field_name, self.default_column_class)
+        return column_class(
+            field_name,
+            label=label,
+            sort=sort,
+            highlight=highlight,
+            header=header,
+            value_format=val_format,
+            field_definition=field_definition
+        )
 
     def apply_sort_field(self, column_lookup, sort):
         c = column_lookup.get(sort.lstrip('-'))
