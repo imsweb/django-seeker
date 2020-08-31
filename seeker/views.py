@@ -700,6 +700,13 @@ class SeekerView(View):
     def get_saved_search_model(self):
         from .models import SavedSearch
         return SavedSearch
+    
+    def get_saved_searches(self, url, SavedSearchModel):
+        if self.request.user and self.request.user.is_authenticated:
+            return self.request.user.seeker_searches.filter(url=url)
+        else:
+            return []
+
 
     def get_search_fields(self, mapping=None, prefix=''):
         if self.search:
@@ -794,16 +801,16 @@ class SeekerView(View):
 
         # Figure out if this is a saved search, and grab the current user's saved searches.
         saved_search = None
-        if self.request.user and self.request.user.is_authenticated:
-            saved_search_pk = self.get_saved_search()
-            if saved_search_pk:
-                try:
-                    saved_search = self.request.user.seeker_searches.get(pk=saved_search_pk, url=self.request.path)
-                except SavedSearchModel.DoesNotExist:
-                    pass
-            saved_searches = self.request.user.seeker_searches.filter(url=self.request.path)
-        else:
-            saved_searches = []
+        saved_searches = self.get_saved_searches(self.request.path, SavedSearchModel)
+        saved_search_pk = self.get_saved_search()
+        if saved_searches and saved_search_pk:
+            try:
+                saved_search = saved_searches.get(pk=saved_search_pk)
+            except SavedSearchModel.DoesNotExist:
+                pass
+        elif saved_searches:
+            # By design this will return None if there are no default searches found
+            saved_search = saved_searches.filter(default=True).first()
 
         keywords = self.get_keywords(self.request.GET)
         facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if self.is_initial()  else None)
