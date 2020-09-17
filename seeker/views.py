@@ -701,9 +701,9 @@ class SeekerView(View):
         from .models import SavedSearch
         return SavedSearch
     
-    def get_saved_searches(self, url, SavedSearchModel):
+    def get_saved_searches(self):
         if self.request.user and self.request.user.is_authenticated:
-            return self.request.user.seeker_searches.filter(url=url)
+            return self.request.user.seeker_searches.filter(url=self.request.path)
         else:
             return []
 
@@ -801,15 +801,13 @@ class SeekerView(View):
 
         # Figure out if this is a saved search, and grab the current user's saved searches.
         saved_search = None
-        saved_searches = self.get_saved_searches(self.request.path, SavedSearchModel)
+        saved_searches = self.get_saved_searches()
         saved_search_pk = self.get_saved_search()
         if saved_searches and saved_search_pk:
             try:
                 saved_search = saved_searches.get(pk=saved_search_pk)
             except SavedSearchModel.DoesNotExist:
                 pass
-        elif saved_searches:
-            # By design this will return None if there are no default searches found
             saved_search = saved_searches.filter(default=True).first()
 
         keywords = self.get_keywords(self.request.GET)
