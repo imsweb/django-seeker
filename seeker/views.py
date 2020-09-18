@@ -808,7 +808,6 @@ class SeekerView(View):
                 saved_search = saved_searches.get(pk=saved_search_pk)
             except SavedSearchModel.DoesNotExist:
                 pass
-            saved_search = saved_searches.filter(default=True).first()
 
         keywords = self.get_keywords(self.request.GET)
         facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if self.is_initial()  else None)
@@ -859,7 +858,6 @@ class SeekerView(View):
 
         # Finally, grab the results.
         results = search.sort(*sort_fields)[offset:offset + page_size].execute()
-
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
