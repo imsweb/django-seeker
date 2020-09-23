@@ -102,13 +102,13 @@ class Column(object):
             q['s'] = '%s%s' % (d, self.field)
         else:
             q['s'] = self.field
-        next_sort = 'descending' if sort == 'Ascending' else 'ascending'
+        next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
         if self.field_definition:
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        html = '<th class="%s"><a href="?%s" title="Click to sort %s" data-sort="%s">%s%s %s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label, span)
+        html = '<th class="%s"><a href="?%s" title="Click to %s" data-sort="%s">%s%s %s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label, span)
         return mark_safe(html)
 
     def context(self, result, **kwargs):
@@ -1077,7 +1077,7 @@ class AdvancedColumn(Column):
         else:
             data_sort = self.field
             
-        next_sort = 'descending' if sort == 'Ascending' else 'ascending'
+        next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
@@ -1089,7 +1089,7 @@ class AdvancedColumn(Column):
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
+        html = '<th class="{}"><a href="#" title="Click to {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
         return mark_safe(html)
 
     def get_data_max_length(self, results):
