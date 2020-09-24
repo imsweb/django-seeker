@@ -98,8 +98,7 @@ class Column(object):
             # If the current sort field is this field, give it a class a change direction.
             sort = 'Descending' if field.startswith('-') else 'Ascending'
             cls += ' desc' if field.startswith('-') else ' asc'
-            d = '' if field.startswith('-') else '-'
-            q['s'] = '%s%s' % (d, self.field)
+            q['s'] = '' if current_sort.startswith('-') else '{}{}'.format('-', self.field)
         else:
             q['s'] = self.field
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
@@ -1065,6 +1064,7 @@ class AdvancedColumn(Column):
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
+        print("** Current search_object:", self.view.search_object)
         current_sort = self.view.search_object['sort']
         sort = None
         cls += ' sort'
@@ -1072,8 +1072,7 @@ class AdvancedColumn(Column):
             # If the current sort field is this field, give it a class a change direction.
             sort = 'Descending' if current_sort.startswith('-') else 'Ascending'
             cls += ' desc' if current_sort.startswith('-') else ' asc'
-            d = '' if current_sort.startswith('-') else '-'
-            data_sort = '{}{}'.format(d, self.field)
+            data_sort = '' if current_sort.startswith('-') else '{}{}'.format('-', self.field)
         else:
             data_sort = self.field
             
@@ -1208,7 +1207,7 @@ class AdvancedSeekerView(SeekerView):
     Generally, this will be a 'reverse' call to the URL associated with this view.
     """
 
-    sort = ''
+    sort = []
     """
     Default field to sort by. Prepend '-' to reverse sort.
     """
@@ -1396,7 +1395,7 @@ class AdvancedSeekerView(SeekerView):
             except ValueError:
                 return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
 
-            # Sanity check that the search object has all of it's required components
+            # Sanity check that the search object has all of its required components
             if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
                 return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
 
