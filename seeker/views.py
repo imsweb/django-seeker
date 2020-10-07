@@ -764,10 +764,7 @@ class SeekerView(View):
         if isinstance(sort, dict):
             return sort
         if not isinstance(sort, list):
-            applied = self.apply_sort_descriptor(sort)
-            print("instance after sort was applied:", applied)
-            return applied
-            #return self.apply_sort_descriptor(sort)
+            return self.apply_sort_descriptor(sort)
         else:
             sort_dict = {}
             for s in sort:
@@ -1070,35 +1067,19 @@ class AdvancedColumn(Column):
         sort = None
         sort_fields = []
         cls += ' sort'
-        # if isinstance(current_sort, str):
-        #     print("current_sort before string to list conversion", current_sort)
-        #     # This conditional prevents setting current_sort to ['']
-        #     current_sort = [] if not current_sort else [current_sort]
-        #     print("current_sort value before looping", current_sort)
-        #if current_sort != '':
-        #for sort_field in current_sort:
-        #if sort_field.lstrip('-') == self.field:
-        if isinstance(current_sort, list):
-            for sort_field in current_sort:
-                if sort_field.lstrip('-') == self.field:
-                    # If the current sort field is this field, give it a class a change direction.
-                    sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
-                    cls += ' desc' if sort_field.startswith('-') else ' asc'
-                    data_sort = '' if sort_field.startswith('-') else '{}{}'.format('-', self.field)
-                    sort_fields.append(data_sort)
-                else:
-                    data_sort = self.field
-                    sort_fields.append(data_sort)
-        else:
-            if current_sort.lstrip('-') == self.field:
+        if not isinstance(current_sort, list):
+            current_sort = [current_sort]
+        for sort_field in current_sort:
+            if sort_field.lstrip('-') == self.field:
                 # If the current sort field is this field, give it a class a change direction.
-                sort = 'Descending' if current_sort.startswith('-') else 'Ascending'
-                cls += ' desc' if current_sort.startswith('-') else ' asc'
-                data_sort = '' if current_sort.startswith('-') else '{}{}'.format('-', self.field)
+                sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
+                cls += ' desc' if sort_field.startswith('-') else ' asc'
+                data_sort = '' if sort_field.startswith('-') else '{}{}'.format('-', self.field)
                 sort_fields.append(data_sort)
             else:
                 data_sort = self.field
                 sort_fields.append(data_sort)
+
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
 
@@ -1111,7 +1092,8 @@ class AdvancedColumn(Column):
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        sort_fields = "''" if not sort_fields else sort_fields
+        if not sort_fields or sort_fields == ['']:
+            sort_fields = "''"
         html = '<th class="{}"><a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>'.format(cls, next_sort, sort_fields, self.header_html, sr_label, span)
         return mark_safe(html)
 
