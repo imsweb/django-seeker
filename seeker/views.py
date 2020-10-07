@@ -751,22 +751,23 @@ class SeekerView(View):
         desc = sort.startswith('-')
         field = sort.lstrip('-')
         missing = self.missing_sort
+        sort_querydict = {'order': 'desc' if desc else 'asc'}
         if missing == '_low':
-            missing = '_last' if desc else '_first'
+            sort_querydict.update({'missing':'_last' if desc else '_first'})
         elif missing == '_high':
-            missing = '_first' if desc else '_last'
+             sort_querydict.update({'missing':'_first' if desc else '_last'})
         return {
-                field: {
-                    'order': 'desc' if desc else 'asc',
-                    'missing': missing,
-                }
+                sort: sort_querydict
             }
 
     def sort_descriptor(self, sort):
-        if self.missing_sort is None or isinstance(sort, dict):
+        if isinstance(sort, dict):
             return sort
         if not isinstance(sort, list):
-            return self.apply_sort_descriptor(sort)
+            applied = self.apply_sort_descriptor(sort)
+            print("instance after sort was applied:", applied)
+            return applied
+            #return self.apply_sort_descriptor(sort)
         else:
             sort_dict = {}
             for s in sort:
@@ -1067,15 +1068,37 @@ class AdvancedColumn(Column):
         print("** Current search_object:", self.view.search_object)
         current_sort = self.view.search_object['sort']
         sort = None
+        sort_fields = []
         cls += ' sort'
-        if current_sort.lstrip('-') == self.field:
-            # If the current sort field is this field, give it a class a change direction.
-            sort = 'Descending' if current_sort.startswith('-') else 'Ascending'
-            cls += ' desc' if current_sort.startswith('-') else ' asc'
-            data_sort = '' if current_sort.startswith('-') else '{}{}'.format('-', self.field)
+        # if isinstance(current_sort, str):
+        #     print("current_sort before string to list conversion", current_sort)
+        #     # This conditional prevents setting current_sort to ['']
+        #     current_sort = [] if not current_sort else [current_sort]
+        #     print("current_sort value before looping", current_sort)
+        #if current_sort != '':
+        #for sort_field in current_sort:
+        #if sort_field.lstrip('-') == self.field:
+        if isinstance(current_sort, list):
+            for sort_field in current_sort:
+                if sort_field.lstrip('-') == self.field:
+                    # If the current sort field is this field, give it a class a change direction.
+                    sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
+                    cls += ' desc' if sort_field.startswith('-') else ' asc'
+                    data_sort = '' if sort_field.startswith('-') else '{}{}'.format('-', self.field)
+                    sort_fields.append(data_sort)
+                else:
+                    data_sort = self.field
+                    sort_fields.append(data_sort)
         else:
-            data_sort = self.field
-            
+            if current_sort.lstrip('-') == self.field:
+                # If the current sort field is this field, give it a class a change direction.
+                sort = 'Descending' if current_sort.startswith('-') else 'Ascending'
+                cls += ' desc' if current_sort.startswith('-') else ' asc'
+                data_sort = '' if current_sort.startswith('-') else '{}{}'.format('-', self.field)
+                sort_fields.append(data_sort)
+            else:
+                data_sort = self.field
+                sort_fields.append(data_sort)
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
 
@@ -1088,7 +1111,8 @@ class AdvancedColumn(Column):
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        html = '<th class="{}"><a href="#" title="Click to {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
+        sort_fields = "''" if not sort_fields else sort_fields
+        html = '<th class="{}"><a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>'.format(cls, next_sort, sort_fields, self.header_html, sr_label, span)
         return mark_safe(html)
 
     def get_data_max_length(self, results):
@@ -1526,7 +1550,13 @@ class AdvancedSeekerView(SeekerView):
             search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
+        search_object_sort = self.search_object['sort']
+        print("here is the search object sort that i will attempt to split", search_object_sort)
+        if search_object_sort.startswith('['):
+            self.search_object['sort'] = self.search_object['sort'].strip("[]\'\"").split(',') 
+        print("here it is after splitting:", self.search_object['sort'])
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
+        print("Results of sort descriptor:", self.sort_descriptor(sort))
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
                 results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
@@ -1572,6 +1602,9 @@ class AdvancedSeekerView(SeekerView):
         }
 
         self.modify_json_response(json_response, context)
+        #print("Right before sending advanced serarch and json response:")
+        #print("context sort", context['sort'])
+        #print("json_response", json_response)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
 
