@@ -517,9 +517,9 @@ class DateRangeFacet(RangeFilter):
         """
         r = {}
         if isinstance(_range, dict):
-            for key in _range:
-                if validate_date_format(_range[key], self.format_validator):
-                    r[key] = _range[key]
+            for key, value in _range.items():
+                if validate_date_format(value, self.format_validator):
+                    r[key] = value
         elif isinstance(_range, list):
             if len(_range) == 2:
                 # This function validates that the ranges have the correct date format
