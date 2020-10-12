@@ -9,7 +9,7 @@ import warnings
 from datetime import datetime
 
 import elasticsearch_dsl as dsl
-import six
+
 from django.conf import settings
 from django.contrib import messages
 from django.forms.forms import Form
@@ -32,10 +32,7 @@ from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
 
-
-
 seekerview_field_templates = {}
-
 
 
 class Column(object):
@@ -70,7 +67,7 @@ class Column(object):
                 self.template_obj = loader.get_template(self.template)
             else:
                 self.template_obj = self.view.get_field_template(self.field)
-        #Set the model_lower variable on Column to the lowercased name of the model on the mapping once view is set above
+        # Set the model_lower variable on Column to the lowercased name of the model on the mapping once view is set above
         try:
             self.model_lower = self.view.document._model
         except AttributeError:
@@ -144,7 +141,7 @@ class Column(object):
                 if index_to_replace is not None:
                     modified_values[index_to_replace] = highlighted_value
             highlight = modified_values
-            
+
         if self.value_format:
             value = self.value_format(value)
             if highlight:
@@ -226,7 +223,7 @@ class SeekerView(View):
     """
     A list of field names to exclude when generating columns.
     """
-    
+
     display = None
     """
     A list of field/column names to display by default.
@@ -288,7 +285,7 @@ class SeekerView(View):
     """
     The number of results to show per page.
     """
-    
+
     available_page_sizes = []
     """
     If set allows user to set options for page size to be changed, (must include the default page_size)
@@ -586,7 +583,7 @@ class SeekerView(View):
         sort = self.get_field_sort(field_name)
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
-        field_definition  = self.field_definitions.get(field_name)
+        field_definition = self.field_definitions.get(field_name)
         return Column(field_name, label=label, sort=sort, highlight=highlight, header=header, field_definition=field_definition)
 
     def sort_columns(self, columns, display=None):
@@ -599,7 +596,7 @@ class SeekerView(View):
             return columns
         else:
             visible_columns = []
-            non_visible_columns=[]
+            non_visible_columns = []
             for c in columns:
                 if c.visible:
                     visible_columns.append(c)
@@ -624,7 +621,7 @@ class SeekerView(View):
         else:
             # Otherwise, go through and convert any strings to Columns.
             for c in self.columns:
-                if isinstance(c, six.string_types):
+                if isinstance(c, str):
                     if self.exclude and c in self.exclude:
                         continue
                     columns.append(self.make_column(c))
@@ -766,7 +763,6 @@ class SeekerView(View):
             for s in sort:
                 sort_dict.update(self.apply_sort_descriptor(s))
             return sort_dict
-                
 
     def is_initial(self):
         """
@@ -983,7 +979,7 @@ class SeekerView(View):
             # A "sub" method that handles ajax save submissions (and returns JSON, not a redirect)
             if request.is_ajax() and self.use_save_form:
 
-                response_data = {} # All data must be able to flatten to JSON
+                response_data = {}  # All data must be able to flatten to JSON
 
                 # First we check if the user is attempting to overwrite an existing search
                 saved_searches = request.user.seeker_searches.filter(url=request.path)
@@ -1055,6 +1051,7 @@ class SeekerView(View):
 
 
 class AdvancedColumn(Column):
+
     def header(self, results=None):
         cls = '{}_{}'.format(self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' {}_{}'.format(self.view.document.__name__.lower(), self.field.replace('.', '_'))
@@ -1073,7 +1070,7 @@ class AdvancedColumn(Column):
             data_sort = '{}{}'.format(d, self.field)
         else:
             data_sort = self.field
-            
+
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
 
@@ -1097,7 +1094,7 @@ class AdvancedColumn(Column):
         """
         max_length = 0
         for result in results.hits:
-            field_len = len(six.text_type(result[self.field])) if (self.field in result and result[self.field]) else 0
+            field_len = len(str(result[self.field])) if (self.field in result and result[self.field]) else 0
             max_length = max(max_length, field_len)
         return max_length
 
@@ -1143,7 +1140,7 @@ class AdvancedSeekerView(SeekerView):
     A list of available page sizes. The values must be integers.
     NOTE: These values are NOT enforced, they are simply used for rendering.
     """
-    
+
     boolean_translations = {
         'AND': 'must',
         'OR': 'should'
@@ -1191,6 +1188,7 @@ class AdvancedSeekerView(SeekerView):
     @abc.abstractproperty
     def save_search_url(self):
         pass
+
     """
     This property should return the url of the associated AdvancedSavedSearchView.
     It is set to abstract because it needs to be defined on a site by site basis. None is a valid value if saved searches are not being used.
@@ -1199,6 +1197,7 @@ class AdvancedSeekerView(SeekerView):
     @abc.abstractproperty
     def search_url(self):
         pass
+
     """
     This property should return the url of this seeker view.
     It is set to abstract because it needs to be defined on a site by site basis.
@@ -1300,7 +1299,7 @@ class AdvancedSeekerView(SeekerView):
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
         val_format = self.value_formats.get(field_name, None)
-        field_definition  = self.field_definitions.get(field_name)
+        field_definition = self.field_definitions.get(field_name)
         return AdvancedColumn(field_name, label=label, sort=sort, highlight=highlight, header=header, value_format=val_format, field_definition=field_definition)
 
     def apply_sort_field(self, column_lookup, sort):
@@ -1313,7 +1312,7 @@ class AdvancedSeekerView(SeekerView):
         """
         Returns the appropriate sort field for a given sort value.
         """
-        
+
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = { c.field: c for c in columns }
@@ -1445,14 +1444,13 @@ class AdvancedSeekerView(SeekerView):
         }
 
         json_response = {
-            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
+            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()],  # Relies on the default 'apply_aggregations' being applied.
             'search_object': self.search_object
         }
 
         self.modify_aggregation_json_response(json_response, context)
 
         return JsonResponse(json_response)
-
 
     def initial_facet_query(self):
 
@@ -1544,7 +1542,7 @@ class AdvancedSeekerView(SeekerView):
         self.modify_results_context(context)
 
         json_response = {
-            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()], # Relies on the default 'apply_aggregations' being applied.
+            'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()],  # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
             'search_object': self.search_object
         }
@@ -1668,6 +1666,7 @@ class AdvancedSeekerView(SeekerView):
         A helper method called when ``_export`` is present in the http request. Returns a ``StreamingHttpResponse``
         that yields CSV data for all matching results.
         """
+
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
                 value = '; '.join(force_text(v) for v in value)
@@ -1792,7 +1791,7 @@ class AdvancedSavedSearchView(View):
             if delete:
                 if saved_search:
                     saved_search.delete()
-                saved_search = None # 'saved_search' will still hold the python object of the saved search that was just deleted
+                saved_search = None  # 'saved_search' will still hold the python object of the saved search that was just deleted
             elif modify_default:
                 if modify_default == 'set':
                     saved_search.default = True
