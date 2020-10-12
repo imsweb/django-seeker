@@ -514,11 +514,13 @@ class DateRangeFacet(RangeFilter):
         """
         This helper function is designed to take a list of 2 values and build a range query.
         """
+        r = {}
         if isinstance(_range, dict):
-            r = _range
+            for key, value in _range.items():
+                if validate_date_format(value, self.format_validator):
+                    r[key] = value
         elif isinstance(_range, list):
             if len(_range) == 2:
-                r = {}
                 # This function validates that the ranges have the correct date format
                 if validate_date_format(_range[0], self.format_validator):
                     r['gte'] = _range[0]
