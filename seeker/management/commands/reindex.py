@@ -13,6 +13,7 @@ def reindex(es, doc_class, index, options):
     """
     Index all the things, using ElasticSearch's bulk API for speed.
     """
+
     def get_actions():
         for doc in doc_class.documents(cursor=options['cursor']):
             action = {
@@ -21,6 +22,7 @@ def reindex(es, doc_class, index, options):
             }
             action.update(doc)
             yield action
+
     actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
     bulk(es, actions)
     es.indices.refresh(index=index)
@@ -36,11 +38,11 @@ class Command(BaseCommand):
                             default=None,
                             help='The ES connection alias to use',
         )
-#         parser.add_argument('--index',
-#                             dest='index',
-#                             default=None,
-#                             help='The ES index to store data in',
-#         )
+        parser.add_argument('--index',
+                            dest='index',
+                            default=None,
+                            help='The ES index to store data in',
+        )
         parser.add_argument('--quiet',
                             action='store_true',
                             dest='quiet',
