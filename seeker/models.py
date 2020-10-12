@@ -1,10 +1,10 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from django.utils.encoding import python_2_unicode_compatible
+
 import bleach
 
-@python_2_unicode_compatible
+
 class SavedSearch(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='seeker_searches', on_delete=models.CASCADE)
     name = models.CharField(max_length=100, blank=True)
@@ -31,10 +31,9 @@ class SavedSearch(models.Model):
         return { 'pk': self.pk, 'name': bleach.clean(self.name, tags=[], strip=True), 'url': self.url, 'default': self.default }
 
 
-@python_2_unicode_compatible
 class AdvancedSavedSearch(SavedSearch):
     search_object = models.TextField()
-    
+
     class Meta:
         ordering = ('name',)
         verbose_name = 'Advanced Saved Search'

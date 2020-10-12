@@ -1,20 +1,16 @@
 import logging
 
 import elasticsearch_dsl as dsl
-import six
 from django.conf import settings as django_settings
 from django.db import models
 from elasticsearch.helpers import bulk, scan
 from elasticsearch_dsl.connections import connections
 from elasticsearch_dsl.field import Object
 
-
 logger = logging.getLogger(__name__)
-
 
 DEFAULT_ANALYZER = getattr(django_settings, 'SEEKER_DEFAULT_ANALYZER', 'snowball')
 DOCUMENT_FIELD_OVERRIDE = getattr(django_settings, 'SEEKER_DOCUMENT_FIELD_OVERRIDE', {})
-
 
 
 def follow(obj, path, force_string=False):
@@ -35,7 +31,7 @@ def follow(obj, path, force_string=False):
                 if new_path:
                     return [follow(o, new_path, force_string=True) for o in obj.all()]
     if force_string and isinstance(obj, models.Model):
-        return six.text_type(obj)
+        return str(obj)
     return obj
 
 
@@ -54,12 +50,12 @@ def serialize_object(obj, mapping, prepare=None):
             value = follow(obj, name)
             if value is not None:
                 if isinstance(value, models.Model):
-                    data[name] = serialize_object(value, field.to_dict()['properties']) if isinstance(field, Object) else six.text_type(value)
+                    data[name] = serialize_object(value, field.to_dict()['properties']) if isinstance(field, Object) else str(value)
                 elif isinstance(value, models.Manager):
                     if isinstance(field, Object):
                         data[name] = [serialize_object(v, field.to_dict()['properties']) for v in value.all()]
                     else:
-                        data[name] = [six.text_type(v) for v in value.all()]
+                        data[name] = [str(v) for v in value.all()]
                 else:
                     data[name] = value
     return data
@@ -98,6 +94,7 @@ class Indexable (dsl.Document):
         index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(using)
         if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
+
             def get_actions():
                 for hit in scan(es, index=index, doc_type=cls._doc_type.name, query={'query': {'match_all': {}}}):
                     yield {
@@ -106,6 +103,7 @@ class Indexable (dsl.Document):
                         '_type': cls._doc_type.name,
                         '_id': hit['_id'],
                     }
+
             bulk(es, get_actions())
             es.indices.refresh(index=index)
 
@@ -116,11 +114,14 @@ def index_factory(model):
         Sets index settings as ``SEEKER_INDEX_SETTINGS``
     """
     index_suffix = '{}-{}'.format(model._meta.app_label, model._meta.model_name)
+
     class Index:
         name = "{}-{}".format(getattr(django_settings, 'SEEKER_INDEX_PREFIX', 'seeker'), index_suffix)
         settings = getattr(django_settings, 'SEEKER_INDEX_SETTINGS', {})
+
     return Index
-    
+
+
 class ModelIndex(Indexable):
     """
     A subclass of ``Indexable`` that returns document data based on Django models.
@@ -128,7 +129,7 @@ class ModelIndex(Indexable):
 
     # Set this to the class of the model being indexed. Note the model class can be grabbed from the queryset but for large querysets this offers a performance boost
     model = None
-    
+
     class Index:
         """
             Define in subclass. No two ModelIndex's should share the same index. Name needs to be set as a unique string per elasticsearch instance.
@@ -307,7 +308,7 @@ def document_from_model(model_class, document_class=ModelIndex, fields=None, exc
                         extra=None, module='seeker.mappings'):
     """
     Returns an instance of ``document_class`` with a ``Meta`` inner class and default ``queryset`` class method.
-    """        
+    """
     IndexMeta = index_factory(model_class)
     IndexMeta.using = using
     if index is not None:

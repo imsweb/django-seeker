@@ -1,17 +1,13 @@
-from __future__ import division
-
 import datetime
 import re
+from urllib.parse import parse_qsl, urlencode
 
-import six
 from django import template
 from django.contrib.humanize.templatetags.humanize import intcomma
 from django.core.paginator import Paginator
 from django.template import loader
 from django.utils.encoding import force_text
 from django.utils.safestring import mark_safe
-from six.moves.urllib.parse import parse_qsl, urlencode
-
 
 register = template.Library()
 
@@ -28,14 +24,14 @@ def seeker_format(value):
         return value.strftime('%m/%d/%Y %H:%M:%S')
     if isinstance(value, datetime.date):
         return value.strftime('%m/%d/%Y')
-    if hasattr(value, '__iter__') and not isinstance(value, six.string_types):
+    if hasattr(value, '__iter__') and not isinstance(value, str):
         return ', '.join(force_text(v) for v in value)
     return force_text(value)
 
 
 @register.filter
 def seeker_filter_querystring(qs, keep):
-    if isinstance(keep, six.string_types):
+    if isinstance(keep, str):
         keep = [keep]
     qs_parts = [part for part in parse_qsl(qs, keep_blank_values=True) if part[0] in keep]
     return urlencode(qs_parts)
@@ -50,6 +46,7 @@ def seeker_facet(facet, results, selected=None, **params):
     })
     return loader.render_to_string(facet.template, params)
 
+
 @register.simple_tag
 def advanced_seeker_facet(facet, **params):
     """
@@ -61,13 +58,16 @@ def advanced_seeker_facet(facet, **params):
     })
     return loader.render_to_string(facet.advanced_template, params)
 
+
 @register.simple_tag
 def seeker_column(column, result, **kwargs):
     return column.render(result, **kwargs)
 
+
 @register.simple_tag
 def seeker_column_header(column, results=None):
     return column.header(results)
+
 
 @register.simple_tag
 def seeker_score(result, max_score=None, template='seeker/score.html'):
@@ -113,8 +113,11 @@ def seeker_highlight(text, query, algorithm='english'):
         stemWord = stemmer.stemWord
         stemWords = stemmer.stemWords
     except Exception:
+
         def stemWord(word): return word
+
         def stemWords(words): return words
+
     phrases = _phrase_re.findall(query)
     keywords = [w.lower() for w in re.split(r'\W+', _phrase_re.sub('', query)) if w]
     highlight = set(stemWords(keywords))
