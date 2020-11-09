@@ -423,6 +423,11 @@ class SeekerView(View):
     A list of field names that will get the `text-nowrap` class in the seeker table.
     """
 
+    column_header_classes = []
+    """
+    A list of HTML classes to apply to the column headers.
+    """
+
     def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page.
@@ -1067,6 +1072,8 @@ class AdvancedColumn(Column):
         cls += ' {}_{}'.format(self.view.document.__name__.lower(), self.field.replace('.', '_'))
         if self.model_lower:
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
+        if self.view.column_header_classes:
+            cls += ' ' + ' '.join(self.view.column_header_classes)
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         current_sort = self.view.search_object['sort']
