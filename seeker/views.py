@@ -553,6 +553,7 @@ class SeekerView(View):
             search_templates.append(self.field_templates[field_name])
         if hasattr(self.document, 'model'):
             search_templates.append('seeker/{}/{}.html'.format(self.document.model.__name__.lower(), field_name))
+            search_templates.append('seeker/{}/column.html'.format(self.document.model.__name__.lower()))
         elif hasattr(self.document, 'queryset'):
             search_templates.append('seeker/{}/{}.html'.format(self.document.queryset().model.__name__.lower(), field_name))
         for _cls in inspect.getmro(self.document):
