@@ -1311,7 +1311,6 @@ class AdvancedSeekerView(SeekerView):
         """
         Creates a :class:`seeker.Column` instance for the given field name.
         """
-        x = 1
         if field_name in self.field_columns:
             return self.field_columns[field_name]
         label = self.get_field_label(field_name)
