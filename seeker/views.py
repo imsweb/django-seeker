@@ -1560,6 +1560,7 @@ class AdvancedSeekerView(SeekerView):
             'sort': sort,
             'export_name': self.export_name,
             'use_wordwrap_header': self.use_wordwrap_header,
+            'search': search
         }
         self.modify_results_context(context)
 
