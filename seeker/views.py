@@ -418,7 +418,7 @@ class SeekerView(View):
     Whether to sort missing values first or last. Valid values are "_first", "_last", "_low", "_high", or None.
     """
 
-    no_wrap = []
+    no_wrap_fields = []
     """
     A list of field names that will get the `text-nowrap` class in the seeker table.
     """
@@ -1092,7 +1092,7 @@ class AdvancedColumn(Column):
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        html = '<th class="{}" style="width:auto;"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
+        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
         return mark_safe(html)
 
     def get_data_max_length(self, results):
