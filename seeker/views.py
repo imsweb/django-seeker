@@ -42,7 +42,7 @@ class Column(object):
     view = None
     visible = False
 
-    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None, field_definition=None):
+    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None, field_definition=None, no_wrap=False):
         self.field = field
         self.label = label if label is not None else field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
@@ -52,6 +52,7 @@ class Column(object):
         self.export = export
         self.highlight = highlight
         self.field_definition = field_definition
+        self.no_wrap = no_wrap
 
     def __str__(self):
         return self.label
@@ -157,6 +158,7 @@ class Column(object):
             'view': self.view,
             'user': self.view.request.user,
             'query': self.view.get_keywords(self.view.request.GET),
+            'no_wrap': self.no_wrap,
         }
         params.update(self.context(result, **kwargs))
         return self.template_obj.render(params)
@@ -414,6 +416,11 @@ class SeekerView(View):
     missing_sort = None
     """
     Whether to sort missing values first or last. Valid values are "_first", "_last", "_low", "_high", or None.
+    """
+
+    no_wrap = []
+    """
+    A list of field names that will get the `text-nowrap` class in the seeker table.
     """
 
     def modify_context(self, context, request):
@@ -1085,7 +1092,7 @@ class AdvancedColumn(Column):
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
+        html = '<th class="{}" style="width:auto;"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
         return mark_safe(html)
 
     def get_data_max_length(self, results):
@@ -1304,6 +1311,7 @@ class AdvancedSeekerView(SeekerView):
         """
         Creates a :class:`seeker.Column` instance for the given field name.
         """
+        x = 1
         if field_name in self.field_columns:
             return self.field_columns[field_name]
         label = self.get_field_label(field_name)
@@ -1312,6 +1320,7 @@ class AdvancedSeekerView(SeekerView):
         header = self.custom_column_headers.get(field_name, None)
         val_format = self.value_formats.get(field_name, None)
         field_definition = self.field_definitions.get(field_name)
+        no_wrap = field_name in self.no_wrap_fields
 
         column_class = self.field_column_classes.get(field_name, self.default_column_class)
         return column_class(
@@ -1321,7 +1330,8 @@ class AdvancedSeekerView(SeekerView):
             highlight=highlight,
             header=header,
             value_format=val_format,
-            field_definition=field_definition
+            field_definition=field_definition,
+            no_wrap=no_wrap,
         )
 
     def apply_sort_field(self, column_lookup, sort):
