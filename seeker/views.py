@@ -1767,6 +1767,7 @@ class AdvancedSavedSearchView(View):
             data = { 'current_search': saved_search.get_details_dict() if saved_search else None }
 
             SavedSearchForm = self.get_saved_search_form()
+            form_kwargs = json.loads(request.GET.get('saveSearchFormKwargs', '{}'))
 
             # Even if a specific saved search was not found we return all of the other available saved searches
             if saved_searches:
@@ -1775,7 +1776,7 @@ class AdvancedSavedSearchView(View):
             # Hook to allow customization
             self.update_GET_response_data(data, saved_search)
 
-            form = SavedSearchForm(saved_searches=saved_searches)
+            form = SavedSearchForm(saved_searches=saved_searches, **form_kwargs)
             data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
 
             return JsonResponse(data)
@@ -1788,6 +1789,17 @@ class AdvancedSavedSearchView(View):
                 url = request.POST.get(self.url_parameter)
             except KeyError:
                 return JsonResponse({'error': 'No URL provided.'}, 400)
+
+            form_kwargs = {}
+            try:
+                string_search_object = request.POST.get('search_object')
+                # We attach this to self so AdvancedColumn can have access to it
+                self.search_object = json.loads(string_search_object)
+                form_kwargs = self.search_object.get('saveSearchFormKwargs', {})
+            except (KeyError, ValueError):
+                return HttpResponseBadRequest("No 'search_object' found in the request's POST data.")
+            except :
+                return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
 
             search_pk = kwargs.get(self.pk_parameter, request.POST.get(self.pk_parameter, None))
             SavedSearchModel = self.get_saved_search_model()
@@ -1810,7 +1822,7 @@ class AdvancedSavedSearchView(View):
             # We have three paths: delete, modify_default, or save
             status = 200
             SavedSearchForm = self.get_saved_search_form()
-            form_kwargs = { 'saved_searches': saved_searches, 'enforce_unique_name': self.enforce_unique_name }
+            form_kwargs = { 'saved_searches': saved_searches, 'enforce_unique_name': self.enforce_unique_name, **form_kwargs}
             if delete:
                 if saved_search:
                     saved_search.delete()
