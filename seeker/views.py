@@ -406,11 +406,6 @@ class SeekerView(View):
     This dictionary can be used to set custom text for a fields column header.  The key is the field_name.
     """
 
-    column_header_classes = []
-    """
-    A list of HTML classes to apply to the column headers.
-    """
-
     analyzer = DEFAULT_ANALYZER
     """
     The ES analyzer used for keyword searching.
@@ -1192,6 +1187,11 @@ class AdvancedSeekerView(SeekerView):
     always_display_highlighted_columns = False
     """
     If True, any column that includes a cell with highlighted text will be automaticaly displayed by the system.
+    """
+
+    column_header_classes = []
+    """
+    A list of HTML classes to apply to the column headers.
     """
 
     @abc.abstractproperty
