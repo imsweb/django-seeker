@@ -7,7 +7,7 @@
         {% if available_page_sizes %}
             <div class="page-size-selector">
 	            Display Per Page:
-	            <select id="seeker-page-size-select" aria-label='Display Per Page'>
+	            <select {% block seeker-page-select-id-attribute %}id="seeker-page-size-select"{% endblock seeker-page-select-id-attribute %} aria-label='Display Per Page'>
 	                {% for size in available_page_sizes %}
 	                    <option value="{{ size }}" {% if size == page_size %}selected{% endif %}>{{ size }}</option>
 	                {% endfor %}
@@ -23,12 +23,12 @@
 {% block seeker-export %}
     {% if export_name %}
         {# NOTE: By default, the export link will export ALL records.  It is up to the site to add an on submit JS listener to #export-form that will set the value of #export-search-object accordingly #}
-            <form id="export-form" method="POST" target="_blank"> {% csrf_token %}
+            <form {% block export-form-id-attribute %}id="export-form"{% endblock export-form-id-attribute %} method="POST" target="_blank"> {% csrf_token %}
                 <input type="hidden" id="export-search-object" name="search_object" value='{"query":{"condition":"AND","rules":[]},"page":1,"sort":"","display":[],"keywords":"","type":"simple","url":"."}' />
                 <input type="hidden" name="_export" value="true" />
                 <p>
                     <em>Found {{ results.hits.total|intcomma }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
-                    {% block export-link %}&mdash;<button id="export-link" class="btn btn-link">{% trans "Export these results" %}</button>{% endblock export-link %}
+                    {% block export-link %}&mdash;<button {% block export-link-id-attribute %}id="export-link"{% endblock export-link-id-attribute %} class="btn btn-link">{% trans "Export these results" %}</button>{% endblock export-link %}
                 </p>
             </form>
     {% else %}
