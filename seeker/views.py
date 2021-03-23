@@ -1062,10 +1062,8 @@ class AdvancedColumn(Column):
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
-        print("** Current search_object:", self.view.search_object)
         current_sort = self.view.search_object['sort']
         sort = None
-        sort_fields = []
         cls += ' sort'
         if not isinstance(current_sort, list):
             current_sort = [current_sort]
@@ -1074,11 +1072,10 @@ class AdvancedColumn(Column):
                 # If the current sort field is this field, give it a class a change direction.
                 sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
                 cls += ' desc' if sort_field.startswith('-') else ' asc'
-                data_sort = '' if sort_field.startswith('-') else '{}{}'.format('-', self.field)
-                sort_fields.append(data_sort)
-            else:
-                data_sort = self.field
-                sort_fields.append(data_sort)
+                d = '' if sort_field.startswith('-') else '-'
+                data_sort = '{}{}'.format(d, self.field)
+        else:
+            data_sort = self.field
 
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
         sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
@@ -1092,9 +1089,7 @@ class AdvancedColumn(Column):
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        if not sort_fields or sort_fields == ['']:
-            sort_fields = "''"
-        html = '<th class="{}"><a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>'.format(cls, next_sort, sort_fields, self.header_html, sr_label, span)
+        html = '<th class="{}"><a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
         return mark_safe(html)
 
     def get_data_max_length(self, results):
@@ -1532,16 +1527,14 @@ class AdvancedSeekerView(SeekerView):
             search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
-        search_object_sort = self.search_object['sort']
-        print("here is the search object sort that i will attempt to split", search_object_sort)
-        if search_object_sort.startswith('['):
-            self.search_object['sort'] = self.search_object['sort'].strip("[]\'\"").split(',') 
-        print("here it is after splitting:", self.search_object['sort'])
-        sort = self.get_sort_field(columns, self.search_object['sort'], display)
-        print("Results of sort descriptor:", self.sort_descriptor(sort))
+        if isinstance(self.search_object['sort'], list):
+            sort = [self.get_sort_field(columns, s, display) for s in self.search_object['sort']]
+        else:
+            sort = self.get_sort_field(columns, self.search_object['sort'], display)
+            
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute() 
             else:
                 results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
         else:
@@ -1584,9 +1577,6 @@ class AdvancedSeekerView(SeekerView):
         }
 
         self.modify_json_response(json_response, context)
-        #print("Right before sending advanced serarch and json response:")
-        #print("context sort", context['sort'])
-        #print("json_response", json_response)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
 
