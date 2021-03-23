@@ -95,7 +95,8 @@ class Column(object):
             # If the current sort field is this field, give it a class a change direction.
             sort = 'Descending' if field.startswith('-') else 'Ascending'
             cls += ' desc' if field.startswith('-') else ' asc'
-            q['s'] = '' if current_sort.startswith('-') else '{}{}'.format('-', self.field)
+            d = '' if field.startswith('-') else '-'
+            q['s'] = '%s%s' % (d, self.field)
         else:
             q['s'] = self.field
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
@@ -1206,7 +1207,7 @@ class AdvancedSeekerView(SeekerView):
     Generally, this will be a 'reverse' call to the URL associated with this view.
     """
 
-    sort = []
+    sort = ''
     """
     Default field to sort by. Prepend '-' to reverse sort.
     """
@@ -1531,7 +1532,7 @@ class AdvancedSeekerView(SeekerView):
             
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute() 
+                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
             else:
                 results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
         else:
