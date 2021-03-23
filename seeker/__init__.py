@@ -1,4 +1,4 @@
-__version__ = '6.5.3'
+__version__ = '6.6.2'
 
 from .facets import DateRangeFacet, DateTermsFacet, Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram, TextFacet
 from .mapping import (
@@ -7,6 +7,5 @@ from .mapping import (
 from .registry import app_documents, documents, model_documents, register
 from .utils import delete, index, search
 from .views import AdvancedColumn, AdvancedSavedSearchView, AdvancedSeekerView, Column, SeekerView
-
 
 default_app_config = 'seeker.apps.SeekerConfig'

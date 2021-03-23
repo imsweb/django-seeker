@@ -3,7 +3,6 @@ import functools
 import numbers
 import operator
 
-import six
 from django.conf import settings
 from django.utils.encoding import smart_text
 from elasticsearch_dsl import A, Q
@@ -18,7 +17,7 @@ class Facet(object):
         'not_between': 'must_not'
     }
     special_operators = {
-        'begins_with': "prefix" 
+        'begins_with': "prefix"
     }
     field = None
     label = None
@@ -35,10 +34,10 @@ class Facet(object):
 
         default_related_column_name = self.field.split('.')[0]
         related_column_name = kwargs.get('related_column_name')
-        self.related_column_name = related_column_name if isinstance(related_column_name, six.string_types) else default_related_column_name
+        self.related_column_name = related_column_name if isinstance(related_column_name, str) else default_related_column_name
 
         self.kwargs = kwargs
-        
+
     @property
     def valid_operators(self):
         return [
@@ -55,7 +54,7 @@ class Facet(object):
 
     def filter(self, search, values):
         return search
-    
+
     def es_query(self, operator, value):
         """
         This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value, multiple values
@@ -63,11 +62,11 @@ class Facet(object):
         """
         if operator not in self.valid_operators:
             raise ValueError(u"'{}' is not a valid operator for the {} facet.".format(operator, self.label))
-        
+
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('match', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'match'), **{self.field: value})
-    
+
     def build_filter_dict(self, results):
         """
         This function returns a dictionary that represents this facet.
@@ -106,7 +105,7 @@ class TermsFacet(Facet):
         # Elasticsearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
         self.size = size
         self.filter_operator = kwargs.pop('filter_operator', 'or')
-        #option to override default sort by doc_count, can be set to other values by adding the desired values in kwargs
+        # option to override default sort by doc_count, can be set to other values by adding the desired values in kwargs
         self.sorted_by_key = sorted_by_key
         super(TermsFacet, self).__init__(field, **kwargs)
 
@@ -129,11 +128,11 @@ class TermsFacet(Facet):
         """
         if operator not in self.valid_operators:
             raise ValueError(u"'{}' is not a valid operator for a TermsFacet object.".format(operator))
-        
+
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
-    
+
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
         data = self.data(results)
@@ -144,7 +143,7 @@ class TermsFacet(Facet):
             'operators': self.valid_operators
         })
         return filter_dict
-    
+
     def filter(self, search, values):
         if len(values) > 1:
             if self.filter_operator.lower() == 'and':
@@ -181,7 +180,7 @@ class TextFacet(Facet):
         self.placeholder_text = placeholder_text
         self.lowercase_search_terms = lowercase_search_terms
         super(TextFacet, self).__init__(field, **kwargs)
-        
+
     def _get_aggregation(self, **extra):
         """TextFacet isn't designed to aggregate as it acts as a keyword search, so we return None."""
         return None
@@ -237,6 +236,7 @@ class GlobalTermsFacet(TermsFacet):
 
 
 class DateTermsFacet(TermsFacet):
+
     def _get_aggregation(self, **extra):
         params = {
             'field': self.field,
@@ -286,11 +286,11 @@ class YearHistogram(Facet):
 class RangeFilter(Facet):
     template = 'seeker/facets/range.html'
     advanced_template = 'advanced_seeker/facets/range.html'
-    
+
     def __init__(self, field, **kwargs):
         # ranges is an optional list of dictionaries of pre-defined ranges to aggregate on.
         self.ranges = kwargs.pop('ranges', [])
-        
+
         # use_ranges_in_filter_dict specifies if the pre-defined ranges should be used in complex queries
         self.use_ranges_in_filter_dict = kwargs.pop('use_ranges_in_filter_dict', False)
         if self.ranges:
@@ -310,7 +310,7 @@ class RangeFilter(Facet):
 
     def _get_aggregation(self, **extra):
         # If the facet has pre-defined ranges, this function will return a range aggregation.
-        # If the facet doesn't have pre-defined ranges, this function will return a terms aggregation that aggregates on each value in the range field. 
+        # If the facet doesn't have pre-defined ranges, this function will return a terms aggregation that aggregates on each value in the range field.
         if self.ranges:
             params = {'field': self.field, 'ranges': self.ranges}
             params.update(extra)
@@ -324,7 +324,7 @@ class RangeFilter(Facet):
     def apply(self, search, **extra):
         search.aggs[self.name] = self._get_aggregation(**extra)
         return search
-    
+
     def _get_range_key(self, _range):
         """
         This helper function takes a range dictionary and returns the aggregation key.  Key is an optional argument in elasticsearch.
@@ -332,17 +332,17 @@ class RangeFilter(Facet):
         """
         default_from_key = _range.get("from", "*")
         default_to_key = _range.get("to", "*")
-        
+
         # If a from value was found, we need to cast it as a float since that's how elasticsearch formats the default key.
         if default_from_key != "*":
             default_from_key = float(default_from_key)
         # Same as above, if a to value is defined, cast the value as a float.
         if default_to_key != "*":
             default_to_key = float(default_to_key)
-        
+
         # Create the default "from-to" key
         default_range_key = "{}-{}".format(default_from_key, default_to_key)
-        
+
         # Return the custom key defined in self.ranges or the default key
         return str(_range.get('key', default_range_key))
 
@@ -375,7 +375,7 @@ class RangeFilter(Facet):
                 # This if statement is structured to be cross compatible between seeker and advanced seeker.
                 # If key is unicode (advanced seeker), we check if the key is equal to the range_key.  If it is, we add it to valid keys.
                 # If key is a list (seeker), we check if the range_key is in the list of keys.  If it is, we add it to valid keys.
-                if (isinstance(key, six.string_types) and range_key == key) or (isinstance(key, list) and range_key in key):
+                if (isinstance(key, str) and range_key == key) or (isinstance(key, list) and range_key in key):
                     valid_ranges.append(_range)
             for _range in valid_ranges:
                 # From and To are optional in elasticsearch.  The translated_range dictionary stores the parameters we
@@ -392,7 +392,7 @@ class RangeFilter(Facet):
                 if translated_range:
                     filters.append(self._build_query(translated_range))
         return filters
-    
+
     def _get_filter_from_range_list(self, _range):
         """
         This helper function is designed to take a list of 2 values and build a range query.
@@ -414,7 +414,6 @@ class RangeFilter(Facet):
 
         return self._build_query(r)
 
-
     def es_query(self, query_operator, value):
         """
         This function returns the elasticsearch_dsl query object for the RangeFilter Facet.
@@ -428,12 +427,12 @@ class RangeFilter(Facet):
         # We first check if the query operator is valid.
         if query_operator not in self.valid_operators:
             raise ValueError(u"'{}' is not a valid operator for a RangeFilter object.".format(query_operator))
-        
+
         if isinstance(value, (list, dict)):
             # If value is a list defining the lower and upper bounds of the range, we call _get_filter_from_range_list that returns the DSL Filter object.
             filter = self._get_filter_from_range_list(value)
             query = Q('bool', filter=filter)
-            # A check to see if the query should be wrapped in a parent query defined in self.bool_operators. If not, we return the query as-is. 
+            # A check to see if the query should be wrapped in a parent query defined in self.bool_operators. If not, we return the query as-is.
             if query_operator in self.bool_operators:
                 return Q('bool', **{self.bool_operators[query_operator]: [query]})
             else:
@@ -460,7 +459,7 @@ class RangeFilter(Facet):
     def build_filter_dict(self, results):
         filter_dict = super(RangeFilter, self).build_filter_dict(results)
         if self.ranges and self.use_ranges_in_filter_dict:
-            # If we have self.ranges, the filter is defaulted to a select box for those ranges 
+            # If we have self.ranges, the filter is defaulted to a select box for those ranges
             data = self.data(results)
             values = [''] + sorted([str(bucket['key']) for bucket in data.get('buckets', [])], key=lambda item: str(item).lower())
             filter_dict.update({
@@ -515,11 +514,13 @@ class DateRangeFacet(RangeFilter):
         """
         This helper function is designed to take a list of 2 values and build a range query.
         """
+        r = {}
         if isinstance(_range, dict):
-            r = _range
+            for key, value in _range.items():
+                if validate_date_format(value, self.format_validator):
+                    r[key] = value
         elif isinstance(_range, list):
             if len(_range) == 2:
-                r = {}
                 # This function validates that the ranges have the correct date format
                 if validate_date_format(_range[0], self.format_validator):
                     r['gte'] = _range[0]
@@ -529,6 +530,6 @@ class DateRangeFacet(RangeFilter):
                 raise ValueError(u"The range list can only have 2 values. Received {} values: {}".format(len(_range), _range))
         else:
             raise ValueError(u"Range must either be a list or a dict.  Received: {}".format(type(_range)))
-        _range = self._build_query(r)    
+        _range = self._build_query(r)
         _range._params[self.field]['format'] = self.format
         return _range
