@@ -1061,6 +1061,7 @@ class AdvancedColumn(Column):
             return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
         current_sort = self.view.search_object['sort']
         sort = None
+        sort_order = 0
         cls += ' sort'
         if not isinstance(current_sort, list):
             current_sort = [current_sort]
@@ -1071,6 +1072,7 @@ class AdvancedColumn(Column):
                 cls += ' desc' if sort_field.startswith('-') else ' asc'
                 d = '' if sort_field.startswith('-') else '-'
                 data_sort = '{}{}'.format(d, self.field)
+                sort_order = current_sort.index(sort_field) + 1
         else:
             data_sort = self.field
 
@@ -1086,7 +1088,11 @@ class AdvancedColumn(Column):
             span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
         else:
             span = ''
-        html = '<th class="{}"><a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
+        if sort_order:
+            sort_rank = '<span class="sort_rank">{}</span>'.format(sort_order)
+        else:
+            sort_rank = ''
+        html = '<th class="{}">{}<a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>'.format(cls, sort_rank, next_sort, data_sort, self.header_html, sr_label, span)
         return mark_safe(html)
 
     def get_data_max_length(self, results):
