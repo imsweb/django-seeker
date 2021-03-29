@@ -1052,7 +1052,8 @@ class SeekerView(View):
 
 class AdvancedColumn(Column):
 
-    def header(self, results=None):
+    def header(self, results=None, default_sort=None):
+        
         cls = '{}_{}'.format(self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' {}_{}'.format(self.view.document.__name__.lower(), self.field.replace('.', '_'))
         if self.model_lower:
@@ -1065,19 +1066,25 @@ class AdvancedColumn(Column):
         cls += ' sort'
         if not isinstance(current_sort, list):
             current_sort = [current_sort]
-        for sort_field in current_sort:
-            if sort_field.lstrip('-') == self.field:
-                # If the current sort field is this field, give it a class a change direction.
-                sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
-                cls += ' desc' if sort_field.startswith('-') else ' asc'
-                d = '' if sort_field.startswith('-') else '-'
-                data_sort = '{}{}'.format(d, self.field)
-                sort_order = current_sort.index(sort_field) + 1
+        sr_label = ''
+        data_sort = self.field
+        if not current_sort or current_sort == ['']:
+            if default_sort.lstrip('-') == self.field:
+                cls += ' desc' if default_sort.startswith('-') else ' asc'
+                sort_default = sort = 'Descending' if default_sort.startswith('-') else 'Ascending'
+                sr_label = '<span class="sr-only">({})</span>'.format(sort_default)
         else:
-            data_sort = self.field
+            for sort_field in current_sort:
+                if sort_field.lstrip('-') == self.field:
+                    # If the current sort field is this field, give it a class a change direction.
+                    sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
+                    cls += ' desc' if sort_field.startswith('-') else ' asc'
+                    d = '' if sort_field.startswith('-') else '-'
+                    data_sort = '{}{}'.format(d, self.field)
+                    sort_order = current_sort.index(sort_field) + 1
+                    sr_label = ('<span class="sr-only">Number {} in sort order ({})</span>'.format(sort_order, sort))
 
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
-        sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.
@@ -1531,16 +1538,17 @@ class AdvancedSeekerView(SeekerView):
             search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
-        if isinstance(self.search_object['sort'], list):
-            sort = [self.get_sort_field(columns, s, display) for s in self.search_object['sort']]
-        else:
-            sort = self.get_sort_field(columns, self.search_object['sort'], display)
-            
+        sort = self.get_sort_field(columns, self.search_object['sort'], display)
+        
+        default_sort_field = ''
+        sort_descrip_dict = self.sort_descriptor(sort)
+        if sort_descrip_dict:
+            default_sort_field = list(sort_descrip_dict.keys())[0].replace('.raw', '')
+            if list(sort_descrip_dict.values())[0]['order'] == 'desc':
+                default_sort_field = '{}{}'.format('-', default_sort_field)
+
         if sort:
-            if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
-            else:
-                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+            results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
         else:
             results = search[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
 
@@ -1569,6 +1577,7 @@ class AdvancedSeekerView(SeekerView):
             'results': results,
             'show_rank': self.show_rank,
             'sort': sort,
+            'default_sort': default_sort_field,
             'export_name': self.export_name,
             'use_wordwrap_header': self.use_wordwrap_header,
             'search': search

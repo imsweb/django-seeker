@@ -23,9 +23,9 @@
                         {% endif %}
                         {% for col in display_columns %}
                             {% if use_wordwrap_header %}
-                                {% seeker_column_header col results %}
+                                {% seeker_column_header col results default_sort %}
                             {% else %}
-                                {{ col.header }}
+                                {% column_header col default_sort %}
                             {% endif %}
                         {% endfor %}
                     {% endblock table-headers %}
