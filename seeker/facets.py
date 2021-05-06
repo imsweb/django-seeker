@@ -31,6 +31,7 @@ class Facet(object):
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
+        self.login_required = kwargs.pop('login_required', False)
 
         default_related_column_name = self.field.split('.')[0]
         related_column_name = kwargs.get('related_column_name')
