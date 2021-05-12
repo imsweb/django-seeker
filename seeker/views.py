@@ -224,6 +224,11 @@ class SeekerView(View):
     A list of field names to exclude when generating columns.
     """
 
+    login_required_columns = []
+    """
+    A list of field names that will automatically be added to the exclude when generating columns if the user is not authenticated.
+    """
+
     display = None
     """
     A list of field/column names to display by default.
@@ -612,21 +617,25 @@ class SeekerView(View):
         Returns a list of :class:`seeker.Column` objects based on self.columns, converting any strings.
         """
         columns = []
+        exclude = copy.copy(self.exclude) or []
+        if not self.request.user.is_authenticated:
+            exclude += self.login_required_columns
+
         if not self.columns:
             # If not specified, all mapping fields will be available.
             for f in self.document._doc_type.mapping:
-                if self.exclude and f in self.exclude:
+                if exclude and f in exclude:
                     continue
                 columns.append(self.make_column(f))
         else:
             # Otherwise, go through and convert any strings to Columns.
             for c in self.columns:
                 if isinstance(c, str):
-                    if self.exclude and c in self.exclude:
+                    if exclude and c in exclude:
                         continue
                     columns.append(self.make_column(c))
                 elif isinstance(c, Column):
-                    if self.exclude and c.field in self.exclude:
+                    if exclude and c.field in exclude:
                         continue
                     columns.append(c)
         # Make sure the columns are bound and ordered based on the display fields (selected or default).
@@ -659,7 +668,11 @@ class SeekerView(View):
         return data_dict.get('q', '').strip()
 
     def get_facets(self):
-        return list(self.facets) if self.facets else []
+        facets = []
+        for facet in self.facets:
+            if self.request.user.is_authenticated or not facet.login_required:
+                facets.append(facet) 
+        return facets
 
     def get_sorts(self):
         return self.request.GET.getlist('s', None)
@@ -935,6 +948,11 @@ class SeekerView(View):
         facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
         return JsonResponse(facet.data(search.execute()))
 
+    def modify_initial_facets(self):
+        facet_fields = [facet.field for facet in self.get_facets()]
+        missing_facets = set(self.initial_facets.keys()).difference(set(facet_fields))
+        [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
+
     def export(self):
         """
         A helper method called when ``_export`` is present in ``request.GET``. Returns a ``StreamingHttpResponse``
@@ -1047,9 +1065,10 @@ class SeekerView(View):
         Overridden to perform permission checking by calling ``self.check_permission``.
         """
         resp = self.check_permission(request)
-        if resp is not None:
-            return resp
-        return super(SeekerView, self).dispatch(request, *args, **kwargs)
+        if resp is None:
+            self.modify_initial_facets()
+            resp = super().dispatch(request, *args, **kwargs)
+        return resp
 
 
 class AdvancedColumn(Column):
