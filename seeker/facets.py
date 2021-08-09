@@ -362,8 +362,8 @@ class RangeFilter(Facet):
         # This is a list of filter query objects for each value range.
         filters = []
 
-        # if key is equal to _missing, we create a query that returns every document that doesn't have a value for that field.
-        if key == '_missing':
+        # if key is equal to _missing or empty string, we create a query that returns every document that doesn't have a value for that field.
+        if key in ['_missing', ""]:
             filters.append(~Q('exists', field=self.field))
         else:
             # This function will only return filters for ranges that are defined in self.ranges (i.e - valid ranges)
