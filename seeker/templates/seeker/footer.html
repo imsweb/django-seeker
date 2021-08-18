@@ -8,7 +8,7 @@
 {% endblock seeker-pagination %}
 
 <p>
-    <em>Found {{ results.hits.total|intcomma }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
+    <em>Found {{ total_hits|intcomma }} result{{ total_hits|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
     {% if export_name %}
         {% block export-link %}&mdash; <a href="?{{ querystring }}&amp;_export">{% trans "Export these results" %}</a>{% endblock export-link %}
     {% endif %}

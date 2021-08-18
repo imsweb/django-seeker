@@ -38,7 +38,7 @@ class QueryTests(TestCase):
         results = BookDocument.search().filter('term', **{'authors.raw': 'Alexa Watson'}).execute()
         self.assertEqual(set(r.title for r in results), set(['Herding Cats', 'Law School Sucks']))
         results = BookDocument.search().filter('term', in_print=False).execute()
-        self.assertEqual(results.hits.total, 1)
+        self.assertEqual(results.hits.total['value'], 1)
         self.assertEqual(results[0].meta.id, '3')
 
     def test_facets(self):

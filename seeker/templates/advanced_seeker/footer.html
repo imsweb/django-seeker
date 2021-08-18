@@ -15,7 +15,7 @@
             </div>
         {% endif %}
         {% block seeker-pager %}
-            {% seeker_pager results.hits.total page_size=page_size page=page spread=page_spread template='advanced_seeker/pager.html' %}
+            {% seeker_pager total_hits page_size=page_size page=page spread=page_spread template='advanced_seeker/pager.html' %}
         {% endblock seeker-pager %}
     </div>
 {% endblock seeker-pagination %}
@@ -27,11 +27,11 @@
                 <input type="hidden" id="export-search-object" name="search_object" value='{"query":{"condition":"AND","rules":[]},"page":1,"sort":"","display":[],"keywords":"","type":"simple","url":"."}' />
                 <input type="hidden" name="_export" value="true" />
                 <p>
-                    <em>Found {{ results.hits.total|intcomma }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
+                    <em>Found {{ total_hits|intcomma }} result{{ total_hits|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
                     {% block export-link %}&mdash;<button {% block export-link-id-attribute %}id="export-link"{% endblock export-link-id-attribute %} class="btn btn-link">{% trans "Export these results" %}</button>{% endblock export-link %}
                 </p>
             </form>
     {% else %}
-    <em>Found {{ results.hits.total|intcomma }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
+    <em>Found {{ total_hits|intcomma }} result{{ total_hits|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
     {% endif %}
 {% endblock seeker-export %}

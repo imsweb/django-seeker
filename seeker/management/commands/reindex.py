@@ -18,7 +18,6 @@ def reindex(es, doc_class, index, options):
         for doc in doc_class.documents(cursor=options['cursor']):
             action = {
                 '_index': index,
-                '_type': doc_class._doc_type.name,
             }
             action.update(doc)
             yield action
@@ -92,7 +91,7 @@ class Command(BaseCommand):
         deleted_indexes = []
         for doc_class in doc_classes:
             using = options['using'] or doc_class._index._using or 'default'
-            index = doc_class._index._name  # options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+            index = doc_class._index._name
             es = connections.get_connection(using)
             if options['drop'] and index not in deleted_indexes:
                 if es.indices.exists(index=index):
