@@ -556,7 +556,6 @@ class SeekerView(View):
         for _cls in inspect.getmro(self.document):
             if issubclass(_cls, dsl.Document):
                 search_templates.append('seeker/{}/{}.html'.format(_cls.__name__.lower(), field_name))
-                search_templates.append('seeker/{}/{}.html'.format(_cls._doc_type.name, field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
         existing_templates = list(set(self._field_templates.values()))
@@ -1575,7 +1574,7 @@ class AdvancedSeekerView(SeekerView):
             'query': query,
             'aggregation_results': aggregation_results,
             'results': results,
-            'total_hits': results.hits.total['value'],
+            'total_hits': search.count(),
             'show_rank': self.show_rank,
             'sort': sort,
             'export_name': self.export_name,
