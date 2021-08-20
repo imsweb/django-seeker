@@ -38,7 +38,6 @@ def index(obj, index=None, using=None):
         doc_id = body.pop('_id', None)
         es.index(
             index=doc_index,
-            doc_type=doc_class._doc_type.name,
             body=body,
             id=doc_id,
             refresh=True
@@ -58,7 +57,6 @@ def delete(obj, index=None, using=None):
         try:
             es.delete(
                 index=doc_index,
-                doc_type=doc_class._doc_type.name,
                 id=doc_class.get_id(obj),
                 refresh=True
             )
@@ -79,7 +77,7 @@ def search(models=None, using='default'):
         for doc_class in model_documents.get(model_class, []):
             indices.append(doc_class._index._name)
             types.append(doc_class)
-    return dsl.Search(using=using).index(*indices).doc_type(*types)
+    return dsl.Search(using=using).index(*indices)
 
 
 def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.stdout, frequency=1.0):

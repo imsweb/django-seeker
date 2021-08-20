@@ -93,10 +93,10 @@ class Indexable (dsl.Document):
         using = using or cls._index._using or 'default'
         index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(using)
-        if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
+        if es.indices.exists_type(index=index):
 
             def get_actions():
-                for hit in scan(es, index=index, doc_type=cls._doc_type.name, query={'query': {'match_all': {}}}):
+                for hit in scan(es, index=index, query={'query': {'match_all': {}}}):
                     yield {
                         '_op_type': 'delete',
                         '_index': index,
@@ -271,7 +271,7 @@ def deep_field_factory(field):
         return document_field(field)
 
 
-def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
+def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
     Defines Elasticsearch fields for Django model fields. By default, this method will create a new
     ``elasticsearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
