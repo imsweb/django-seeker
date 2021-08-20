@@ -6,7 +6,6 @@ from django.core.management.base import BaseCommand, CommandError
 from elasticsearch.helpers import bulk
 from elasticsearch_dsl.connections import connections
 
-from seeker.registry import model_doc_types
 
 
 class Command(BaseCommand):

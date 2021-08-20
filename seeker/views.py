@@ -554,9 +554,8 @@ class SeekerView(View):
         elif hasattr(self.document, 'queryset'):
             search_templates.append('seeker/{}/{}.html'.format(self.document.queryset().model.__name__.lower(), field_name))
         for _cls in inspect.getmro(self.document):
-            if issubclass(_cls, dsl.DocType):
+            if issubclass(_cls, dsl.Document):
                 search_templates.append('seeker/{}/{}.html'.format(_cls.__name__.lower(), field_name))
-                search_templates.append('seeker/{}/{}.html'.format(_cls._doc_type.name, field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
         existing_templates = list(set(self._field_templates.values()))
@@ -1575,6 +1574,7 @@ class AdvancedSeekerView(SeekerView):
             'query': query,
             'aggregation_results': aggregation_results,
             'results': results,
+            'total_hits': search.count(),
             'show_rank': self.show_rank,
             'sort': sort,
             'export_name': self.export_name,
@@ -1595,8 +1595,7 @@ class AdvancedSeekerView(SeekerView):
 
     def calculate_page_and_offset(self, page, page_size, search):
         offset = (page - 1) * page_size
-        results_count = search[0:0].params(request_timeout=self.search_timeout).execute().hits.total
-        if results_count <= offset:
+        if search.count() <= offset:
             page = 1
             offset = 0
         return page, offset

@@ -284,9 +284,7 @@ def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude
     :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
     """
     if mapping is None:
-        if doc_type is None:
-            doc_type = '_doc'
-        mapping = dsl.Mapping(doc_type)
+        mapping = dsl.Mapping()
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.get_fields():
