@@ -1586,7 +1586,7 @@ class AdvancedSeekerView(SeekerView):
         json_response = {
             'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()],  # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
-            'search_object': self.search_object
+            'search_object': self.search_object,
         }
 
         self.modify_json_response(json_response, context)
