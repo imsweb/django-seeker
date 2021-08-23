@@ -3,7 +3,7 @@
 
 {% block seeker-pagination %}
 <div class="pull-right">
-    {% seeker_pager results.hits.total page_size=page_size page=page querystring=querystring spread=page_spread %}
+    {% seeker_pager results.hits.total.value page_size=page_size page=page querystring=querystring spread=page_spread %}
 </div>
 {% endblock seeker-pagination %}
 
