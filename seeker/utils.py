@@ -1,4 +1,5 @@
 import importlib
+import logging
 import sys
 import time
 
@@ -8,6 +9,7 @@ from datetime import datetime
 
 from django.conf import settings
 from django.http import QueryDict
+from django.utils import timezone
 from django.utils.encoding import force_text
 
 from elasticsearch import NotFoundError
@@ -15,11 +17,39 @@ from elasticsearch_dsl.connections import connections
 
 from .registry import model_documents
 
+logger = logging.getLogger(__name__)
 
 def import_class(fq_name):
     module_name, class_name = fq_name.rsplit('.', 1)
     mod = importlib.import_module(module_name)
     return getattr(mod, class_name)
+
+
+def update_timestamp_index(index):
+    """
+    Updates optional timestamp index
+    """
+    if getattr(settings, 'UPDATE_TIMESTAMP_INDEX', True):
+        timestamp_index = getattr(settings, 'TIMESTAMP_INDEX_NAME', 'timestamp')
+        timestamp_index_name = getattr(settings, 'TIMESTAMP_INDEX_CONNECTION_NAME', 'default')
+        try:
+            # If the index comes in as a Index object, transform it to its string name
+            if type(index) != str:
+                index = index._name
+            timestamp_es = connections.get_connection(timestamp_index_name)
+            body = {'index_name': index, 'last_access': timezone.now()}
+            timestamp_es.index(
+                index=timestamp_index,
+                body=body,
+                id=index,
+                refresh=True,
+            )
+        # There can be a wide variety of exceptions here and if this doesn't work it shouldn't prevent seekers functionality
+        # So we catch all exceptions and log the specific one in the warning
+        except Exception as e:
+            logger.warning(f"There was an error updating timestamp index {timestamp_index} caused by Exception: `{type(e).__name__}: {e}`\n"
+                           f"If you don't have a timestamp index or don't want to use it set UPDATE_TIMESTAMP_INDEX setting to False.")
+            pass
 
 
 def index(obj, index=None, using=None):
@@ -42,6 +72,7 @@ def index(obj, index=None, using=None):
             id=doc_id,
             refresh=True
         )
+        update_timestamp_index(doc_index)
 
 
 def delete(obj, index=None, using=None):
@@ -60,6 +91,7 @@ def delete(obj, index=None, using=None):
                 id=doc_class.get_id(obj),
                 refresh=True
             )
+            update_timestamp_index(doc_index)
         except NotFoundError:
             # If this object wasn't indexed for some reason (maybe not in the document's queryset), no big deal.
             pass
@@ -77,6 +109,7 @@ def search(models=None, using='default'):
         for doc_class in model_documents.get(model_class, []):
             indices.append(doc_class._index._name)
             types.append(doc_class)
+            update_timestamp_index(doc_class._index._name)
     return dsl.Search(using=using).index(*indices)
 
 

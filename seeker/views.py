@@ -31,6 +31,7 @@ from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
+from seeker.utils import update_timestamp_index
 
 seekerview_field_templates = {}
 
@@ -744,6 +745,7 @@ class SeekerView(View):
     def get_search(self, keywords=None, facets=None, aggregate=True):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
+        update_timestamp_index(index)
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
@@ -878,6 +880,7 @@ class SeekerView(View):
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
             'form_action': self.request.path,
             'results': results,
+            'total_hits': search.count(),
             'page': page,
             'page_size': page_size,
             'available_page_sizes': self.available_page_sizes,
@@ -1314,6 +1317,7 @@ class AdvancedSeekerView(SeekerView):
     def get_dsl_search(self):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
+        update_timestamp_index(index)
         # TODO: self.document.search(using=using, index=index) once new version is released
         return self.document.search().index(index).using(using).extra(track_scores=True)
 
