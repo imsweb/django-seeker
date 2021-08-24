@@ -100,7 +100,6 @@ class Indexable (dsl.Document):
                     yield {
                         '_op_type': 'delete',
                         '_index': index,
-                        '_type': cls._doc_type.name,
                         '_id': hit['_id'],
                     }
 
