@@ -31,6 +31,7 @@ from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
+from seeker.utils import update_timestamp_index
 
 seekerview_field_templates = {}
 
@@ -878,6 +879,7 @@ class SeekerView(View):
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
             'form_action': self.request.path,
             'results': results,
+            'total_hits': search.count(),
             'page': page,
             'page_size': page_size,
             'available_page_sizes': self.available_page_sizes,
@@ -977,6 +979,12 @@ class SeekerView(View):
         resp['Content-Disposition'] = 'attachment; filename=%s' % export_name
         return resp
 
+    def dispatch(self, request, *args, **kwargs):
+        index = self.index or self.document._index
+        update_timestamp_index(index)
+
+        return super().dispatch(request, *args, **kwargs)
+        
     def get(self, request, *args, **kwargs):
         if '_facet' in request.GET:
             return self.render_facet_query()

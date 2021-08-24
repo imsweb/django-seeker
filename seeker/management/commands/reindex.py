@@ -6,7 +6,7 @@ from elasticsearch.helpers import bulk
 from elasticsearch_dsl.connections import connections
 
 from seeker.registry import app_documents, documents
-from seeker.utils import progress
+from seeker.utils import progress, update_timestamp_index
 
 
 def reindex(es, doc_class, index, options):
@@ -93,6 +93,9 @@ class Command(BaseCommand):
             using = options['using'] or doc_class._index._using or 'default'
             index = doc_class._index._name
             es = connections.get_connection(using)
+
+            update_timestamp_index(index)
+
             if options['drop'] and index not in deleted_indexes:
                 if es.indices.exists(index=index):
                     es.indices.delete(index=index)
