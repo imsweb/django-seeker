@@ -1,21 +1,20 @@
+from datetime import datetime
 import importlib
 import logging
 import sys
 import time
 
-import elasticsearch_dsl as dsl
-
-from datetime import datetime
-
 from django.conf import settings
 from django.http import QueryDict
 from django.utils import timezone
 from django.utils.encoding import force_text
-
 from elasticsearch import NotFoundError
 from elasticsearch_dsl.connections import connections
 
+import elasticsearch_dsl as dsl
+
 from .registry import model_documents
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +30,12 @@ def update_timestamp_index(index):
     """
     if getattr(settings, 'UPDATE_TIMESTAMP_INDEX', True):
         timestamp_index = getattr(settings, 'TIMESTAMP_INDEX_NAME', 'timestamp')
-        timestamp_index_name = getattr(settings, 'TIMESTAMP_INDEX_CONNECTION_NAME', 'default')
+        timestamp_connection_alias = getattr(settings, 'TIMESTAMP_CONNECTION_ALIAS', 'default')
         try:
             # If the index comes in as a Index object, transform it to its string name
-            if type(index) != str:
+            if not isinstance(index, str):
                 index = index._name
-            timestamp_es = connections.get_connection(timestamp_index_name)
+            timestamp_es = connections.get_connection(timestamp_connection_alias)
             body = {'index_name': index, 'last_access': timezone.now()}
             timestamp_es.index(
                 index=timestamp_index,
@@ -47,9 +46,8 @@ def update_timestamp_index(index):
         # There can be a wide variety of exceptions here and if this doesn't work it shouldn't prevent seekers functionality
         # So we catch all exceptions and log the specific one in the warning
         except Exception as e:
-            logger.warning(f"There was an error updating timestamp index {timestamp_index} caused by Exception: `{type(e).__name__}: {e}`\n"
+            logger.warning(f"There was an error updating timestamp index {timestamp_index} caused by {type(e).__name__}: {e}\n"
                            f"If you don't have a timestamp index or don't want to use it set UPDATE_TIMESTAMP_INDEX setting to False.")
-            pass
 
 
 def index(obj, index=None, using=None):

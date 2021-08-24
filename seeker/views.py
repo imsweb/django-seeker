@@ -745,7 +745,6 @@ class SeekerView(View):
     def get_search(self, keywords=None, facets=None, aggregate=True):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
-        update_timestamp_index(index)
         # TODO: self.document.search(using=using, index=index) once new version is released
         s = self.document.search().index(index).using(using).extra(track_scores=True)
         if keywords:
@@ -980,6 +979,12 @@ class SeekerView(View):
         resp['Content-Disposition'] = 'attachment; filename=%s' % export_name
         return resp
 
+    def dispatch(self, request, *args, **kwargs):
+        index = self.index or self.document._index
+        update_timestamp_index(index)
+
+        return super().dispatch(request, *args, **kwargs)
+        
     def get(self, request, *args, **kwargs):
         if '_facet' in request.GET:
             return self.render_facet_query()
@@ -1317,7 +1322,6 @@ class AdvancedSeekerView(SeekerView):
     def get_dsl_search(self):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
-        update_timestamp_index(index)
         # TODO: self.document.search(using=using, index=index) once new version is released
         return self.document.search().index(index).using(using).extra(track_scores=True)
 
