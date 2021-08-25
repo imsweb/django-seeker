@@ -979,12 +979,6 @@ class SeekerView(View):
         resp['Content-Disposition'] = 'attachment; filename=%s' % export_name
         return resp
 
-    def dispatch(self, request, *args, **kwargs):
-        index = self.index or self.document._index
-        update_timestamp_index(index)
-
-        return super().dispatch(request, *args, **kwargs)
-        
     def get(self, request, *args, **kwargs):
         if '_facet' in request.GET:
             return self.render_facet_query()
@@ -1074,6 +1068,10 @@ class SeekerView(View):
         if resp is None:
             self.modify_initial_facets()
             resp = super().dispatch(request, *args, **kwargs)
+
+        index = self.index or self.document._index
+        update_timestamp_index(index)
+
         return resp
 
 
