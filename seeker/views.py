@@ -422,6 +422,18 @@ class SeekerView(View):
     Whether to sort missing values first or last. Valid values are "_first", "_last", "_low", "_high", or None.
     """
 
+    search_extra = {}
+    """
+    A dictionary of "extra" properties to add to the DSL search object.
+    For example: search_extra = {'track_total_hits': True}
+    """
+
+    search_params = {}
+    """
+    A dictionary of "parameters" to add to the DSL search object.
+    For example: search_params = {'routing': '42}
+    """
+
     def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page.
@@ -746,7 +758,13 @@ class SeekerView(View):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
-        s = self.document.search().index(index).using(using).extra(track_scores=True)
+        s = (
+            self.document.search()
+            .index(index)
+            .using(using)
+            .extra(track_scores=True, **self.search_extra)
+            .params(**self.search_params)
+        )
         if keywords:
             s = self.get_search_query_type(s, keywords)
         if facets:
@@ -1321,7 +1339,13 @@ class AdvancedSeekerView(SeekerView):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
-        return self.document.search().index(index).using(using).extra(track_scores=True)
+        return (
+            self.document.search()
+            .index(index)
+            .using(using)
+            .extra(track_scores=True, **self.search_extra)
+            .params(**self.search_params)
+        )
 
     def make_column(self, field_name):
         """
