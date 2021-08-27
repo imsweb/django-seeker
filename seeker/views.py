@@ -100,7 +100,7 @@ class Column(object):
         else:
             q['s'] = self.field
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(' <span class="sr-only">(%s)</span>', sort) if sort else ''
+        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
             span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
         else:
@@ -1109,7 +1109,7 @@ class AdvancedColumn(Column):
         if self.model_lower:
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
-            return format_html('<th class="%s">%s</th>', cls, self.header_html)
+            return format_html('<th class="{}">{}</th>', cls, self.header_html)
         current_sort = self.view.search_object['sort']
         sort = None
         cls += ' sort'
@@ -1123,7 +1123,7 @@ class AdvancedColumn(Column):
             data_sort = self.field
 
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(' <span class="sr-only">(%s)</span>', sort) if sort else ''
+        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.
