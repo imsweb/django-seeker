@@ -19,9 +19,8 @@ from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, TemplateDoesNotExist, loader
 from django.utils import timezone
 from django.utils.encoding import force_text
-from django.utils.html import escape
+from django.utils.html import escape, format_html
 from django.utils.http import urlencode
-from django.utils.safestring import mark_safe
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
 from elasticsearch_dsl import Q
@@ -87,7 +86,7 @@ class Column(object):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' %s_%s' % (self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
-            return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
+            return format_html('<th class="{}">{}</th>', cls, self.header_html)
         q = self.view.request.GET.copy()
         field = q.get('s', '')
         sort = None
@@ -101,13 +100,22 @@ class Column(object):
         else:
             q['s'] = self.field
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
+        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
-            span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
+            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
         else:
             span = ''
-        html = '<th class="%s"><a href="?%s" title="Click to sort %s" data-sort="%s">%s%s %s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label, span)
-        return mark_safe(html)
+        html = format_html(
+            '<th class="{}"><a href="?{}" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>',
+            cls,
+            q.urlencode(),
+            next_sort,
+            q['s'],
+            self.header_html,
+            sr_label,
+            span
+        )
+        return html
 
     def context(self, result, **kwargs):
         return kwargs
@@ -1101,7 +1109,7 @@ class AdvancedColumn(Column):
         if self.model_lower:
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
-            return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
+            return format_html('<th class="{}">{}</th>', cls, self.header_html)
         current_sort = self.view.search_object['sort']
         sort = None
         cls += ' sort'
@@ -1115,7 +1123,7 @@ class AdvancedColumn(Column):
             data_sort = self.field
 
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
+        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.
@@ -1123,11 +1131,14 @@ class AdvancedColumn(Column):
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
-            span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
+            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
         else:
             span = ''
-        html = '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>'.format(cls, next_sort, data_sort, self.header_html, sr_label, span)
-        return mark_safe(html)
+        html = format_html(
+            '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>',
+            cls, next_sort, data_sort, self.header_html, sr_label, span
+        )
+        return html
 
     def get_data_max_length(self, results):
         """
@@ -1159,7 +1170,7 @@ class AdvancedColumn(Column):
                     space_found = True
                     space_index = index
             offset += 1
-        self.header_html = "{}<br/>{}".format(self.header_html[:space_index], self.header_html[space_index + 1:])
+        self.header_html = format_html("{}<br/>{}", self.header_html[:space_index], self.header_html[space_index + 1:])
 
     def export_value(self, result):
         export_field = self.field if self.export is True else self.export
@@ -1709,9 +1720,10 @@ class AdvancedSeekerView(SeekerView):
 
         # Check if all required keys are present for a group
         elif all(k in advanced_query for k in ('condition', 'rules')):
-            group_operator = self.boolean_translations.get(advanced_query.get('condition'), None)
+            condition = advanced_query.get('condition')
+            group_operator = self.boolean_translations.get(condition, None)
             if not group_operator:
-                raise ValueError(u"'{}' is not a valid boolean operator.".format(v))
+                raise ValueError("'{}' is not a valid boolean operator.".format(condition))
 
             queries = []
             selected_facets = []
@@ -1729,7 +1741,7 @@ class AdvancedSeekerView(SeekerView):
 
         # The advanced_query must have been missing something, so we cannot create this query
         else:
-            raise ValueError(u"The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(advanced_query)))
+            raise ValueError("The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(advanced_query)))
 
     def export(self, search, columns):
         """
