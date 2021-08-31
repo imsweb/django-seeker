@@ -969,7 +969,7 @@ class SeekerView(View):
     def modify_initial_facets(self):
         facet_fields = [facet.field for facet in self.get_facets()]
         missing_facets = set(self.initial_facets.keys()).difference(set(facet_fields))
-        [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
+        self.hidden_facets = [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
 
     def export(self):
         """
@@ -1086,6 +1086,8 @@ class SeekerView(View):
         if resp is None:
             self.modify_initial_facets()
             resp = super().dispatch(request, *args, **kwargs)
+        else:
+            self.initial_facets += getattr(self, 'hidden_facets', None)
 
         index = self.index or self.document._index
         update_timestamp_index(index)
