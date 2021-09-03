@@ -885,7 +885,8 @@ class SeekerView(View):
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * page_size
-        if search.count() <= offset:
+        results_count = search[0:0].execute().hits.total.value
+        if results_count <= offset:
             page = 1
             offset = 0
 
@@ -905,7 +906,7 @@ class SeekerView(View):
             'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
             'form_action': self.request.path,
             'results': results,
-            'total_hits': search.count(),
+            'total_hits': results.hits.total.value,
             'page': page,
             'page_size': page_size,
             'available_page_sizes': self.available_page_sizes,
@@ -1355,7 +1356,7 @@ class AdvancedSeekerView(SeekerView):
             .index(index)
             .using(using)
             .extra(track_scores=True, **self.search_extra)
-            .params(**self.search_params)
+            .params(request_timeout=self.search_timeout, **self.search_params)
         )
 
     def make_column(self, field_name):
@@ -1614,7 +1615,7 @@ class AdvancedSeekerView(SeekerView):
             'query': query,
             'aggregation_results': aggregation_results,
             'results': results,
-            'total_hits': search.count(),
+            'total_hits': results.hits.total.value,
             'show_rank': self.show_rank,
             'sort': sort,
             'export_name': self.export_name,
@@ -1635,7 +1636,8 @@ class AdvancedSeekerView(SeekerView):
 
     def calculate_page_and_offset(self, page, page_size, search):
         offset = (page - 1) * page_size
-        if search.count() <= offset:
+        results_count = search[0:0].execute().hits.total.value
+        if results_count <= offset:
             page = 1
             offset = 0
         return page, offset
