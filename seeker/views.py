@@ -762,7 +762,7 @@ class SeekerView(View):
             kwargs['auto_generate_phrase_queries'] = True
         return search.query(self.query_type, **kwargs)
 
-    def get_search(self, keywords=None, facets=None, aggregate=True):
+    def get_search(self, keywords=None, facets=None, aggregate=True, include_extra=True, include_params=True):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
@@ -770,9 +770,13 @@ class SeekerView(View):
             self.document.search()
             .index(index)
             .using(using)
-            .extra(track_scores=True, **self.search_extra)
-            .params(**self.search_params)
         )
+
+        if include_extra:
+            s = s.extra(track_scores=True, **self.search_extra)
+        if include_params:
+            s = s.params(**self.search_params)
+
         if keywords:
             s = self.get_search_query_type(s, keywords)
         if facets:
@@ -1347,17 +1351,18 @@ class AdvancedSeekerView(SeekerView):
                     facet.apply(s)
         return s
 
-    def get_dsl_search(self):
+    def get_dsl_search(self, include_extra=True, include_params=True):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
-        return (
-            self.document.search()
-            .index(index)
-            .using(using)
-            .extra(track_scores=True, **self.search_extra)
-            .params(request_timeout=self.search_timeout, **self.search_params)
-        )
+        search = self.document.search().index(index).using(using)
+
+        if include_extra:
+            search = search.extra(track_scores=True, **self.search_extra)
+        if include_params:
+            search = search.params(request_timeout=self.search_timeout, **self.search_params)
+
+        return search
 
     def make_column(self, field_name):
         """
@@ -1508,7 +1513,7 @@ class AdvancedSeekerView(SeekerView):
         aggregation_search = self.additional_query_filters(aggregation_search)
         self.apply_aggregations(aggregation_search, query, facet_lookup)
         # In order to utilize cache we need to set the size to 0 and turn off scoring
-        aggregation_results = aggregation_search[0:0].extra(track_scores=False).params(request_timeout=self.search_timeout).execute()
+        aggregation_results = aggregation_search[0:0].extra(track_scores=False).execute()
 
         return aggregation_search, aggregation_results
 
@@ -1586,11 +1591,11 @@ class AdvancedSeekerView(SeekerView):
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].execute()
             else:
-                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
         else:
-            results = search[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+            results = search[offset:offset + page_size].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results

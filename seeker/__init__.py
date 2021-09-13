@@ -1,4 +1,4 @@
-__version__ = '7.0.1'
+__version__ = '7.0.2'
 
 from .facets import DateRangeFacet, DateTermsFacet, Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram, TextFacet
 from .mapping import (
