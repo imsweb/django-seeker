@@ -682,7 +682,7 @@ class SeekerView(View):
     def get_facets(self):
         facets = []
         for facet in self.facets:
-            if self.request.user.is_authenticated or not facet.login_required:
+            if self.request.user.is_authenticated or not facet.related_column_name in self.login_required_columns:
                 facets.append(facet) 
         return facets
 

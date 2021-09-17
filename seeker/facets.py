@@ -2,6 +2,7 @@ import copy
 import functools
 import numbers
 import operator
+import warnings
 
 from django.conf import settings
 from django.utils.encoding import smart_text
@@ -31,7 +32,11 @@ class Facet(object):
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
-        self.login_required = kwargs.pop('login_required', False)
+        if kwargs.pop('login_required', False):
+            warnings.warn(
+                    "The 'login_required' facet attribute will be deprecated in Seeker 8.0. Please add the facet field to 'login_required_columns' instead.",
+                    DeprecationWarning
+                )
 
         default_related_column_name = self.field.split('.')[0]
         related_column_name = kwargs.get('related_column_name')
