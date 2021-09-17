@@ -966,11 +966,6 @@ class SeekerView(View):
         facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
         return JsonResponse(facet.data(search.execute()))
 
-    def modify_initial_facets(self):
-        facet_fields = [facet.field for facet in self.get_facets()]
-        missing_facets = set(self.initial_facets.keys()).difference(set(facet_fields))
-        [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
-
     def export(self):
         """
         A helper method called when ``_export`` is present in ``request.GET``. Returns a ``StreamingHttpResponse``
