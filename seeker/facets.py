@@ -32,7 +32,9 @@ class Facet(object):
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
-        if kwargs.pop('login_required', False):
+        self.login_required = kwargs.pop('login_required', False)
+
+        if self.login_required:
             warnings.warn(
                     "The 'login_required' facet attribute will be deprecated in Seeker 8.0. Please add the facet field to 'login_required_columns' instead.",
                     DeprecationWarning
