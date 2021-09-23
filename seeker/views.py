@@ -966,6 +966,15 @@ class SeekerView(View):
         facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
         return JsonResponse(facet.data(search.execute()))
 
+    def modify_initial_facets(self):
+        warnings.warn(
+            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0.",
+            DeprecationWarning
+        )
+        facet_fields = [facet.field for facet in self.get_facets()]
+        missing_facets = set(self.initial_facets.keys()).difference(set(facet_fields))
+        [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
+
     def export(self):
         """
         A helper method called when ``_export`` is present in ``request.GET``. Returns a ``StreamingHttpResponse``
@@ -1649,8 +1658,8 @@ class AdvancedSeekerView(SeekerView):
     def filter_facet_lookup(self, facet_lookup, facets_searched, **kwargs):
         """
         Allows the list of facets to be reduced as much as possible. The decision on what can be
-        reduced is up to the individual site so the default returns facet_lookup unaltered.
-        Facets in ``self.login_required_columns`` will not be included if the user is not logged in.
+        reduced is up to the individual site. By default returns facet_lookup, without the facets 
+        in ``self.login_required_columns`` if the user is not logged in.
         NOTE: The more facets that can be removed from this list the better the response time will be for the search.
         """
         return {key: value for key, value in facet_lookup.items() if key in self.get_facets()}
