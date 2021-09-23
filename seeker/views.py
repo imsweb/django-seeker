@@ -690,7 +690,7 @@ class SeekerView(View):
     def get_facets(self):
         facets = []
         for facet in self.facets:
-            if self.request.user.is_authenticated or not facet.login_required:
+            if self.request.user.is_authenticated or not facet.related_column_name in self.login_required_columns:
                 facets.append(facet) 
         return facets
 
@@ -980,6 +980,10 @@ class SeekerView(View):
         return JsonResponse(facet.data(search.execute()))
 
     def modify_initial_facets(self):
+        warnings.warn(
+            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0.",
+            DeprecationWarning
+        )
         facet_fields = [facet.field for facet in self.get_facets()]
         missing_facets = set(self.initial_facets.keys()).difference(set(facet_fields))
         [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
@@ -1097,7 +1101,6 @@ class SeekerView(View):
         """
         resp = self.check_permission(request)
         if resp is None:
-            self.modify_initial_facets()
             resp = super().dispatch(request, *args, **kwargs)
 
         index = self.index or self.document._index
@@ -1673,10 +1676,11 @@ class AdvancedSeekerView(SeekerView):
     def filter_facet_lookup(self, facet_lookup, facets_searched, **kwargs):
         """
         Allows the list of facets to be reduced as much as possible. The decision on what can be
-        reduced is up to the individual site so the default returns facet_lookup unaltered.
+        reduced is up to the individual site. By default returns facet_lookup, without the facets 
+        in ``self.login_required_columns`` if the user is not logged in.
         NOTE: The more facets that can be removed from this list the better the response time will be for the search.
         """
-        return facet_lookup
+        return {key: value for key, value in facet_lookup.items() if key in self.get_facets()}
 
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
