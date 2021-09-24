@@ -966,14 +966,15 @@ class SeekerView(View):
         facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
         return JsonResponse(facet.data(search.execute()))
 
+    def filter_initial_facets(self):
+        return {key:value for key,value in self.initial_facets.items() if self.request.user.is_authenticated or key.split('.')[0] not in self.login_required_columns}
+        
     def modify_initial_facets(self):
         warnings.warn(
-            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0.",
+            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
             DeprecationWarning
         )
-        facet_fields = [facet.field for facet in self.get_facets()]
-        missing_facets = set(self.initial_facets.keys()).difference(set(facet_fields))
-        [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
+        self.initial_facets = self.filter_initial_facets()
 
     def export(self):
         """
@@ -1408,7 +1409,7 @@ class AdvancedSeekerView(SeekerView):
             'facets': facets,
             'search_url': self.search_url,
             'save_search_url': self.save_search_url,
-            'selected_facets': self.initial_facets,
+            'selected_facets': self.filter_initial_facets(),
             'initial_search_object_query': self.initial_facet_query()
         }
 
@@ -1526,11 +1527,11 @@ class AdvancedSeekerView(SeekerView):
 
     def initial_facet_query(self):
 
-        initial_query = {'condition': self.initial_facets.get('condition', 'AND'), 'rules': []}
+        initial_query = {'condition': self.filter_initial_facets().get('condition', 'AND'), 'rules': []}
         for facet in self.get_facets():
-            if facet.field in self.initial_facets:
-                if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
-                    initial_query['rules'].append(facet.initialize(self.initial_facets[facet.field]))
+            if facet.field in self.filter_initial_facets():
+                if hasattr(facet, 'initialize') and self.filter_initial_facets()[facet.field]:
+                    initial_query['rules'].append(facet.initialize(self.filter_initial_facets()[facet.field]))
         return json.dumps(initial_query)
 
     def render_results(self, export):
@@ -1662,7 +1663,7 @@ class AdvancedSeekerView(SeekerView):
         in ``self.login_required_columns`` if the user is not logged in.
         NOTE: The more facets that can be removed from this list the better the response time will be for the search.
         """
-        return {key: value for key, value in facet_lookup.items() if key in self.get_facets()}
+        return facet_lookup
 
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
