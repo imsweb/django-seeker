@@ -1659,8 +1659,7 @@ class AdvancedSeekerView(SeekerView):
     def filter_facet_lookup(self, facet_lookup, facets_searched, **kwargs):
         """
         Allows the list of facets to be reduced as much as possible. The decision on what can be
-        reduced is up to the individual site. By default returns facet_lookup, without the facets 
-        in ``self.login_required_columns`` if the user is not logged in.
+        reduced is up to the individual site so the default returns facet_lookup unaltered.
         NOTE: The more facets that can be removed from this list the better the response time will be for the search.
         """
         return facet_lookup
