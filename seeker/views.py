@@ -967,8 +967,14 @@ class SeekerView(View):
         return JsonResponse(facet.data(search.execute()))
 
     def filter_initial_facets(self):
-        return {key:value for key,value in self.initial_facets.items() if self.request.user.is_authenticated or key.split('.')[0] not in self.login_required_columns}
-        
+        filtered_initial_facets = {}
+        facet_lookup = {facet.field: facet for facet in self.get_facets()}
+        for field in set(self.initial_facets.keys()).intersection(set(facet_lookup.keys())):
+            related_column_name = facet_lookup[field].related_column_name
+            if self.request.user.is_authenticated or related_column_name not in self.login_required_columns:
+                filtered_initial_facets[field] = self.initial_facets[field]
+        return filtered_initial_facets
+       
     def modify_initial_facets(self):
         warnings.warn(
             "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
