@@ -1532,12 +1532,12 @@ class AdvancedSeekerView(SeekerView):
         return JsonResponse(json_response)
 
     def initial_facet_query(self):
-
-        initial_query = {'condition': self.filter_initial_facets().get('condition', 'AND'), 'rules': []}
+        filtered_initial_facets = self.filter_initial_facets()
+        initial_query = {'condition': filtered_initial_facets.get('condition', 'AND'), 'rules': []}
         for facet in self.get_facets():
-            if facet.field in self.filter_initial_facets():
-                if hasattr(facet, 'initialize') and self.filter_initial_facets()[facet.field]:
-                    initial_query['rules'].append(facet.initialize(self.filter_initial_facets()[facet.field]))
+            if facet.field in filtered_initial_facets:
+                if hasattr(facet, 'initialize') and filtered_initial_facets[facet.field]:
+                    initial_query['rules'].append(facet.initialize(filtered_initial_facets[facet.field]))
         return json.dumps(initial_query)
 
     def render_results(self, export):
