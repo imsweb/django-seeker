@@ -836,7 +836,7 @@ class SeekerView(View):
                 pass
 
         keywords = self.get_keywords(self.request.GET)
-        facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if self.is_initial()  else None)
+        facets = self.get_facet_data(self.request.GET, initial=self.filter_initial_facets() if self.is_initial()  else None)
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
@@ -894,7 +894,7 @@ class SeekerView(View):
             'facets': facets,
             'post_filter_facets': self.post_filter_facets,
             'facets_selected_and_results': facets_selected_and_results,
-            'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
+            'selected_facets': self.request.GET.getlist('f') or self.filter_initial_facets(),
             'form_action': self.request.path,
             'results': results,
             'total_hits': search.count(),
