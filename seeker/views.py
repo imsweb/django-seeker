@@ -848,7 +848,7 @@ class SeekerView(View):
                 pass
 
         keywords = self.get_keywords(self.request.GET)
-        facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if self.is_initial()  else None)
+        facets = self.get_facet_data(self.request.GET, initial=self.filter_initial_facets() if self.is_initial()  else None)
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
@@ -907,7 +907,7 @@ class SeekerView(View):
             'facets': facets,
             'post_filter_facets': self.post_filter_facets,
             'facets_selected_and_results': facets_selected_and_results,
-            'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
+            'selected_facets': self.request.GET.getlist('f') or self.filter_initial_facets(),
             'form_action': self.request.path,
             'results': results,
             'total_hits': results.hits.total.value,
@@ -979,14 +979,21 @@ class SeekerView(View):
         facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
         return JsonResponse(facet.data(search.execute()))
 
+    def filter_initial_facets(self):
+        filtered_initial_facets = {}
+        facet_lookup = {facet.field: facet for facet in self.get_facets()}
+        for field in set(self.initial_facets.keys()).intersection(set(facet_lookup.keys())):
+            related_column_name = facet_lookup[field].related_column_name
+            if self.request.user.is_authenticated or related_column_name not in self.login_required_columns:
+                filtered_initial_facets[field] = self.initial_facets[field]
+        return filtered_initial_facets
+       
     def modify_initial_facets(self):
         warnings.warn(
-            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0.",
+            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
             DeprecationWarning
         )
-        facet_fields = [facet.field for facet in self.get_facets()]
-        missing_facets = set(self.initial_facets.keys()).difference(set(facet_fields))
-        [self.initial_facets.pop(missing_facet, None) for missing_facet in missing_facets]
+        self.initial_facets = self.filter_initial_facets()
 
     def export(self):
         """
@@ -1425,7 +1432,7 @@ class AdvancedSeekerView(SeekerView):
             'facets': facets,
             'search_url': self.search_url,
             'save_search_url': self.save_search_url,
-            'selected_facets': self.initial_facets,
+            'selected_facets': self.filter_initial_facets(),
             'initial_search_object_query': self.initial_facet_query()
         }
 
@@ -1542,12 +1549,12 @@ class AdvancedSeekerView(SeekerView):
         return JsonResponse(json_response)
 
     def initial_facet_query(self):
-
-        initial_query = {'condition': self.initial_facets.get('condition', 'AND'), 'rules': []}
+        filtered_initial_facets = self.filter_initial_facets()
+        initial_query = {'condition': filtered_initial_facets.get('condition', 'AND'), 'rules': []}
         for facet in self.get_facets():
-            if facet.field in self.initial_facets:
-                if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
-                    initial_query['rules'].append(facet.initialize(self.initial_facets[facet.field]))
+            if facet.field in filtered_initial_facets:
+                if hasattr(facet, 'initialize') and filtered_initial_facets[facet.field]:
+                    initial_query['rules'].append(facet.initialize(filtered_initial_facets[facet.field]))
         return json.dumps(initial_query)
 
     def render_results(self, export):
@@ -1676,11 +1683,10 @@ class AdvancedSeekerView(SeekerView):
     def filter_facet_lookup(self, facet_lookup, facets_searched, **kwargs):
         """
         Allows the list of facets to be reduced as much as possible. The decision on what can be
-        reduced is up to the individual site. By default returns facet_lookup, without the facets 
-        in ``self.login_required_columns`` if the user is not logged in.
+        reduced is up to the individual site so the default returns facet_lookup unaltered.
         NOTE: The more facets that can be removed from this list the better the response time will be for the search.
         """
-        return {key: value for key, value in facet_lookup.items() if key in self.get_facets()}
+        return facet_lookup
 
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
