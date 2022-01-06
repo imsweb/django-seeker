@@ -22,7 +22,9 @@ def reindex(es, doc_class, index, options):
             action.update(doc)
             yield action
 
-    actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
+    actions = (
+        get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=f"{doc_class.__name__} ({index})")
+    )
     bulk(es, actions)
     es.indices.refresh(index=index)
 
