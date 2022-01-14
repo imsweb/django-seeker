@@ -2,6 +2,7 @@ import copy
 import functools
 import numbers
 import operator
+import warnings
 
 from django.conf import settings
 from django.utils.encoding import smart_text
@@ -31,6 +32,13 @@ class Facet(object):
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
+        self.login_required = kwargs.pop('login_required', False)
+
+        if self.login_required:
+            warnings.warn(
+                    "The 'login_required' facet attribute will be deprecated in Seeker 8.0. Please add the facet field to 'login_required_columns' instead.",
+                    DeprecationWarning
+                )
 
         default_related_column_name = self.field.split('.')[0]
         related_column_name = kwargs.get('related_column_name')
@@ -361,8 +369,8 @@ class RangeFilter(Facet):
         # This is a list of filter query objects for each value range.
         filters = []
 
-        # if key is equal to _missing, we create a query that returns every document that doesn't have a value for that field.
-        if key == '_missing':
+        # if key is equal to _missing or empty string, we create a query that returns every document that doesn't have a value for that field.
+        if key in ['_missing', ""]:
             filters.append(~Q('exists', field=self.field))
         else:
             # This function will only return filters for ranges that are defined in self.ranges (i.e - valid ranges)

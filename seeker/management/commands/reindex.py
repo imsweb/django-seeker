@@ -6,7 +6,7 @@ from elasticsearch.helpers import bulk
 from elasticsearch_dsl.connections import connections
 
 from seeker.registry import app_documents, documents
-from seeker.utils import progress
+from seeker.utils import progress, update_timestamp_index
 
 
 def reindex(es, doc_class, index, options):
@@ -18,12 +18,13 @@ def reindex(es, doc_class, index, options):
         for doc in doc_class.documents(cursor=options['cursor']):
             action = {
                 '_index': index,
-                '_type': doc_class._doc_type.name,
             }
             action.update(doc)
             yield action
 
-    actions = get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=doc_class.__name__)
+    actions = (
+        get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=f"{doc_class.__name__} ({index})")
+    )
     bulk(es, actions)
     es.indices.refresh(index=index)
 
@@ -92,8 +93,11 @@ class Command(BaseCommand):
         deleted_indexes = []
         for doc_class in doc_classes:
             using = options['using'] or doc_class._index._using or 'default'
-            index = doc_class._index._name  # options['index'] or doc_class._doc_type.index or getattr(settings, 'SEEKER_INDEX', 'seeker')
+            index = doc_class._index._name
             es = connections.get_connection(using)
+
+            update_timestamp_index(index)
+
             if options['drop'] and index not in deleted_indexes:
                 if es.indices.exists(index=index):
                     es.indices.delete(index=index)

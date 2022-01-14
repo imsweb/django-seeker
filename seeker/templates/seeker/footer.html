@@ -3,12 +3,12 @@
 
 {% block seeker-pagination %}
 <div class="pull-right">
-    {% seeker_pager results.hits.total page_size=page_size page=page querystring=querystring spread=page_spread %}
+    {% seeker_pager total_hits page_size=page_size page=page querystring=querystring spread=page_spread %}
 </div>
 {% endblock seeker-pagination %}
 
 <p>
-    <em>Found {{ results.hits.total|intcomma }} result{{ results.hits.total|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
+    <em>Found {{ total_hits|intcomma }} result{{ total_hits|pluralize }} in {{ results.took }} millisecond{{ results.took|pluralize }}</em>
     {% if export_name %}
         {% block export-link %}&mdash; <a href="?{{ querystring }}&amp;_export">{% trans "Export these results" %}</a>{% endblock export-link %}
     {% endif %}

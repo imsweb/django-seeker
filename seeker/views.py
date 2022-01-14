@@ -19,9 +19,8 @@ from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, TemplateDoesNotExist, loader
 from django.utils import timezone
 from django.utils.encoding import force_text
-from django.utils.html import escape
+from django.utils.html import escape, format_html
 from django.utils.http import urlencode
-from django.utils.safestring import mark_safe
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
 from elasticsearch_dsl import Q
@@ -31,6 +30,7 @@ from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
+from seeker.utils import update_timestamp_index
 
 seekerview_field_templates = {}
 
@@ -86,7 +86,7 @@ class Column(object):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' %s_%s' % (self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
-            return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
+            return format_html('<th class="{}">{}</th>', cls, self.header_html)
         q = self.view.request.GET.copy()
         field = q.get('s', '')
         sort = None
@@ -100,13 +100,22 @@ class Column(object):
         else:
             q['s'] = self.field
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
-        sr_label = (' <span class="sr-only">(%s)</span>' % sort) if sort else ''
+        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
-            span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
+            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
         else:
             span = ''
-        html = '<th class="%s"><a href="?%s" title="Click to %s" data-sort="%s">%s%s %s</a></th>' % (cls, q.urlencode(), next_sort, q['s'], self.header_html, sr_label, span)
-        return mark_safe(html)
+        html = format_html(
+            '<th class="{}"><a href="?{}" title="Click to {}" data-sort="{}">{}{} {}</a></th>',
+            cls,
+            q.urlencode(),
+            next_sort,
+            q['s'],
+            self.header_html,
+            sr_label,
+            span
+        )
+        return html
 
     def context(self, result, **kwargs):
         return kwargs
@@ -222,6 +231,11 @@ class SeekerView(View):
     exclude = None
     """
     A list of field names to exclude when generating columns.
+    """
+
+    login_required_columns = []
+    """
+    A list of field names that will automatically be added to the exclude when generating columns if the user is not authenticated.
     """
 
     display = None
@@ -416,6 +430,18 @@ class SeekerView(View):
     Whether to sort missing values first or last. Valid values are "_first", "_last", "_low", "_high", or None.
     """
 
+    search_extra = {}
+    """
+    A dictionary of "extra" properties to add to the DSL search object.
+    For example: search_extra = {'track_total_hits': True}
+    """
+
+    search_params = {}
+    """
+    A dictionary of "parameters" to add to the DSL search object.
+    For example: search_params = {'routing': '42}
+    """
+
     def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page.
@@ -549,9 +575,8 @@ class SeekerView(View):
         elif hasattr(self.document, 'queryset'):
             search_templates.append('seeker/{}/{}.html'.format(self.document.queryset().model.__name__.lower(), field_name))
         for _cls in inspect.getmro(self.document):
-            if issubclass(_cls, dsl.DocType):
+            if issubclass(_cls, dsl.Document):
                 search_templates.append('seeker/{}/{}.html'.format(_cls.__name__.lower(), field_name))
-                search_templates.append('seeker/{}/{}.html'.format(_cls._doc_type.name, field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
         existing_templates = list(set(self._field_templates.values()))
@@ -612,21 +637,25 @@ class SeekerView(View):
         Returns a list of :class:`seeker.Column` objects based on self.columns, converting any strings.
         """
         columns = []
+        exclude = copy.copy(self.exclude) or []
+        if not self.request.user.is_authenticated:
+            exclude += self.login_required_columns
+
         if not self.columns:
             # If not specified, all mapping fields will be available.
             for f in self.document._doc_type.mapping:
-                if self.exclude and f in self.exclude:
+                if exclude and f in exclude:
                     continue
                 columns.append(self.make_column(f))
         else:
             # Otherwise, go through and convert any strings to Columns.
             for c in self.columns:
                 if isinstance(c, str):
-                    if self.exclude and c in self.exclude:
+                    if exclude and c in exclude:
                         continue
                     columns.append(self.make_column(c))
                 elif isinstance(c, Column):
-                    if self.exclude and c.field in self.exclude:
+                    if exclude and c.field in exclude:
                         continue
                     columns.append(c)
         # Make sure the columns are bound and ordered based on the display fields (selected or default).
@@ -659,7 +688,11 @@ class SeekerView(View):
         return data_dict.get('q', '').strip()
 
     def get_facets(self):
-        return list(self.facets) if self.facets else []
+        facets = []
+        for facet in self.facets:
+            if self.request.user.is_authenticated or not facet.related_column_name in self.login_required_columns:
+                facets.append(facet) 
+        return facets
 
     def get_sorts(self):
         return self.request.GET.getlist('s', None)
@@ -729,11 +762,21 @@ class SeekerView(View):
             kwargs['auto_generate_phrase_queries'] = True
         return search.query(self.query_type, **kwargs)
 
-    def get_search(self, keywords=None, facets=None, aggregate=True):
+    def get_search(self, keywords=None, facets=None, aggregate=True, include_extra=True, include_params=True):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
-        s = self.document.search().index(index).using(using).extra(track_scores=True)
+        s = (
+            self.document.search()
+            .index(index)
+            .using(using)
+        )
+
+        if include_extra:
+            s = s.extra(track_scores=True, **self.search_extra)
+        if include_params:
+            s = s.params(**self.search_params)
+
         if keywords:
             s = self.get_search_query_type(s, keywords)
         if facets:
@@ -803,7 +846,7 @@ class SeekerView(View):
                 pass
 
         keywords = self.get_keywords(self.request.GET)
-        facets = self.get_facet_data(self.request.GET, initial=self.initial_facets if self.is_initial()  else None)
+        facets = self.get_facet_data(self.request.GET, initial=self.filter_initial_facets() if self.is_initial()  else None)
         search = self.get_search(keywords, facets)
         columns = self.get_columns()
 
@@ -844,7 +887,7 @@ class SeekerView(View):
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
         offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total
+        results_count = search[0:0].execute().hits.total.value
         if results_count <= offset:
             page = 1
             offset = 0
@@ -862,9 +905,10 @@ class SeekerView(View):
             'facets': facets,
             'post_filter_facets': self.post_filter_facets,
             'facets_selected_and_results': facets_selected_and_results,
-            'selected_facets': self.request.GET.getlist('f') or self.initial_facets,
+            'selected_facets': self.request.GET.getlist('f') or self.filter_initial_facets(),
             'form_action': self.request.path,
             'results': results,
+            'total_hits': results.hits.total.value,
             'page': page,
             'page_size': page_size,
             'available_page_sizes': self.available_page_sizes,
@@ -932,6 +976,22 @@ class SeekerView(View):
         fq = '.*' + self.request.GET.get('_query', '').strip() + '.*'
         facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
         return JsonResponse(facet.data(search.execute()))
+
+    def filter_initial_facets(self):
+        filtered_initial_facets = {}
+        facet_lookup = {facet.field: facet for facet in self.get_facets()}
+        for field in set(self.initial_facets.keys()).intersection(set(facet_lookup.keys())):
+            related_column_name = facet_lookup[field].related_column_name
+            if self.request.user.is_authenticated or related_column_name not in self.login_required_columns:
+                filtered_initial_facets[field] = self.initial_facets[field]
+        return filtered_initial_facets
+       
+    def modify_initial_facets(self):
+        warnings.warn(
+            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
+            DeprecationWarning
+        )
+        self.initial_facets = self.filter_initial_facets()
 
     def export(self):
         """
@@ -1045,9 +1105,13 @@ class SeekerView(View):
         Overridden to perform permission checking by calling ``self.check_permission``.
         """
         resp = self.check_permission(request)
-        if resp is not None:
-            return resp
-        return super(SeekerView, self).dispatch(request, *args, **kwargs)
+        if resp is None:
+            resp = super().dispatch(request, *args, **kwargs)
+
+        index = self.index or self.document._index
+        update_timestamp_index(index)
+
+        return resp
 
 
 class AdvancedColumn(Column):
@@ -1059,7 +1123,7 @@ class AdvancedColumn(Column):
         if self.model_lower:
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
-            return mark_safe('<th class="%s">%s</th>' % (cls, self.header_html))
+            return format_html('<th class="{}">{}</th>', cls, self.header_html)
         current_sort = self.view.search_object['sort']
         sort = None
         sort_order = 0
@@ -1082,7 +1146,7 @@ class AdvancedColumn(Column):
                     d = '' if sort_field.startswith('-') else '-'
                     data_sort = '{}{}'.format(d, self.field)
                     sort_order = current_sort.index(sort_field) + 1
-                    sr_label = ('<span class="sr-only">Number {} in sort order ({})</span>'.format(sort_order, sort))
+                    sr_label = format_html(' <span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
 
         next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
 
@@ -1092,15 +1156,17 @@ class AdvancedColumn(Column):
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
-            span = '<span title="{}" class ="fa fa-question-circle"></span>'.format(self.field_definition)
+            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
         else:
             span = ''
         if sort_order:
             sort_rank = '<span class="sort_rank">{}</span>'.format(sort_order)
         else:
             sort_rank = ''
-        html = '<th class="{}">{}<a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>'.format(cls, sort_rank, next_sort, data_sort, self.header_html, sr_label, span)
-        return mark_safe(html)
+        html = format_html(
+            '<th class="{}">{}<a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>', 
+            cls, sort_rank, next_sort, data_sort, self.header_html, sr_label, span)
+        return html
 
     def get_data_max_length(self, results):
         """
@@ -1132,7 +1198,7 @@ class AdvancedColumn(Column):
                     space_found = True
                     space_index = index
             offset += 1
-        self.header_html = "{}<br/>{}".format(self.header_html[:space_index], self.header_html[space_index + 1:])
+        self.header_html = format_html("{}<br/>{}", self.header_html[:space_index], self.header_html[space_index + 1:])
 
     def export_value(self, result):
         export_field = self.field if self.export is True else self.export
@@ -1308,11 +1374,18 @@ class AdvancedSeekerView(SeekerView):
                     facet.apply(s)
         return s
 
-    def get_dsl_search(self):
+    def get_dsl_search(self, include_extra=True, include_params=True):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
         # TODO: self.document.search(using=using, index=index) once new version is released
-        return self.document.search().index(index).using(using).extra(track_scores=True)
+        search = self.document.search().index(index).using(using)
+
+        if include_extra:
+            search = search.extra(track_scores=True, **self.search_extra)
+        if include_params:
+            search = search.params(request_timeout=self.search_timeout, **self.search_params)
+
+        return search
 
     def make_column(self, field_name):
         """
@@ -1372,7 +1445,7 @@ class AdvancedSeekerView(SeekerView):
             'facets': facets,
             'search_url': self.search_url,
             'save_search_url': self.save_search_url,
-            'selected_facets': self.initial_facets,
+            'selected_facets': self.filter_initial_facets(),
             'initial_search_object_query': self.initial_facet_query()
         }
 
@@ -1463,7 +1536,7 @@ class AdvancedSeekerView(SeekerView):
         aggregation_search = self.additional_query_filters(aggregation_search)
         self.apply_aggregations(aggregation_search, query, facet_lookup)
         # In order to utilize cache we need to set the size to 0 and turn off scoring
-        aggregation_results = aggregation_search[0:0].extra(track_scores=False).params(request_timeout=self.search_timeout).execute()
+        aggregation_results = aggregation_search[0:0].extra(track_scores=False).execute()
 
         return aggregation_search, aggregation_results
 
@@ -1489,12 +1562,12 @@ class AdvancedSeekerView(SeekerView):
         return JsonResponse(json_response)
 
     def initial_facet_query(self):
-
-        initial_query = {'condition': self.initial_facets.get('condition', 'AND'), 'rules': []}
+        filtered_initial_facets = self.filter_initial_facets()
+        initial_query = {'condition': filtered_initial_facets.get('condition', 'AND'), 'rules': []}
         for facet in self.get_facets():
-            if facet.field in self.initial_facets:
-                if hasattr(facet, 'initialize') and self.initial_facets[facet.field]:
-                    initial_query['rules'].append(facet.initialize(self.initial_facets[facet.field]))
+            if facet.field in filtered_initial_facets:
+                if hasattr(facet, 'initialize') and filtered_initial_facets[facet.field]:
+                    initial_query['rules'].append(facet.initialize(filtered_initial_facets[facet.field]))
         return json.dumps(initial_query)
 
     def render_results(self, export):
@@ -1548,9 +1621,12 @@ class AdvancedSeekerView(SeekerView):
                 default_sort_field = '{}{}'.format('-', default_sort_field)
 
         if sort:
-            results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+            if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
+                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].execute()
+            else:
+                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
         else:
-            results = search[offset:offset + page_size].params(request_timeout=self.search_timeout).execute()
+            results = search[offset:offset + page_size].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
@@ -1575,6 +1651,7 @@ class AdvancedSeekerView(SeekerView):
             'query': query,
             'aggregation_results': aggregation_results,
             'results': results,
+            'total_hits': results.hits.total.value,
             'show_rank': self.show_rank,
             'sort': sort,
             'default_sort': default_sort_field,
@@ -1587,7 +1664,7 @@ class AdvancedSeekerView(SeekerView):
         json_response = {
             'filters': [facet.build_filter_dict(aggregation_results) for facet in facet_lookup.values()],  # Relies on the default 'apply_aggregations' being applied.
             'table_html': loader.render_to_string(self.results_template, context, request=self.request),
-            'search_object': self.search_object
+            'search_object': self.search_object,
         }
 
         self.modify_json_response(json_response, context)
@@ -1596,7 +1673,7 @@ class AdvancedSeekerView(SeekerView):
 
     def calculate_page_and_offset(self, page, page_size, search):
         offset = (page - 1) * page_size
-        results_count = search[0:0].params(request_timeout=self.search_timeout).execute().hits.total
+        results_count = search[0:0].execute().hits.total.value
         if results_count <= offset:
             page = 1
             offset = 0
@@ -1682,9 +1759,10 @@ class AdvancedSeekerView(SeekerView):
 
         # Check if all required keys are present for a group
         elif all(k in advanced_query for k in ('condition', 'rules')):
-            group_operator = self.boolean_translations.get(advanced_query.get('condition'), None)
+            condition = advanced_query.get('condition')
+            group_operator = self.boolean_translations.get(condition, None)
             if not group_operator:
-                raise ValueError(u"'{}' is not a valid boolean operator.".format(v))
+                raise ValueError("'{}' is not a valid boolean operator.".format(condition))
 
             queries = []
             selected_facets = []
@@ -1702,7 +1780,7 @@ class AdvancedSeekerView(SeekerView):
 
         # The advanced_query must have been missing something, so we cannot create this query
         else:
-            raise ValueError(u"The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(advanced_query)))
+            raise ValueError("The dictionary passed in did not have the proper structure. Dictionary: {}".format(str(advanced_query)))
 
     def export(self, search, columns):
         """

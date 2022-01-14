@@ -93,14 +93,13 @@ class Indexable (dsl.Document):
         using = using or cls._index._using or 'default'
         index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
         es = connections.get_connection(using)
-        if es.indices.exists_type(index=index, doc_type=cls._doc_type.name):
+        if es.indices.exists_type(index=index):
 
             def get_actions():
-                for hit in scan(es, index=index, doc_type=cls._doc_type.name, query={'query': {'match_all': {}}}):
+                for hit in scan(es, index=index, query={'query': {'match_all': {}}}):
                     yield {
                         '_op_type': 'delete',
                         '_index': index,
-                        '_type': cls._doc_type.name,
                         '_id': hit['_id'],
                     }
 
@@ -271,7 +270,7 @@ def deep_field_factory(field):
         return document_field(field)
 
 
-def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude=None, field_factory=None, extra=None):
+def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
     Defines Elasticsearch fields for Django model fields. By default, this method will create a new
     ``elasticsearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
@@ -284,9 +283,7 @@ def build_mapping(model_class, mapping=None, doc_type=None, fields=None, exclude
     :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
     """
     if mapping is None:
-        if doc_type is None:
-            doc_type = '_doc'
-        mapping = dsl.Mapping(doc_type)
+        mapping = dsl.Mapping()
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.get_fields():
