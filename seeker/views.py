@@ -99,7 +99,12 @@ class Column(object):
             q['s'] = '%s%s' % (d, self.field)
         else:
             q['s'] = self.field
-        next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
+        next_sorting = {
+            'Acending': 'sort descending',
+            'Descending': 'remove from sort'
+        }
+        #If this field isn't already being sorted upon, label it as being sorted ascending
+        next_sort = next_sorting.get(sort, 'sort ascending')
         sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
             span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
@@ -791,13 +796,15 @@ class SeekerView(View):
         desc = sort.startswith('-')
         field = sort.lstrip('-')
         missing = self.missing_sort
-        sort_querydict = {'order': 'desc' if desc else 'asc'}
         if missing == '_low':
-            sort_querydict.update({'missing':'_last' if desc else '_first'})
+            missing = '_last' if desc else '_first'
         elif missing == '_high':
-             sort_querydict.update({'missing':'_first' if desc else '_last'})
+            missing = '_first' if desc else '_last'
         return {
-                sort: sort_querydict
+                field: {
+                    'order': 'desc' if desc else 'asc',
+                    'missing': missing,
+                }
             }
 
     def sort_descriptor(self, sort):
@@ -1136,7 +1143,7 @@ class AdvancedColumn(Column):
             if default_sort.lstrip('-') == self.field:
                 cls += ' desc' if default_sort.startswith('-') else ' asc'
                 sort_default = sort = 'Descending' if default_sort.startswith('-') else 'Ascending'
-                sr_label = '<span class="sr-only">({})</span>'.format(sort_default)
+                sr_label = format_html('<span class="sr-only">({})</span>', sort_default)
         else:
             for sort_field in current_sort:
                 if sort_field.lstrip('-') == self.field:
@@ -1146,9 +1153,14 @@ class AdvancedColumn(Column):
                     d = '' if sort_field.startswith('-') else '-'
                     data_sort = '{}{}'.format(d, self.field)
                     sort_order = current_sort.index(sort_field) + 1
-                    sr_label = format_html(' <span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
+                    sr_label = format_html('<span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
 
-        next_sort = 'sort descending' if sort == 'Ascending' else 'remove from sort' if sort == 'Descending' else 'sort ascending'
+        next_sorting = {
+            'Acending': 'sort descending',
+            'Descending': 'remove from sort'
+        }
+        #If this field isn't already being sorted upon, label it as being sorted ascending
+        next_sort = next_sorting.get(sort, 'sort ascending')
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.
@@ -1160,7 +1172,7 @@ class AdvancedColumn(Column):
         else:
             span = ''
         if sort_order:
-            sort_rank = '<span class="sort_rank">{}</span>'.format(sort_order)
+            sort_rank = format_html('<span class="sort_rank">{} </span>', sort_order)
         else:
             sort_rank = ''
         html = format_html(
