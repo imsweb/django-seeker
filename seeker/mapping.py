@@ -158,8 +158,8 @@ class ModelIndex(Indexable):
     @classmethod
     def documents(cls, **kwargs):
         """
-        Yields document data generated from ``cls.queryset()``. Multiple queries are made, fetching
-        ``SEEKER_BATCH_SIZE`` instances at a time, to avoid memory problems with very large querysets.
+        Yields document data generated from ``cls.queryset()``. ``SEEKER_BATCH_SIZE`` can be used
+        to specify the chunk_size for the queryset iterator.
         """
         qs = cls.queryset().order_by('pk')
         for obj in qs.iterator(chunk_size=getattr(django_settings, 'SEEKER_BATCH_SIZE', 2000)):
