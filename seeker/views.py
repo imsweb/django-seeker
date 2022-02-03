@@ -1132,6 +1132,8 @@ class AdvancedColumn(Column):
         current_sort = self.view.search_object['sort']
         if not isinstance(current_sort, list):
             current_sort = [current_sort]
+        if '' in current_sort:
+            current_sort.remove('')
         sort = None
         sort_order = 0
         cls += ' sort'
@@ -1147,8 +1149,10 @@ class AdvancedColumn(Column):
             if sort_descriptor_list[0][potential_default].get('order', None) == 'desc':
                 potential_default = '{}{}'.format('-', potential_default)
             potential_default = potential_default.replace('.raw', '').replace('.label','')
-            if potential_default not in current_sort:
+            print("potential default is", potential_default)
+            if potential_default and potential_default not in current_sort:
                 current_sort.append(potential_default)
+        print("current sort before for loop", current_sort)
         for sort_field in current_sort:
             if sort_field.lstrip('-') == self.field:
                 # If the current sort field is this field, give it a class a change direction.
