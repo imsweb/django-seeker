@@ -812,8 +812,6 @@ class SeekerView(View):
             return sort
         else:
             sort = [sort] if isinstance(sort, str) else sort
-            if '' in sort:
-                sort.remove('')
             sort_list = []
             for s in sort:
                 sort_list.append(self.apply_sort_descriptor(s))
@@ -1125,8 +1123,6 @@ class SeekerView(View):
 class AdvancedColumn(Column):
 
     def header(self, results=None, sort_descriptor_list=None):
-        
-        print("sort descriptor list is", sort_descriptor_list)
         cls = '{}_{}'.format(self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' {}_{}'.format(self.view.document.__name__.lower(), self.field.replace('.', '_'))
         if self.model_lower:
@@ -1136,12 +1132,9 @@ class AdvancedColumn(Column):
         current_sort = self.view.search_object['sort']
         if not isinstance(current_sort, list):
             current_sort = [current_sort]
-        # if '' in current_sort:
-        #     current_sort.remove('')
         sort = None
         sort_order = 0
         cls += ' sort'
-       
         sr_label = ''
         next_sort = ''
         next_sorting = {
@@ -1153,11 +1146,10 @@ class AdvancedColumn(Column):
             potential_default = list(sort_descriptor_list[0].keys())[0]
             if sort_descriptor_list[0][potential_default].get('order', None) == 'desc':
                 potential_default = '{}{}'.format('-', potential_default)
-            potential_default = potential_default.replace('.raw', '')
+            potential_default = potential_default.replace('.raw', '').replace('.label','')
             if potential_default not in current_sort:
                 current_sort.append(potential_default)
         for sort_field in current_sort:
-            print("comparing sort_field", sort_field.lstrip('-'), "with field", self.field)
             if sort_field.lstrip('-') == self.field:
                 # If the current sort field is this field, give it a class a change direction.
                 sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
@@ -1165,6 +1157,7 @@ class AdvancedColumn(Column):
                 d = '' if sort_field.startswith('-') else '-'
                 data_sort = '{}{}'.format(d, self.field)
                 sort_order = current_sort.index(sort_field) + 1
+                print("index of", sort_field, "in current sort", current_sort)
                 if len(current_sort) == 1:
                     sr_label = format_html('<span class="sr-only">({})</span>', sort)
                 else:
@@ -1447,7 +1440,7 @@ class AdvancedSeekerView(SeekerView):
             return('-{}'.format(c.sort) if sort.startswith('-') else c.sort)
         return sort
 
-    def get_sort_field(self, columns, sort, display):
+    def get_sort_field(self, columns, sort, is_initial_sort, display):
         """
         Returns the appropriate sort field for a given sort value.
         """
@@ -1456,12 +1449,12 @@ class AdvancedSeekerView(SeekerView):
         sort_fields = []
         column_lookup = { c.field: c for c in columns }
 
-        # If all columns have been intentionally deselected from the sort, do not default to any column
-        if sort == ['']:
-            sort = ''
-        else:
-            # Order of precedence for sort is: parameter, the default from the view, and then the first displayed column (if any are displayed)
+        # Order of precedence for sort is: parameter, the default from the view, and then the first displayed column (if any are displayed)
+        if is_initial_sort:
             sort = sort or self.sort or display[0] if len(display) else ''
+        else:
+            # If all columns have been intentionally deselected from the sort, do not default to any column
+            sort = sort if sort else []
 
         # Get the column based on the field name, and use it's "sort" field, if applicable.
         if not isinstance(sort, list):
@@ -1647,7 +1640,7 @@ class AdvancedSeekerView(SeekerView):
             search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
-        sort = self.get_sort_field(columns, self.search_object['sort'], display)
+        sort = self.get_sort_field(columns, self.search_object['sort'], self.search_object.get('isInitialSort', True), display)
         sort_descriptor_list = self.sort_descriptor(sort)
         
         if sort:
