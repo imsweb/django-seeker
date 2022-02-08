@@ -1586,7 +1586,8 @@ class AdvancedSeekerView(SeekerView):
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
 
         display = self.get_display(self.search_object['display'], facets_searched)
-        columns = self.get_columns(display, sort=not self.always_display_highlighted_columns)
+        sort = bool(export) or not self.always_display_highlighted_columns
+        columns = self.get_columns(display, sort=sort)
         if export:
             return self.export(search, columns)
 
