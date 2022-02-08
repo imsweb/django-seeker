@@ -15,7 +15,7 @@ def reindex(es, doc_class, index, options):
     """
 
     def get_actions():
-        for doc in doc_class.documents(cursor=options['cursor']):
+        for doc in doc_class.documents():
             action = {
                 '_index': index,
             }
@@ -67,12 +67,6 @@ class Command(BaseCommand):
                             dest='data',
                             default=True,
                             help='Only create the mappings, do not index any data',
-        )
-        parser.add_argument('--cursor',
-                            action='store_true',
-                            dest='cursor',
-                            default=False,
-                            help='Use a server-side cursor when fetching data for indexing',
         )
         parser.add_argument('args', nargs=argparse.REMAINDER)
 

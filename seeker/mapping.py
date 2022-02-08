@@ -158,27 +158,12 @@ class ModelIndex(Indexable):
     @classmethod
     def documents(cls, **kwargs):
         """
-        Yields document data generated from ``cls.queryset()``. Multiple queries are made, fetching
-        ``SEEKER_BATCH_SIZE`` instances at a time, to avoid memory problems with very large querysets.
-
-        :param cursor: If ``True``, a special ``CustorQuery`` will be used to yield Django objects from a server-side
-                       cursor.
+        Yields document data generated from ``cls.queryset()``. ``SEEKER_BATCH_SIZE`` can be used
+        to specify the chunk_size for the queryset iterator.
         """
-        if kwargs.get('cursor', False):
-            from .compiler import CursorQuery
-            qs = cls.queryset().order_by()
-            # Swap out the Query object with a clone using our subclass.
-            qs.query = qs.query.clone(klass=CursorQuery)
-            for obj in qs.iterator():
-                yield cls.serialize(obj)
-        else:
-            qs = cls.queryset().order_by('pk')
-            total = qs.count()
-            batch_size = getattr(django_settings, 'SEEKER_BATCH_SIZE', 1000)
-            for start in range(0, total, batch_size):
-                end = min(start + batch_size, total)
-                for obj in qs.all()[start:end]:
-                    yield cls.serialize(obj)
+        qs = cls.queryset().order_by('pk')
+        for obj in qs.iterator(chunk_size=getattr(django_settings, 'SEEKER_BATCH_SIZE', 2000)):
+            yield cls.serialize(obj)
 
     @classmethod
     def get_id(cls, obj):
