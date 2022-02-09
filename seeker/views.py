@@ -1129,6 +1129,7 @@ class AdvancedColumn(Column):
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
             return format_html('<th class="{}">{}</th>', cls, self.header_html)
+        is_multicolumn = 'isInitialSort' in self.view.search_object
         current_sort = self.view.search_object['sort']
         if not isinstance(current_sort, list):
             current_sort = [current_sort]
@@ -1139,20 +1140,14 @@ class AdvancedColumn(Column):
         cls += ' sort'
         sr_label = ''
         next_sort = ''
-        next_sorting = {
-            'Ascending': 'sort descending',
-            'Descending': 'remove from sort'
-        }
         data_sort = self.field
         if sort_descriptor_list:
             potential_default = list(sort_descriptor_list[0].keys())[0]
             if sort_descriptor_list[0][potential_default].get('order', None) == 'desc':
                 potential_default = '{}{}'.format('-', potential_default)
             potential_default = potential_default.replace('.raw', '').replace('.label','')
-            print("potential default is", potential_default)
             if potential_default and potential_default not in current_sort:
                 current_sort.append(potential_default)
-        print("current sort before for loop", current_sort)
         for sort_field in current_sort:
             if sort_field.lstrip('-') == self.field:
                 # If the current sort field is this field, give it a class a change direction.
@@ -1161,12 +1156,15 @@ class AdvancedColumn(Column):
                 d = '' if sort_field.startswith('-') else '-'
                 data_sort = '{}{}'.format(d, self.field)
                 sort_order = current_sort.index(sort_field) + 1
-                print("index of", sort_field, "in current sort", current_sort)
                 if len(current_sort) == 1:
                     sr_label = format_html('<span class="sr-only">({})</span>', sort)
                 else:
                     sr_label = format_html('<span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
-        # If this field isn't already being sorted upon, label it as being sorted ascending
+        next_sorting = {
+            'Ascending': 'sort descending',
+            'Descending': 'remove from sort' if is_multicolumn else 'sort ascending'
+        }
+        # If this field isn't already being sorted upon, label its next sort direction as ascending
         next_sort = next_sorting.get(sort, 'sort ascending')
         
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
