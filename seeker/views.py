@@ -82,7 +82,7 @@ class Column(object):
 
         return self
 
-    def header(self, sort_list=None):
+    def header(self):
         cls = '%s_%s' % (self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' %s_%s' % (self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
@@ -93,49 +93,55 @@ class Column(object):
         sort_order = 0
         sort_rank = ''
         cls += ' sort'
+        sr_label = ''
         data_sort = ''
         if sort_fields:
-            for field in sort_fields:
-                if self.field.lstrip('-') == field.lstrip('-'):
-                    # If the current sort field is this field, give it a class a change direction.
-                    sort = 'Descending' if field.startswith('-') else 'Ascending'
-                    cls += ' desc' if field.startswith('-') else ' asc'
-                    d = '' if field.startswith('-') else '-'
-                    data_sort = '%s%s' % (d, self.field)
-                    if d:
-                        # if this column is selected, its sort rank will be maintained when its direction is changed
-                        current_sort = q.getlist('s', [])
-                        field_index = current_sort.index(field)
-                        current_sort[field_index] = data_sort
-                        q.setlist('s', current_sort)
-                    else:
-                        # remove from the sort
-                        current_sort = q.getlist('s', [])
-                        current_sort.remove(field)
-                        q.setlist('s', current_sort)
+            if (self.field in sort_fields or '-{}'.format(self.field) in sort_fields):
+                field = self.field
+                d = '-'
+                # If the current sort field is this field, give it a class a change direction.
+                if not self.field in sort_fields:
+                    field = '-{}'.format(self.field)
+                    d = ''
+                sort_order = q.getlist('s', []).index(field) + 1
+                sort = 'Ascending' if d else 'Descending'
+                cls += ' asc' if d else ' desc'
+                data_sort = '%s%s' % (d, self.field)
+                if d:
+                    # if this column is selected, its sort rank will be maintained when its direction is changed
+                    current_sort = q.getlist('s', [])
+                    field_index = current_sort.index(field)
+                    current_sort[field_index] = data_sort
+                    q.setlist('s', current_sort)
                 else:
-                    data_sort = self.field
+                    # remove from the sort
+                    current_sort = q.getlist('s', [])
+                    current_sort.remove(field)
+                    q.setlist('s', current_sort)
+            else:
+                data_sort = self.field
+                if self.field not in q.getlist('s', []):
                     q.appendlist('s', data_sort)
         else:
             q['s'] = self.field
-        #         sort_order = sort_list.index(sort_field) + 1
-        #         if len(sort_list) == 1:
-        #             sr_label = format_html('<span class="sr-only">({})</span>', sort)
-        #         else:
-        #             sr_label = format_html('<span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
+
+        if sort:
+            if len(sort_fields) == 1:
+                sr_label = format_html('<span class="sr-only">({})</span>', sort)
+            else:
+                sr_label = format_html('<span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
         next_sorting = {
             'Ascending': 'sort descending',
             'Descending': 'remove from sort'
         }
         #If this field isn't already being sorted upon, label it as being sorted ascending
         next_sort = next_sorting.get(sort, 'sort ascending')
-        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
             span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
         else:
             span = ''
 
-        if sort_order and len(sort_list) != 1:
+        if sort_order and len(sort_fields) > 1:
             sort_rank = format_html('<span class="sort_rank">{} </span>', sort_order)
         else:
             # Don't indicate sort rank when only one field is being sorted upon
@@ -283,11 +289,6 @@ class SeekerView(View):
     """
     A list of tuples, ex. ('field name', 0), representing field/column names that will always be displayed (cannot be hidden by the user).
     The second value is the index/position of the field (used as the index in list.insert(index, 'field name')).
-    """
-
-    sort_list = []
-    """
-    Used for storing sorts from the query string, not used by AdvancedSeekerView
     """
 
     @property
@@ -946,7 +947,6 @@ class SeekerView(View):
             'available_page_sizes': self.available_page_sizes,
             'page_spread': self.page_spread,
             'sort': sort,
-            'sort_list': self.sort_list,
             'querystring': context_querystring,
             'reset_querystring': self.normalized_querystring(ignore=['p', 's', 'saved_search']),
             'show_rank': self.show_rank,
