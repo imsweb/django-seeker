@@ -1204,20 +1204,15 @@ class AdvancedColumn(Column):
         else:
             span = ''
 
-        if sort_order:
+        # Don't indicate sort rank when only one field is being sorted upon
+        if sort_order and len(current_sort) > 1:
             sort_rank = format_html('<span class="sort_rank">{} </span>', sort_order)
         else:
             sort_rank = ''
         
-        # Don't indicate sort rank when only one field is being sorted upon
-        if len(current_sort) == 1:
-            html = format_html(
-                '<th class="{}"><a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>',
-                 cls, next_sort, data_sort, self.header_html, sr_label, span)
-        else:
-            html = format_html(
-                '<th class="{}">{}<a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>', 
-                cls, sort_rank, next_sort, data_sort, self.header_html, sr_label, span)
+        html = format_html(
+            '<th class="{}">{}<a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>', 
+            cls, sort_rank, next_sort, data_sort, self.header_html, sr_label, span)
         return html
 
     def get_data_max_length(self, results):
