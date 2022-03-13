@@ -14,9 +14,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.forms.forms import Form
 from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
-from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
+from django.http.response import HttpResponseBadRequest, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, TemplateDoesNotExist, loader
+from django.urls import resolve
+from django.urls.base import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape, format_html
@@ -893,9 +895,14 @@ class SeekerView(View):
         if results_count <= offset:
             page = 1
             offset = 0
-
+        
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:offset + page_size].execute()
+        # Catch value exception for invalid page number, redirect to base url
+        try:
+            results = search.sort(*sort_fields)[offset : offset + self.page_size].execute()
+        except ValueError:
+            return HttpResponseRedirect(reverse(resolve(self.request.path_info).url_name))
+        
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
