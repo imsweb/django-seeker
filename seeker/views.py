@@ -17,10 +17,12 @@ from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
 from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, TemplateDoesNotExist, loader
+from django.template.defaultfilters import truncatewords_html, truncatechars_html
 from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.html import escape, format_html
 from django.utils.http import urlencode
+from django.utils.safestring import mark_safe
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
 from elasticsearch_dsl import Q
@@ -39,6 +41,12 @@ class Column(object):
     """
     """
 
+    """
+    If set, truncate_results should be a dictionary with two keys: type, amount.
+    type can be either 'words' or 'chars'.
+    amount is the desired number of words/chars to be truncated.
+    """
+    truncate_results = getattr(settings, 'TRUNCATE_RESULTS', {})
     view = None
     visible = False
 
@@ -156,10 +164,27 @@ class Column(object):
             if highlight:
                 highlight = self.value_format(highlight)
 
+        truncated_value = None
+        if isinstance(value, str):
+            truncate_results_type = self.truncate_results.get('type')
+            truncate_results_amount = self.truncate_results.get('amount')
+            truncate_func = None
+            if truncate_results_type == 'words' and len(value.split(' ')) > truncate_results_amount:
+                truncate_func = truncatewords_html
+            elif truncate_results_type == 'chars' and len(value) > truncate_results_amount:
+                truncate_func = truncatechars_html
+            if truncate_func:
+                if highlight:
+                    truncated_value = mark_safe(f"<em>{self.view.search_object['keywords']}...</em>")
+                else:
+                    truncated_value = truncate_func(value, truncate_results_amount)
+
         params = {
             'result': result,
             'field': self.field,
+            'label': self.label,
             'value': value,
+            'truncated_value': truncated_value,
             'highlight': highlight,
             'model_lower': self.model_lower,
             'doc_class_name': result.__class__.__name__.lower(),
