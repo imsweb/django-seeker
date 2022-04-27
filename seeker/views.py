@@ -442,6 +442,16 @@ class SeekerView(View):
     For example: search_params = {'routing': '42}
     """
 
+    paginator_cap = 10000
+    """
+    Elasticsearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
+    "paginator_cap" documents.
+    """
+
+    def get_upper_paging_limit(self, offset, page_size):
+        """Don't try to render more results than Elasticsearch can paginate."""
+        return min(offset + page_size, self.paginator_cap)
+
     def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page.
@@ -895,7 +905,7 @@ class SeekerView(View):
             offset = 0
 
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:offset + page_size].execute()
+        results = search.sort(*sort_fields)[offset:self.get_upper_paging_limit(offset, page_size)].execute()
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
@@ -928,6 +938,7 @@ class SeekerView(View):
             'saved_search': saved_search,
             'saved_searches': list(saved_searches),
             'use_save_form': self.use_save_form,
+            'paginator_cap': self.paginator_cap,
         }
         if self.use_save_form:
             SavedSearchForm = self.get_saved_search_form()
@@ -1602,11 +1613,11 @@ class AdvancedSeekerView(SeekerView):
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].execute()
+                results = search.sort(*self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(offset, page_size)].execute()
             else:
-                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
+                results = search.sort(self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(offset, page_size)].execute()
         else:
-            results = search[offset:offset + page_size].execute()
+            results = search[offset:self.get_upper_paging_limit(offset, page_size)].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
@@ -1636,7 +1647,8 @@ class AdvancedSeekerView(SeekerView):
             'sort': sort,
             'export_name': self.export_name,
             'use_wordwrap_header': self.use_wordwrap_header,
-            'search': search
+            'search': search,
+            'paginator_cap': self.paginator_cap,
         }
         self.modify_results_context(context)
 
