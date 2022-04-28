@@ -1,14 +1,14 @@
 from django.dispatch import Signal
 
 # TODO - let's rename this and make the sender the objects class (not instance)
-search_complete = Signal(providing_args=('context'))
+search_complete = Signal()
 """
 Sent after a search is performed within a SeekerView object
 The "sender" will be the instance of the SeekerView that was involved.
 The "context" will be the context dictionary passed to the template. 
 """
 
-advanced_search_performed = Signal(providing_args=['request', 'context', 'json_response'])
+advanced_search_performed = Signal()
 """
 Sent when an advanced search is executed. The following arguments will be provided:
 - sender = The seeker view class that performed the search.

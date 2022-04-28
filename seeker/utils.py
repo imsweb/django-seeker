@@ -190,3 +190,8 @@ def validate_date_format(date_text, date_format):
         return date_text == datetime.strptime(date_text, date_format).strftime(date_format)
     except ValueError:
         return False
+
+
+def is_ajax(request):
+    """Replacement for Django's HttpRequest.is_ajax() method, which was removed in Django 4.0."""
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
