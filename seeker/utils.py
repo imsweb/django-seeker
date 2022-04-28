@@ -7,7 +7,7 @@ import time
 from django.conf import settings
 from django.http import QueryDict
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from elasticsearch import NotFoundError
 from elasticsearch_dsl.connections import connections
 
@@ -118,7 +118,7 @@ def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.std
     """
     assert len(chars) >= 2
     if label:
-        label = force_text(label) + ' '
+        label = force_str(label) + ' '
 
     try:
         count = len(iterator)
