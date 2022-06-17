@@ -102,7 +102,7 @@ class Column(object):
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            span = format_html('<span data-toggle="tooltip" data-placement="bottom" title="{}" class="fa fa-question-circle"></span>', self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -1146,7 +1146,7 @@ class AdvancedColumn(Column):
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            span = format_html('<span data-toggle="tooltip" data-placement="bottom" title="{}" class="fa fa-question-circle"></span>', self.field_definition)
         else:
             span = ''
         html = format_html(
