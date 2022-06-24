@@ -42,7 +42,7 @@ class Column(object):
     view = None
     visible = False
 
-    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None, field_definition=None, field_definition_data_attrs=None):
+    def __init__(self, field, label=None, sort=None, value_format=None, template=None, header=None, export=True, highlight=None, field_definition=None):
         self.field = field
         self.label = label if label is not None else field.replace('_', ' ').replace('.raw', '').capitalize()
         self.sort = sort
@@ -52,7 +52,6 @@ class Column(object):
         self.export = export
         self.highlight = highlight
         self.field_definition = field_definition
-        self.field_definition_data_attrs = field_definition_data_attrs or {}
 
     def __str__(self):
         return self.label
@@ -103,7 +102,7 @@ class Column(object):
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
-            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.field_definition_data_attrs.items())
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
             span = f'<span {data_attributes_html} title="{{}}" class="fa fa-question-circle"></span>'
             span = format_html(span, self.field_definition)
         else:
@@ -618,7 +617,7 @@ class SeekerView(View):
         highlight = self.get_field_highlight(field_name)
         header = self.custom_column_headers.get(field_name, None)
         field_definition = self.field_definitions.get(field_name)
-        return Column(field_name, label=label, sort=sort, highlight=highlight, header=header, field_definition=field_definition, field_definition_data_attrs=self.field_definition_data_attrs)
+        return Column(field_name, label=label, sort=sort, highlight=highlight, header=header, field_definition=field_definition)
 
     def sort_columns(self, columns, display=None):
         if not display:
@@ -1155,7 +1154,7 @@ class AdvancedColumn(Column):
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
-            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.field_definition_data_attrs.items())
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
             span = f'<span {data_attributes_html} title="{{}}" class="fa fa-question-circle"></span>'
             span = format_html(span, self.field_definition)
         else:
@@ -1407,7 +1406,6 @@ class AdvancedSeekerView(SeekerView):
             header=header,
             value_format=val_format,
             field_definition=field_definition,
-            field_definition_data_attrs=self.field_definition_data_attrs,
         )
 
     def apply_sort_field(self, column_lookup, sort):
