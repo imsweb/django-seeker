@@ -103,8 +103,7 @@ class Column(object):
         sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
             data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
-            span = f'<span {data_attributes_html} title="{{}}" class="fa fa-question-circle"></span>'
-            span = format_html(span, self.field_definition)
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -1155,8 +1154,7 @@ class AdvancedColumn(Column):
                 self.wordwrap_header_html()
         if self.field_definition:
             data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
-            span = f'<span {data_attributes_html} title="{{}}" class="fa fa-question-circle"></span>'
-            span = format_html(span, self.field_definition)
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -1405,7 +1403,7 @@ class AdvancedSeekerView(SeekerView):
             highlight=highlight,
             header=header,
             value_format=val_format,
-            field_definition=field_definition,
+            field_definition=field_definition
         )
 
     def apply_sort_field(self, column_lookup, sort):
