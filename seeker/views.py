@@ -102,7 +102,8 @@ class Column(object):
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -440,6 +441,12 @@ class SeekerView(View):
     """
     A dictionary of "parameters" to add to the DSL search object.
     For example: search_params = {'routing': '42}
+    """
+
+    field_definition_data_attrs = {}
+    """
+    A dictionary in which the keys are names of HTML data attributes and the values are the respective HTML values.
+    The resulting HTML will be placed in the span displaying the field_defintion.
     """
 
     def modify_context(self, context, request):
@@ -1146,7 +1153,8 @@ class AdvancedColumn(Column):
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
