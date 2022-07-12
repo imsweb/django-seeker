@@ -5,7 +5,7 @@
 <div class="pull-right">
     {% block seeker-pager %}
         {% seeker_pager total_hits page_size=page_size page=page querystring=querystring spread=page_spread %}
-        {% if total_hits == paginator_cap %}
+        {% if total_hits >= paginator_cap %}
             <p class="help-block text-center">**Paging has been limited to the first {{ paginator_cap|intcomma }} results.**</p>
         {% endif %}
     {% endblock seeker-pager %}

@@ -16,7 +16,7 @@
         {% endif %}
         {% block seeker-pager %}
             {% seeker_pager total_hits page_size=page_size page=page spread=page_spread template='advanced_seeker/pager.html' %}
-            {% if total_hits == paginator_cap %}
+            {% if total_hits >= paginator_cap %}
                 <p class="help-block text-center">**Paging has been limited to the first {{ paginator_cap|intcomma }} results.**</p>
             {% endif %}
         {% endblock seeker-pager %}
