@@ -234,11 +234,15 @@ def document_field(field):
         models.IntegerField: dsl.Long(),
         models.PositiveIntegerField: dsl.Long(),
         models.BooleanField: dsl.Boolean(),
-        models.NullBooleanField: dsl.Boolean(),
         models.SlugField: dsl.Keyword(),
         models.DecimalField: dsl.Double(),
         models.FloatField: dsl.Float(),
     }
+    # NullBooleanField was deprecated in Django 3.1 and removed in Django 4.0
+    try:
+        defaults[models.NullBooleanField] = dsl.Boolean()
+    except AttributeError:
+        pass
     defaults.update(DOCUMENT_FIELD_OVERRIDE)
     return defaults.get(field.__class__, RawString)
 
