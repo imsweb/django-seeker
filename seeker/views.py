@@ -448,10 +448,6 @@ class SeekerView(View):
     "paginator_cap" documents.
     """
 
-    def get_upper_paging_limit(self, max_results):
-        """Don't try to render more results than Elasticsearch can paginate."""
-        return min(max_results, self.paginator_cap)
-
     def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page.
@@ -898,10 +894,10 @@ class SeekerView(View):
         page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
-        page, offset, max_results = self.calculate_page_and_offset(page, page_size, search)
+        page, offset, upper_paging_limit = self.calculate_page_and_offset(page, page_size, search)
 
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:self.get_upper_paging_limit(max_results)].execute()
+        results = search.sort(*sort_fields)[offset:upper_paging_limit].execute()
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
@@ -1590,7 +1586,7 @@ class AdvancedSeekerView(SeekerView):
             search = search.post_filter(advanced_query)
 
         page_size = int(self.search_object.get('page_size', self.page_size))
-        page, offset, max_results = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
+        page, offset, upper_paging_limit = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
 
         display = self.get_display(self.search_object['display'], facets_searched)
         sort = bool(export) or not self.always_display_highlighted_columns
@@ -1609,11 +1605,11 @@ class AdvancedSeekerView(SeekerView):
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(max_results)].execute()
+                results = search.sort(*self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
             else:
-                results = search.sort(self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(max_results)].execute()
+                results = search.sort(self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
         else:
-            results = search[offset:self.get_upper_paging_limit(max_results)].execute()
+            results = search[offset:upper_paging_limit].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
@@ -1664,8 +1660,8 @@ class AdvancedSeekerView(SeekerView):
         if results_count <= offset:
             page = 1
             offset = 0
-        max_results = offset + page_size
-        return page, offset, max_results
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
+        return page, offset, upper_paging_limit
 
     def apply_aggregations(self, search, query, facet_lookup):
         """
