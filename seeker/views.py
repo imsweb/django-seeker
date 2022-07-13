@@ -448,9 +448,9 @@ class SeekerView(View):
     "paginator_cap" documents.
     """
 
-    def get_upper_paging_limit(self, offset, page_size):
+    def get_upper_paging_limit(self, max_results):
         """Don't try to render more results than Elasticsearch can paginate."""
-        return min(offset + page_size, self.paginator_cap)
+        return min(max_results, self.paginator_cap)
 
     def modify_context(self, context, request):
         """
@@ -901,7 +901,7 @@ class SeekerView(View):
         page, offset, max_results = self.calculate_page_and_offset(page, page_size, search)
 
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:self.get_upper_paging_limit(offset, page_size)].execute()
+        results = search.sort(*sort_fields)[offset:self.get_upper_paging_limit(max_results)].execute()
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
@@ -1609,11 +1609,11 @@ class AdvancedSeekerView(SeekerView):
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(offset, page_size)].execute()
+                results = search.sort(*self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(max_results)].execute()
             else:
-                results = search.sort(self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(offset, page_size)].execute()
+                results = search.sort(self.sort_descriptor(sort))[offset:self.get_upper_paging_limit(max_results)].execute()
         else:
-            results = search[offset:self.get_upper_paging_limit(offset, page_size)].execute()
+            results = search[offset:self.get_upper_paging_limit(max_results)].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
