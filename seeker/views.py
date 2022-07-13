@@ -898,7 +898,7 @@ class SeekerView(View):
         page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
-        page, offset = self.calculate_page_and_offset(page, page_size, search)
+        page, offset, max_results = self.calculate_page_and_offset(page, page_size, search)
 
         # Finally, grab the results.
         results = search.sort(*sort_fields)[offset:self.get_upper_paging_limit(offset, page_size)].execute()
@@ -1590,7 +1590,7 @@ class AdvancedSeekerView(SeekerView):
             search = search.post_filter(advanced_query)
 
         page_size = int(self.search_object.get('page_size', self.page_size))
-        page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
+        page, offset, max_results = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
 
         display = self.get_display(self.search_object['display'], facets_searched)
         sort = bool(export) or not self.always_display_highlighted_columns
@@ -1664,7 +1664,8 @@ class AdvancedSeekerView(SeekerView):
         if results_count <= offset:
             page = 1
             offset = 0
-        return page, offset
+        max_results = offset + page_size
+        return page, offset, max_results
 
     def apply_aggregations(self, search, query, facet_lookup):
         """
