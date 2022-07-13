@@ -462,6 +462,15 @@ class SeekerView(View):
         except ValueError:
             return self.page_size
 
+    def calculate_page_and_offset(self, page, page_size, search):
+        offset = (page - 1) * page_size
+        results_count = search[0:0].execute().hits.total.value
+        if results_count <= offset:
+            page = 1
+            offset = 0
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
+        return page, offset, upper_paging_limit
+
     def modify_results_context(self, context):
         """
         This function allows modifications to the context that will be used to render the results table.
@@ -1653,15 +1662,6 @@ class AdvancedSeekerView(SeekerView):
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
-
-    def calculate_page_and_offset(self, page, page_size, search):
-        offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total.value
-        if results_count <= offset:
-            page = 1
-            offset = 0
-        upper_paging_limit = min(offset + page_size, self.paginator_cap)
-        return page, offset, upper_paging_limit
 
     def apply_aggregations(self, search, query, facet_lookup):
         """
