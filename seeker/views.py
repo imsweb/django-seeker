@@ -468,8 +468,7 @@ class SeekerView(View):
         if results_count <= offset:
             page = 1
             offset = 0
-        upper_paging_limit = min(offset + page_size, self.paginator_cap)
-        return page, offset, upper_paging_limit
+        return page, offset
 
     def modify_results_context(self, context):
         """
@@ -903,7 +902,8 @@ class SeekerView(View):
         page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
-        page, offset, upper_paging_limit = self.calculate_page_and_offset(page, page_size, search)
+        page, offset = self.calculate_page_and_offset(page, page_size, search)
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
 
         # Finally, grab the results.
         results = search.sort(*sort_fields)[offset:upper_paging_limit].execute()
@@ -1595,7 +1595,8 @@ class AdvancedSeekerView(SeekerView):
             search = search.post_filter(advanced_query)
 
         page_size = int(self.search_object.get('page_size', self.page_size))
-        page, offset, upper_paging_limit = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
+        page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
 
         display = self.get_display(self.search_object['display'], facets_searched)
         sort = bool(export) or not self.always_display_highlighted_columns
