@@ -983,7 +983,7 @@ class SeekerView(View):
         facets = self.get_facet_data(self.request.GET, exclude=facet)
         search = self.get_search(keywords, facets, aggregate=False)
         fq = '.*' + self.request.GET.get('_query', '').strip() + '.*'
-        facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
+        facet.apply(search, include=fq)
         return JsonResponse(facet.data(search.execute()))
 
     def filter_initial_facets(self):
