@@ -40,9 +40,7 @@ class Facet(object):
                     DeprecationWarning
                 )
 
-        default_related_column_name = self.field.split('.')[0]
-        related_column_name = kwargs.get('related_column_name')
-        self.related_column_name = related_column_name if isinstance(related_column_name, str) else default_related_column_name
+        self.related_column_name = kwargs.pop('related_column_name', self.field.split('.')[0])
 
         self.kwargs = kwargs
 
