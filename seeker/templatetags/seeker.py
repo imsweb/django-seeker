@@ -65,8 +65,12 @@ def seeker_column(column, result, **kwargs):
 
 
 @register.simple_tag
-def seeker_column_header(column, results=None):
-    return column.header(results)
+def seeker_column_header(column, results=None, sort_descriptor_list=None):
+    return column.header(results, sort_descriptor_list)
+
+@register.simple_tag
+def column_header(column, sort_descriptor_list=None):
+    return column.header(sort_descriptor_list=sort_descriptor_list)
 
 
 @register.simple_tag

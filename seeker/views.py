@@ -88,34 +88,70 @@ class Column(object):
         if not self.sort:
             return format_html('<th class="{}">{}</th>', cls, self.header_html)
         q = self.view.request.GET.copy()
-        field = q.get('s', '')
+        sort_fields = q.getlist('s', [])
         sort = None
+        sort_order = 0
+        sort_rank = ''
         cls += ' sort'
-        if field.lstrip('-') == self.field:
-            # If the current sort field is this field, give it a class a change direction.
-            sort = 'Descending' if field.startswith('-') else 'Ascending'
-            cls += ' desc' if field.startswith('-') else ' asc'
-            d = '' if field.startswith('-') else '-'
-            q['s'] = '%s%s' % (d, self.field)
+        sr_label = ''
+        data_sort = ''
+        if sort_fields:
+            if (self.field in sort_fields or '-{}'.format(self.field) in sort_fields):
+                field = self.field
+                d = '-'
+                # If the current sort field is this field, give it a class a change direction.
+                if not self.field in sort_fields:
+                    field = '-{}'.format(self.field)
+                    d = ''
+                sort_order = q.getlist('s', []).index(field) + 1
+                sort = 'Ascending' if d else 'Descending'
+                cls += ' asc' if d else ' desc'
+                data_sort = '%s%s' % (d, self.field)
+                if d:
+                    # if this column is selected, its sort rank will be maintained when its direction is changed
+                    current_sort = q.getlist('s', [])
+                    field_index = current_sort.index(field)
+                    current_sort[field_index] = data_sort
+                    q.setlist('s', current_sort)
+                else:
+                    # remove from the sort
+                    current_sort = q.getlist('s', [])
+                    current_sort.remove(field)
+                    q.setlist('s', current_sort)
+            else:
+                data_sort = self.field
+                if self.field not in q.getlist('s', []):
+                    q.appendlist('s', data_sort)
         else:
             q['s'] = self.field
-        next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
+
+        if sort:
+            if len(sort_fields) == 1:
+                sr_label = format_html('<span class="sr-only">({})</span>', sort)
+            else:
+                sr_label = format_html('<span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
+        next_sorting = {
+            'Ascending': 'sort descending',
+            'Descending': 'remove from sort'
+        }
+        #If this field isn't already being sorted upon, label it as being sorted ascending
+        next_sort = next_sorting.get(sort, 'sort ascending')
         if self.field_definition:
             data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
             span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
+
+        if sort_order and len(sort_fields) > 1:
+            sort_rank = format_html('<span class="sort_rank">{} </span>', sort_order)
+        else:
+            # Don't indicate sort rank when only one field is being sorted upon
+            sort_rank = ''
+
+
         html = format_html(
-            '<th class="{}"><a href="?{}" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>',
-            cls,
-            q.urlencode(),
-            next_sort,
-            q['s'],
-            self.header_html,
-            sr_label,
-            span
-        )
+            '<th class="{}">{}<a href="?{}" title="Click to {}" data-sort="{}">{}{} {}</a></th>',
+            cls, sort_rank, q.urlencode(), next_sort, data_sort, self.header_html, sr_label, span)
         return html
 
     def context(self, result, **kwargs):
@@ -802,23 +838,18 @@ class SeekerView(View):
             missing = '_last' if desc else '_first'
         elif missing == '_high':
             missing = '_first' if desc else '_last'
-        return {
-                field: {
-                    'order': 'desc' if desc else 'asc',
-                    'missing': missing,
+        sort_descriptor = {
+                field: {'order': 'desc' if desc else 'asc',}
                 }
-            }
+        if missing:
+            sort_descriptor[field]['missing'] = missing
+        return sort_descriptor
 
     def sort_descriptor(self, sort):
-        if self.missing_sort is None or isinstance(sort, dict):
+        if isinstance(sort, dict):
             return sort
-        if not isinstance(sort, list):
-            return self.apply_sort_descriptor(sort)
         else:
-            sort_dict = {}
-            for s in sort:
-                sort_dict.update(self.apply_sort_descriptor(s))
-            return sort_dict
+            return self.apply_sort_descriptor(sort)
 
     def is_initial(self):
         """
@@ -1125,28 +1156,51 @@ class SeekerView(View):
 
 class AdvancedColumn(Column):
 
-    def header(self, results=None):
+    def header(self, results=None, sort_descriptor_list=None):
         cls = '{}_{}'.format(self.view.document._doc_type.name, self.field.replace('.', '_'))
         cls += ' {}_{}'.format(self.view.document.__name__.lower(), self.field.replace('.', '_'))
         if self.model_lower:
             cls += ' {}_{}'.format(self.model_lower, self.field.replace('.', '_'))
         if not self.sort:
             return format_html('<th class="{}">{}</th>', cls, self.header_html)
+        is_multicolumn = 'isInitialSort' in self.view.search_object
         current_sort = self.view.search_object['sort']
+        if not isinstance(current_sort, list):
+            current_sort = [current_sort]
+        if '' in current_sort:
+            current_sort.remove('')
         sort = None
+        sort_order = 0
         cls += ' sort'
-        if current_sort.lstrip('-') == self.field:
-            # If the current sort field is this field, give it a class a change direction.
-            sort = 'Descending' if current_sort.startswith('-') else 'Ascending'
-            cls += ' desc' if current_sort.startswith('-') else ' asc'
-            d = '' if current_sort.startswith('-') else '-'
-            data_sort = '{}{}'.format(d, self.field)
-        else:
-            data_sort = self.field
-
-        next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
-
+        sr_label = ''
+        next_sort = ''
+        data_sort = self.field
+        if sort_descriptor_list:
+            potential_default = list(sort_descriptor_list[0].keys())[0]
+            if sort_descriptor_list[0][potential_default].get('order', None) == 'desc':
+                potential_default = '{}{}'.format('-', potential_default)
+            potential_default = potential_default.replace('.raw', '').replace('.label','')
+            if potential_default and potential_default not in current_sort:
+                current_sort.append(potential_default)
+        for sort_field in current_sort:
+            if sort_field.lstrip('-') == self.field:
+                # If the current sort field is this field, give it a class a change direction.
+                sort = 'Descending' if sort_field.startswith('-') else 'Ascending'
+                cls += ' desc' if sort_field.startswith('-') else ' asc'
+                d = '' if sort_field.startswith('-') else '-'
+                data_sort = '{}{}'.format(d, self.field)
+                sort_order = current_sort.index(sort_field) + 1
+                if len(current_sort) == 1:
+                    sr_label = format_html('<span class="sr-only">({})</span>', sort)
+                else:
+                    sr_label = format_html('<span class="sr-only">Number {} in sort order ({})</span>', sort_order, sort)
+        next_sorting = {
+            'Ascending': 'sort descending',
+            'Descending': 'remove from sort' if is_multicolumn else 'sort ascending'
+        }
+        # If this field isn't already being sorted upon, label its next sort direction as ascending
+        next_sort = next_sorting.get(sort, 'sort ascending')
+        
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.
         if results and ' ' in self.header_html and not '<br' in self.header_html:
@@ -1157,10 +1211,16 @@ class AdvancedColumn(Column):
             span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
+
+        # Don't indicate sort rank when only one field is being sorted upon
+        if sort_order and len(current_sort) > 1:
+            sort_rank = format_html('<span class="sort_rank">{} </span>', sort_order)
+        else:
+            sort_rank = ''
+        
         html = format_html(
-            '<th class="{}"><a href="#" title="Click to sort {}" data-sort="{}">{}{} {}</a></th>',
-            cls, next_sort, data_sort, self.header_html, sr_label, span
-        )
+            '<th class="{}">{}<a href="#" title="Click to {}" data-sort={}>{}{} {}</a></th>', 
+            cls, sort_rank, next_sort, data_sort, self.header_html, sr_label, span)
         return html
 
     def get_data_max_length(self, results):
@@ -1412,7 +1472,7 @@ class AdvancedSeekerView(SeekerView):
             return('-{}'.format(c.sort) if sort.startswith('-') else c.sort)
         return sort
 
-    def get_sort_field(self, columns, sort, display):
+    def get_sort_field(self, columns, sort, is_initial_sort, display):
         """
         Returns the appropriate sort field for a given sort value.
         """
@@ -1420,8 +1480,14 @@ class AdvancedSeekerView(SeekerView):
         # Make sure we sanitize the sort fields.
         sort_fields = []
         column_lookup = { c.field: c for c in columns }
+
         # Order of precedence for sort is: parameter, the default from the view, and then the first displayed column (if any are displayed)
-        sort = sort or self.sort or display[0] if len(display) else ''
+        if is_initial_sort:
+            sort = sort or self.sort or display[0] if len(display) else ''
+        else:
+            # If all columns have been intentionally deselected from the sort, do not default to any column
+            sort = sort if sort else []
+
         # Get the column based on the field name, and use it's "sort" field, if applicable.
         if not isinstance(sort, list):
             return self.apply_sort_field(column_lookup, sort)
@@ -1476,7 +1542,7 @@ class AdvancedSeekerView(SeekerView):
             except ValueError:
                 return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
 
-            # Sanity check that the search object has all of it's required components
+            # Sanity check that the search object has all of its required components
             if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
                 return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
 
@@ -1607,12 +1673,12 @@ class AdvancedSeekerView(SeekerView):
             search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
-        sort = self.get_sort_field(columns, self.search_object['sort'], display)
+        sort = self.get_sort_field(columns, self.search_object['sort'], self.search_object.get('isInitialSort', True), display)
+        sort = [sort] if isinstance(sort, str) else sort
+        sort_descriptor_list = [self.sort_descriptor(s) for s in sort]
+        
         if sort:
-            if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].execute()
-            else:
-                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
+            results = search.sort(*sort_descriptor_list)[offset:offset + page_size].execute()
         else:
             results = search[offset:offset + page_size].execute()
 
@@ -1642,6 +1708,7 @@ class AdvancedSeekerView(SeekerView):
             'total_hits': results.hits.total.value,
             'show_rank': self.show_rank,
             'sort': sort,
+            'sort_descriptor_list': sort_descriptor_list,
             'export_name': self.export_name,
             'use_wordwrap_header': self.use_wordwrap_header,
             'search': search
