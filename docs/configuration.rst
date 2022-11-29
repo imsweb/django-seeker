@@ -65,7 +65,7 @@ SEEKER_DEFAULT_ANALYZER
 
 Default: ``snowball``
 
-The analyzer to use by default when creating ``elasticsearch_dsl.String`` fields. Also used by default in ``SeekerView``
+The analyzer to use by default when creating ``opensearch_dsl.String`` fields. Also used by default in ``SeekerView``
 to determine how query strings should be analyzed (it's important that queries are analyzed the same way as your data).
 
 

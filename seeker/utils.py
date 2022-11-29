@@ -8,10 +8,10 @@ from django.conf import settings
 from django.http import QueryDict
 from django.utils import timezone
 from django.utils.encoding import force_str
-from elasticsearch import NotFoundError
-from elasticsearch_dsl.connections import connections
+from opensearchpy import NotFoundError
+from opensearch_dsl.connections import connections
 
-import elasticsearch_dsl as dsl
+import opensearch_dsl as dsl
 
 from .registry import model_documents
 

@@ -1,4 +1,4 @@
-from elasticsearch_dsl.connections import connections
+from opensearchpy_dsl.connections import connections
 
 import os
 import sys

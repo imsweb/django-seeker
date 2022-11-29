@@ -1,4 +1,4 @@
-import elasticsearch_dsl as dsl
+import opensearch_dsl as dsl
 
 import seeker
 

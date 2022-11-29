@@ -3,8 +3,8 @@ from optparse import make_option
 
 from django.apps import apps
 from django.core.management.base import BaseCommand
-from elasticsearch.helpers import scan
-from elasticsearch_dsl.connections import connections
+from opensearchpy.helpers import scan
+from opensearch_dsl.connections import connections
 
 
 class Command(BaseCommand):

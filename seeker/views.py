@@ -8,7 +8,7 @@ import re
 import warnings
 from datetime import datetime
 
-import elasticsearch_dsl as dsl
+import opensearch_dsl as dsl
 
 from django.conf import settings
 from django.contrib import messages
@@ -23,8 +23,8 @@ from django.utils.html import escape, format_html
 from django.utils.http import urlencode
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
-from elasticsearch_dsl import Q
-from elasticsearch_dsl.utils import AttrList
+from opensearch_dsl import Q
+from opensearch_dsl.utils import AttrList
 
 from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
@@ -186,7 +186,7 @@ class Column(object):
 class SeekerView(View):
     document = None
     """
-    A :class:`elasticsearch_dsl.DocType` class to present a view for.
+    A :class:`opensearch_dsl.DocType` class to present a view for.
     """
 
     using = None

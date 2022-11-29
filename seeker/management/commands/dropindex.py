@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from elasticsearch_dsl.connections import connections
-from elasticsearch.exceptions import AuthorizationException, NotFoundError
+from opensearch_dsl.connections import connections
+from opensearchpy.exceptions import AuthorizationException, NotFoundError
 from django.core.exceptions import ImproperlyConfigured
 
 class Command (BaseCommand):

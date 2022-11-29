@@ -6,8 +6,8 @@ import warnings
 
 from django.conf import settings
 from django.utils.encoding import smart_str
-from elasticsearch_dsl import A, Q
-from elasticsearch_dsl.aggs import Terms
+from opensearch_dsl import A, Q
+from opensearch_dsl.aggs import Terms
 
 from .utils import validate_date_format
 
@@ -63,7 +63,7 @@ class Facet(object):
 
     def es_query(self, operator, value):
         """
-        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value, multiple values
+        This function returns the opensearch_dsl query object for this facet. It only accepts a single value, multiple values
         will need to be combined together outside of this function.
         """
         if operator not in self.valid_operators:
@@ -129,7 +129,7 @@ class TermsFacet(Facet):
 
     def es_query(self, operator, value):
         """
-        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the opensearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         if operator not in self.valid_operators:
@@ -197,7 +197,7 @@ class TextFacet(Facet):
 
     def es_query(self, operator, value):
         """
-        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the opensearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         values = value.split(self.delimiter)
@@ -422,7 +422,7 @@ class RangeFilter(Facet):
 
     def es_query(self, query_operator, value):
         """
-        This function returns the elasticsearch_dsl query object for the RangeFilter Facet.
+        This function returns the opensearch_dsl query object for the RangeFilter Facet.
         
         The "value" parameter will be 1 of three options:
             - list: value will be a list of two numbers. The first number represents the lower bound of the range and the second represents the upper bound of the range.

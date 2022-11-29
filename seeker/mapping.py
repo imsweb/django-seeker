@@ -1,11 +1,11 @@
 import logging
 
-import elasticsearch_dsl as dsl
+import opensearch_dsl as dsl
 from django.conf import settings as django_settings
 from django.db import models
-from elasticsearch.helpers import bulk, scan
-from elasticsearch_dsl.connections import connections
-from elasticsearch_dsl.field import Object
+from opensearchpy.helpers import bulk, scan
+from opensearch_dsl.connections import connections
+from opensearch_dsl.field import Object
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def follow(obj, path, force_string=False):
 
 def serialize_object(obj, mapping, prepare=None):
     """
-    Given a Django model instance and a ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.Object``, returns a
+    Given a Django model instance and a ``opensearch_dsl.Mapping`` or ``opensearch_dsl.Object``, returns a
     dictionary of field data that should be indexed.
     """
     data = {}
@@ -63,7 +63,7 @@ def serialize_object(obj, mapping, prepare=None):
 
 class Indexable (dsl.Document):
     """
-    An ``elasticsearch_dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
+    An ``opensearch_dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
     indexed.
     """
 
@@ -207,7 +207,7 @@ RawString = dsl.Text(analyzer=DEFAULT_ANALYZER, fields={
     'raw': dsl.Keyword(),
 })
 """
-An ``elasticsearch_dsl.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
+An ``opensearch_dsl.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
 not analyzed, suitable for aggregations, sorting, etc.
 """
 
@@ -221,7 +221,7 @@ The same as ``RawString``, but with ``multi=True`` specified, so lists are retur
 
 def document_field(field):
     """
-    The default ``field_factory`` method for converting Django field instances to ``elasticsearch_dsl.Field`` instances.
+    The default ``field_factory`` method for converting Django field instances to ``opensearch_dsl.Field`` instances.
     Auto-created fields (primary keys, for example) and one-to-many fields (reverse FK relationships) are skipped.
     """
     if field.auto_created or field.one_to_many:
@@ -262,14 +262,14 @@ def deep_field_factory(field):
 def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
     Defines Elasticsearch fields for Django model fields. By default, this method will create a new
-    ``elasticsearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
+    ``opensearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
 
     :param model_class: The Django model class to build a mapping for
-    :param mapping: An ``elasticsearch_dsl.Mapping`` or ``elasticsearch_dsl.Object`` instance to define fields on
+    :param mapping: An ``opensearch_dsl.Mapping`` or ``opensearch_dsl.Object`` instance to define fields on
     :param fields: A list of Django model field names to include
     :param exclude: A list of Django model field names to exclude
-    :param field_factory: A function that takes a Django model field instance, and returns a ``elasticsearch_dsl.Field``
-    :param extra: A dictionary (field_name -> ``elasticsearch_dsl.Field``) of extra fields to include in the mapping
+    :param field_factory: A function that takes a Django model field instance, and returns a ``opensearch_dsl.Field``
+    :param extra: A dictionary (field_name -> ``opensearch_dsl.Field``) of extra fields to include in the mapping
     """
     if mapping is None:
         mapping = dsl.Mapping()

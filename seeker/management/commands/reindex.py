@@ -2,8 +2,8 @@ import argparse
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from elasticsearch.helpers import bulk
-from elasticsearch_dsl.connections import connections
+from opensearchpy.helpers import bulk
+from opensearch_dsl.connections import connections
 
 from seeker.registry import app_documents, documents
 from seeker.utils import progress, update_timestamp_index

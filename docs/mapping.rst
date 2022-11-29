@@ -51,7 +51,7 @@ Customizing Field Mappings
 
 You can specify how seeker builds the mapping for your model class in several ways::
 
-    import elasticsearch_dsl as dsl
+    import opensearch_dsl as dsl
 
     class PostDoc(seeker.ModelIndex):
         # Custom field definition for existing field
