@@ -18,7 +18,7 @@ from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, TemplateDoesNotExist, loader
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.html import escape, format_html
 from django.utils.http import urlencode
 from django.views.generic import View
@@ -30,7 +30,7 @@ from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
-from seeker.utils import update_timestamp_index
+from seeker.utils import is_ajax, update_timestamp_index
 
 seekerview_field_templates = {}
 
@@ -102,7 +102,8 @@ class Column(object):
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -176,7 +177,7 @@ class Column(object):
             value = getattr(result, export_field, '')
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
-            export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+            export_val = ', '.join(force_str(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
         else:
             export_val = ''
         return export_val
@@ -448,6 +449,12 @@ class SeekerView(View):
     "paginator_cap" documents.
     """
 
+    field_definition_data_attrs = {}
+    """
+    A dictionary in which the keys are names of HTML data attributes and the values are the respective HTML values.
+    The resulting HTML will be placed in the span displaying the field_defintion.
+    """
+
     def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page.
@@ -705,7 +712,7 @@ class SeekerView(View):
         facets = []
         for facet in self.facets:
             if self.request.user.is_authenticated or not facet.related_column_name in self.login_required_columns:
-                facets.append(facet) 
+                facets.append(facet)
         return facets
 
     def get_sorts(self):
@@ -833,7 +840,7 @@ class SeekerView(View):
         Can be overridden in case of non initial get requests that aren't ajax (submitted form)
         This will depend on the seeker form html and the info coming in on the get request
         """
-        return not self.request.is_ajax()
+        return not is_ajax(self.request)
 
     def apply_highlight(self, search, columns):
         highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.highlight]
@@ -846,7 +853,7 @@ class SeekerView(View):
 
         querystring = self.normalized_querystring(ignore=['p', 'saved_search'])
 
-        if self.request.user and self.request.user.is_authenticated and not querystring and not self.request.is_ajax():
+        if self.request.user and self.request.user.is_authenticated and not querystring and not is_ajax(self.request):
             default = self.request.user.seeker_searches.filter(url=self.request.path, default=True).first()
             if default and default.querystring:
                 return redirect(default)
@@ -955,7 +962,7 @@ class SeekerView(View):
         self.modify_context(context, self.request)
 
         search_complete.send(sender=self, context=context)
-        if self.request.is_ajax():
+        if is_ajax(self.request):
             ajax_data = {
                 'querystring': context_querystring,
                 'page': page,
@@ -988,7 +995,7 @@ class SeekerView(View):
         facets = self.get_facet_data(self.request.GET, exclude=facet)
         search = self.get_search(keywords, facets, aggregate=False)
         fq = '.*' + self.request.GET.get('_query', '').strip() + '.*'
-        facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
+        facet.apply(search, include=fq)
         return JsonResponse(facet.data(search.execute()))
 
     def filter_initial_facets(self):
@@ -999,7 +1006,7 @@ class SeekerView(View):
             if self.request.user.is_authenticated or related_column_name not in self.login_required_columns:
                 filtered_initial_facets[field] = self.initial_facets[field]
         return filtered_initial_facets
-       
+
     def modify_initial_facets(self):
         warnings.warn(
             "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
@@ -1019,8 +1026,8 @@ class SeekerView(View):
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(force_text(v) for v in value)
-            return '"%s"' % force_text(value).replace('"', '""')
+                value = '; '.join(force_str(v) for v in value)
+            return '"%s"' % force_str(value).replace('"', '""')
 
         def csv_generator():
             yield ','.join('"%s"' % c.label for c in columns if c.visible and c.export) + '\n'
@@ -1051,7 +1058,7 @@ class SeekerView(View):
             saved_search_pk = None
         if '_save' in request.POST:
             # A "sub" method that handles ajax save submissions (and returns JSON, not a redirect)
-            if request.is_ajax() and self.use_save_form:
+            if is_ajax(request) and self.use_save_form:
 
                 response_data = {}  # All data must be able to flatten to JSON
 
@@ -1158,7 +1165,8 @@ class AdvancedColumn(Column):
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -1206,7 +1214,7 @@ class AdvancedColumn(Column):
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
             elif isinstance(value, AttrList):
-                value = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value)
+                value = ', '.join(force_str(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value)
             if self.value_format:
                 value = self.value_format(value)
             export_val = seeker_format(value)
@@ -1298,7 +1306,7 @@ class AdvancedSeekerView(SeekerView):
     value_formats = {}
     """
     key: field_name, value: value_format function
-    A dictionary of custom formats used for extracting values from mappings. 
+    A dictionary of custom formats used for extracting values from mappings.
     value_formats are used for creating columns and exporting values in csv files.
     """
 
@@ -1470,7 +1478,7 @@ class AdvancedSeekerView(SeekerView):
               Since it will be passed back in the response extra values can be added to give the site context as to what search is being loaded.
         """
         export = request.POST.get('_export', False)
-        if request.is_ajax() or export:
+        if is_ajax(request) or export:
             try:
                 string_search_object = request.POST.get('search_object')
                 # We attach this to self so AdvancedColumn can have access to it
@@ -1775,8 +1783,8 @@ class AdvancedSeekerView(SeekerView):
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(force_text(v) for v in value)
-            return '"%s"' % force_text(value).replace('"', '""')
+                value = '; '.join(force_str(v) for v in value)
+            return '"%s"' % force_str(value).replace('"', '""')
 
         def csv_generator():
             yield ','.join('"%s"' % c.label for c in columns if c.visible and c.export) + '\n'
@@ -1828,7 +1836,7 @@ class AdvancedSavedSearchView(View):
     """
 
     def get(self, request, *args, **kwargs):
-        if self.request.is_ajax():
+        if is_ajax(self.request):
             try:
                 url = request.GET.get(self.url_parameter)
             except KeyError:
@@ -1866,7 +1874,7 @@ class AdvancedSavedSearchView(View):
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
 
     def post(self, request, *args, **kwargs):
-        if self.request.is_ajax():
+        if is_ajax(self.request):
             try:
                 url = request.POST.get(self.url_parameter)
             except KeyError:

@@ -6,7 +6,7 @@ from django import template
 from django.contrib.humanize.templatetags.humanize import intcomma
 from django.core.paginator import Paginator
 from django.template import loader
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -25,8 +25,8 @@ def seeker_format(value):
     if isinstance(value, datetime.date):
         return value.strftime('%m/%d/%Y')
     if hasattr(value, '__iter__') and not isinstance(value, str):
-        return ', '.join(force_text(v) for v in value)
-    return force_text(value)
+        return ', '.join(force_str(v) for v in value)
+    return force_str(value)
 
 
 @register.filter
