@@ -443,6 +443,12 @@ class SeekerView(View):
     For example: search_params = {'routing': '42}
     """
 
+    paginator_cap = 10000
+    """
+    Elasticsearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
+    "paginator_cap" documents.
+    """
+
     field_definition_data_attrs = {}
     """
     A dictionary in which the keys are names of HTML data attributes and the values are the respective HTML values.
@@ -462,6 +468,14 @@ class SeekerView(View):
             return int(ps) if int(ps) > 0 and int(ps) in self.available_page_sizes else self.page_size
         except ValueError:
             return self.page_size
+
+    def calculate_page_and_offset(self, page, page_size, search):
+        offset = (page - 1) * page_size
+        results_count = search[0:0].execute().hits.total.value
+        if results_count <= offset:
+            page = 1
+            offset = 0
+        return page, offset
 
     def modify_results_context(self, context):
         """
@@ -698,7 +712,7 @@ class SeekerView(View):
         facets = []
         for facet in self.facets:
             if self.request.user.is_authenticated or not facet.related_column_name in self.login_required_columns:
-                facets.append(facet) 
+                facets.append(facet)
         return facets
 
     def get_sorts(self):
@@ -895,14 +909,11 @@ class SeekerView(View):
         page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
-        offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total.value
-        if results_count <= offset:
-            page = 1
-            offset = 0
+        page, offset = self.calculate_page_and_offset(page, page_size, search)
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
 
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:offset + page_size].execute()
+        results = search.sort(*sort_fields)[offset:upper_paging_limit].execute()
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
@@ -935,6 +946,7 @@ class SeekerView(View):
             'saved_search': saved_search,
             'saved_searches': list(saved_searches),
             'use_save_form': self.use_save_form,
+            'paginator_cap': self.paginator_cap,
         }
         if self.use_save_form:
             SavedSearchForm = self.get_saved_search_form()
@@ -994,7 +1006,7 @@ class SeekerView(View):
             if self.request.user.is_authenticated or related_column_name not in self.login_required_columns:
                 filtered_initial_facets[field] = self.initial_facets[field]
         return filtered_initial_facets
-       
+
     def modify_initial_facets(self):
         warnings.warn(
             "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
@@ -1294,7 +1306,7 @@ class AdvancedSeekerView(SeekerView):
     value_formats = {}
     """
     key: field_name, value: value_format function
-    A dictionary of custom formats used for extracting values from mappings. 
+    A dictionary of custom formats used for extracting values from mappings.
     value_formats are used for creating columns and exporting values in csv files.
     """
 
@@ -1592,6 +1604,7 @@ class AdvancedSeekerView(SeekerView):
 
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
 
         display = self.get_display(self.search_object['display'], facets_searched)
         sort = bool(export) or not self.always_display_highlighted_columns
@@ -1610,11 +1623,11 @@ class AdvancedSeekerView(SeekerView):
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].execute()
+                results = search.sort(*self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
             else:
-                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
+                results = search.sort(self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
         else:
-            results = search[offset:offset + page_size].execute()
+            results = search[offset:upper_paging_limit].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
@@ -1644,7 +1657,8 @@ class AdvancedSeekerView(SeekerView):
             'sort': sort,
             'export_name': self.export_name,
             'use_wordwrap_header': self.use_wordwrap_header,
-            'search': search
+            'search': search,
+            'paginator_cap': self.paginator_cap,
         }
         self.modify_results_context(context)
 
@@ -1657,14 +1671,6 @@ class AdvancedSeekerView(SeekerView):
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
-
-    def calculate_page_and_offset(self, page, page_size, search):
-        offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total.value
-        if results_count <= offset:
-            page = 1
-            offset = 0
-        return page, offset
 
     def apply_aggregations(self, search, query, facet_lookup):
         """
