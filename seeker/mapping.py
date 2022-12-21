@@ -71,7 +71,7 @@ class Indexable (dsl.Document):
     def documents(cls, **kwargs):
         """
         Returns (or yields) a list of documents, which are dictionaries of field data. The documents may include
-        Elasticsearch metadata, such as ``_id`` or ``_parent``.
+        OpenSearch metadata, such as ``_id`` or ``_parent``.
         """
         return []
 
@@ -88,7 +88,7 @@ class Indexable (dsl.Document):
     @classmethod
     def clear(cls, index=None, using=None):
         """
-        Deletes the Elasticsearch mapping associated with this document type.
+        Deletes the OpenSearch mapping associated with this document type.
         """
         using = using or cls._index._using or 'default'
         index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
@@ -131,7 +131,7 @@ class ModelIndex(Indexable):
 
     class Index:
         """
-            Define in subclass. No two ModelIndex's should share the same index. Name needs to be set as a unique string per elasticsearch instance.
+            Define in subclass. No two ModelIndex's should share the same index. Name needs to be set as a unique string per OpenSearch instance.
             Most subclasses can use ``seeker.index_factory`` for creation: 
                 ``
                 class Index(index_factory(model)):
@@ -168,7 +168,7 @@ class ModelIndex(Indexable):
     @classmethod
     def get_id(cls, obj):
         """
-        Returns the Elasticsearch ``_id`` to use for the specified model instance. Defaults to ``str(obj.pk)``.
+        Returns the OpenSearch ``_id`` to use for the specified model instance. Defaults to ``str(obj.pk)``.
         """
         return str(obj.pk)
 
@@ -261,7 +261,7 @@ def deep_field_factory(field):
 
 def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
-    Defines Elasticsearch fields for Django model fields. By default, this method will create a new
+    Defines OpenSearch fields for Django model fields. By default, this method will create a new
     ``opensearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
 
     :param model_class: The Django model class to build a mapping for

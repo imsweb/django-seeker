@@ -139,7 +139,7 @@ class Column(object):
             # We are going to modify this copy with the appropriate highlights
             modified_values = copy.deepcopy(value)
             for highlighted_value in highlight:
-                # Remove the <em> tags elasticsearch added
+                # Remove the <em> tags OpenSearch added
                 stripped_value = highlighted_value.replace('<em>', '').replace('</em>', '')
                 index_to_replace = None
                 # Iterate over all of the values and try to find the item that caused the "hit"
@@ -445,7 +445,7 @@ class SeekerView(View):
 
     paginator_cap = 10000
     """
-    Elasticsearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
+    OpenSearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
     "paginator_cap" documents.
     """
 
@@ -1235,7 +1235,7 @@ class AdvancedSeekerView(SeekerView):
         'OR': 'should'
     }
     """
-    This dictionary translates the boolean operators passed from the frontend into their elasticsearch equivalents.
+    This dictionary translates the boolean operators passed from the frontend into their OpenSearch equivalents.
     """
 
     footer_template = 'advanced_seeker/footer.html'
@@ -1714,7 +1714,7 @@ class AdvancedSeekerView(SeekerView):
             "condition": "<boolean operator>",
             "rules": [
                 {
-                    "id": "<elasticsearch field id>",
+                    "id": "<OpenSearch field id>",
                     "operator": "<comparison operator>",
                     "value": "<search value>"
                 },
@@ -1722,7 +1722,7 @@ class AdvancedSeekerView(SeekerView):
                     "condition": "<boolean operator>",
                     "rules": [
                         {
-                            "id": "<elasticsearch field id>",
+                            "id": "<OpenSearch field id>",
                             "operator": "<comparison operator>",
                             "value": "<search value>"
                         }, ...
@@ -1735,7 +1735,7 @@ class AdvancedSeekerView(SeekerView):
 
         NOTES:
         Each 'rule' is a dictionary containing single rules and groups of rules. The value for each rule field are as follows:
-            - id:     The name of the field in the elasticsearch document being searched.
+            - id:     The name of the field in the OpenSearch document being searched.
             - operator:  A key in COMPARISON_CONVERSION dictionary. It is up to you to ensure the operator will work with the given field.
             - value:     The value to be used in the comparison for this rule
         Each group of rules will have:

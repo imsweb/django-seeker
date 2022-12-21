@@ -11,7 +11,7 @@ from seeker.utils import progress, update_timestamp_index
 
 def reindex(es, doc_class, index, options):
     """
-    Index all the things, using ElasticSearch's bulk API for speed.
+    Index all the things, using OpenSearch's bulk API for speed.
     """
 
     def get_actions():

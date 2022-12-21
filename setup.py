@@ -12,7 +12,7 @@ def get_version():
 setup(
     name='django-seeker',
     version=get_version(),
-    description='A python package for mapping and querying Django models in Elasticsearch.',
+    description='A python package for mapping and querying Django models in OpenSearch.',
     author='Dan Watson',
     author_email='watsond@imsweb.com',
     url='https://github.com/imsweb/django-seeker',
