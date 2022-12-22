@@ -12,6 +12,7 @@ from seeker.dsl import NotFoundError, connections, dsl
 
 from .registry import model_documents
 
+
 logger = logging.getLogger(__name__)
 
 def import_class(fq_name):

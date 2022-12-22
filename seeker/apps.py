@@ -9,6 +9,7 @@ from .mapping import Indexable
 from .registry import register
 from .utils import import_class
 
+
 logger = logging.getLogger(__name__)
 
 

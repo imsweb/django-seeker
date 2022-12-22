@@ -3,7 +3,7 @@ from optparse import make_option
 
 from django.apps import apps
 from django.core.management.base import BaseCommand
-from seeker.dsl import bulk, connections, scan
+from seeker.dsl import connections, scan
 
 
 class Command(BaseCommand):

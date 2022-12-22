@@ -5,6 +5,8 @@ from django.db import models
 
 from .utils import delete, index
 
+
+
 logger = logging.getLogger(__name__)
 
 

@@ -6,7 +6,7 @@ import warnings
 
 from django.conf import settings
 from django.utils.encoding import smart_str
-from seeker.dsl import A, Q
+from seeker.dsl import A, Q, Terms
 
 from .utils import validate_date_format
 

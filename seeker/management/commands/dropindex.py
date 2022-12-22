@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from seeker.dsl import AuthorizationException, connections, scan
+from seeker.dsl import AuthorizationException, NotFoundError, connections
 from django.core.exceptions import ImproperlyConfigured
 
 class Command (BaseCommand):
