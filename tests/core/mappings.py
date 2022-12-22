@@ -5,6 +5,7 @@ import seeker
 from .external import BaseDocument
 from .models import Book, Magazine
 
+
 BookDocument = seeker.document_from_model(Book, module=__name__)
 MagazineDocument = seeker.document_from_model(Magazine, module=__name__)
 
