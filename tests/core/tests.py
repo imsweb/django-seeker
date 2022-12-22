@@ -2,9 +2,10 @@ from django.core.management import call_command
 from django.test import TestCase
 
 import seeker
-from tests.core.external import BaseDocument
-from tests.core.mappings import BookDocument, DerivedDocument, DjangoBookDocument
-from tests.core.models import Book, Category
+
+from .external import BaseDocument
+from .mappings import BookDocument, DerivedDocument, DjangoBookDocument
+from .models import Book, Category
 
 
 class QueryTests(TestCase):

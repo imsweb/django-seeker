@@ -1,5 +1,6 @@
-import seeker
 from seeker.dsl import dsl
+
+import seeker
 
 
 class BaseDocument(seeker.Indexable):

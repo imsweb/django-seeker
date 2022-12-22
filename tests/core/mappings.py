@@ -1,7 +1,7 @@
-from django.conf import settings
+from seeker.dsl import dsl
 
 import seeker
-from seeker.dsl import dsl
+
 from tests.core.external import BaseDocument
 from tests.core.models import Book, Magazine
 

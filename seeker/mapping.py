@@ -1,9 +1,8 @@
 import logging
 
+from seeker.dsl import Object, bulk, connections, dsl, scan
 from django.conf import settings as django_settings
 from django.db import models
-
-from seeker.dsl import Object, bulk, connections, dsl, scan
 
 logger = logging.getLogger(__name__)
 

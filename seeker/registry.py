@@ -1,7 +1,7 @@
 import logging
 import threading
 
-from seeker.mapping import Indexable, ModelIndex
+from .mapping import Indexable, ModelIndex
 
 logger = logging.getLogger(__name__)
 

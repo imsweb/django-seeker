@@ -1,7 +1,8 @@
+from seeker.dsl import connections
+
 import os
 import sys
 
-from seeker.dsl import connections
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 

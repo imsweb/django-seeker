@@ -8,6 +8,8 @@ import re
 import warnings
 from datetime import datetime
 
+from seeker.dsl import AttrList, Q, dsl
+
 from django.conf import settings
 from django.contrib import messages
 from django.forms.forms import Form
@@ -22,11 +24,10 @@ from django.utils.http import urlencode
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
 
-from seeker.dsl import AttrList, Q, dsl
-from seeker.facets import RangeFilter, TermsFacet, TextFacet
-from seeker.mapping import DEFAULT_ANALYZER
-from seeker.signals import advanced_search_performed, search_complete
-from seeker.templatetags.seeker import seeker_format
+from .facets import TermsFacet, RangeFilter, TextFacet
+from .mapping import DEFAULT_ANALYZER
+from .signals import advanced_search_performed, search_complete
+from .templatetags.seeker import seeker_format
 from seeker.utils import is_ajax, update_timestamp_index
 
 seekerview_field_templates = {}
@@ -492,7 +493,7 @@ class SeekerView(View):
         NOTE: This will only be used if 'use_save_form' is set to True and with AJAX requests.
         NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
         """
-        from seeker.forms import SavedSearchForm
+        from .forms import SavedSearchForm
         return SavedSearchForm
 
     def get_view_name(self):
@@ -746,7 +747,7 @@ class SeekerView(View):
         return facets
 
     def get_saved_search_model(self):
-        from seeker.models import SavedSearch
+        from .models import SavedSearch
         return SavedSearch
 
     def get_saved_searches(self):
@@ -1980,7 +1981,7 @@ class AdvancedSavedSearchView(View):
         return sorted(all_searches, key=lambda search: search.get('name'))
 
     def get_saved_search_model(self):
-        from seeker.models import SavedSearch
+        from .models import SavedSearch
         return SavedSearch
 
     def get_saved_search_form(self):
@@ -1988,7 +1989,7 @@ class AdvancedSavedSearchView(View):
         Get the form used to save searches.
         NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
         """
-        from seeker.forms import AdvancedSavedSearchForm
+        from .forms import AdvancedSavedSearchForm
         return AdvancedSavedSearchForm
 
     def get_saved_searches(self, url, SavedSearchModel):

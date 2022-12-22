@@ -1,9 +1,8 @@
 import argparse
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
-
 from seeker.dsl import bulk, connections
+
 from seeker.registry import app_documents, documents
 from seeker.utils import progress, update_timestamp_index
 

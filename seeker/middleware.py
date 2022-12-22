@@ -3,7 +3,7 @@ import warnings
 
 from django.db import models
 
-from seeker.utils import delete, index
+from .utils import delete, index
 
 logger = logging.getLogger(__name__)
 
