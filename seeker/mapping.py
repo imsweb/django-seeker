@@ -90,19 +90,19 @@ class Indexable (dsl.Document):
         """
         using = using or cls._index._using or 'default'
         index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
-        es = connections.get_connection(using)
-        if es.indices.exists_type(index=index):
+        search = connections.get_connection(using)
+        if search.indices.exists_type(index=index):
 
             def get_actions():
-                for hit in scan(es, index=index, query={'query': {'match_all': {}}}):
+                for hit in scan(search, index=index, query={'query': {'match_all': {}}}):
                     yield {
                         '_op_type': 'delete',
                         '_index': index,
                         '_id': hit['_id'],
                     }
 
-            bulk(es, get_actions())
-            es.indices.refresh(index=index)
+            bulk(search, get_actions())
+            search.indices.refresh(index=index)
 
 
 def index_factory(model):

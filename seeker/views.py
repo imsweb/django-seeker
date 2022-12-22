@@ -188,12 +188,12 @@ class SeekerView(View):
 
     using = None
     """
-    The ES connection alias to use.
+    The ES/OS connection alias to use.
     """
 
     index = None
     """
-    The ES index to use. Will use the index set on the mapping if this is not set.
+    The ES/OS index to use. Will use the index set on the mapping if this is not set.
     """
 
     template_name = 'seeker/seeker.html'
@@ -420,7 +420,7 @@ class SeekerView(View):
 
     analyzer = DEFAULT_ANALYZER
     """
-    The ES analyzer used for keyword searching.
+    The ES/OS analyzer used for keyword searching.
     """
 
     missing_sort = None
@@ -1175,7 +1175,7 @@ class AdvancedColumn(Column):
     def get_data_max_length(self, results):
         """
         Determines maximum length of data populating the column of field_name
-        :param results: search results from elastic search
+        :param results: search results from ElasticSearch/OpenSearch
         :return: maximum length of data, or 0 if the field_name does not exist or the is no data
         """
         max_length = 0
@@ -1703,7 +1703,7 @@ class AdvancedSeekerView(SeekerView):
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
         Returns two values:
-        1) The ES DSL Q object representing the 'advanced_query' dictionary passed in
+        1) The ES/OS DSL Q object representing the 'advanced_query' dictionary passed in
         2) A list of the selected fields for this query
 
         The advanced_query is a dictionary representation of the advanced query. The following is an example of the accepted format:

@@ -9,7 +9,7 @@ SEEKER_INDEX
 
 Default: ``seeker``
 
-The name of the ES index that should be used by default. This can be overridden per mapping.
+The name of the ES/OS index that should be used by default. This can be overridden per mapping.
 
 
 SEEKER_INDEX_PREFIX
@@ -17,7 +17,7 @@ SEEKER_INDEX_PREFIX
 
 Default: ``seeker``
 
-The PREFIX used for each ES index created.
+The PREFIX used for each ES/OS index created.
 
 
 SEEKER_INDEX_SETTINGS
