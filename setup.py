@@ -21,6 +21,7 @@ setup(
     install_requires=[
         'elasticsearch-dsl~=2.0.0',
         'opensearch-dsl~=2.0.0',
+        # TODO: Do you know how to make it so that only one of these is required? Same idea with requirements.txt.
         'snowballstemmer',
         'bleach',
     ],
