@@ -2,9 +2,8 @@ import logging
 
 from django.db.models import signals
 
-from .registry import model_documents
-from .utils import delete, index
-
+from seeker.registry import model_documents
+from seeker.utils import delete, index
 
 logger = logging.getLogger(__name__)
 

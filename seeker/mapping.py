@@ -1,11 +1,9 @@
 import logging
 
-import opensearch_dsl as dsl
 from django.conf import settings as django_settings
 from django.db import models
-from opensearchpy.helpers import bulk, scan
-from opensearch_dsl.connections import connections
-from opensearch_dsl.field import Object
+
+from seeker.dsl import Object, bulk, connections, dsl, scan
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +35,7 @@ def follow(obj, path, force_string=False):
 
 def serialize_object(obj, mapping, prepare=None):
     """
-    Given a Django model instance and a ``opensearch_dsl.Mapping`` or ``opensearch_dsl.Object``, returns a
+    Given a Django model instance and a ``dsl.Mapping`` or ``dsl.Object``, returns a
     dictionary of field data that should be indexed.
     """
     data = {}
@@ -63,7 +61,7 @@ def serialize_object(obj, mapping, prepare=None):
 
 class Indexable (dsl.Document):
     """
-    An ``opensearch_dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
+    An ``dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
     indexed.
     """
 
@@ -71,7 +69,7 @@ class Indexable (dsl.Document):
     def documents(cls, **kwargs):
         """
         Returns (or yields) a list of documents, which are dictionaries of field data. The documents may include
-        OpenSearch metadata, such as ``_id`` or ``_parent``.
+        Elasticsearch/OpenSearch metadata, such as ``_id`` or ``_parent``.
         """
         return []
 
@@ -88,7 +86,7 @@ class Indexable (dsl.Document):
     @classmethod
     def clear(cls, index=None, using=None):
         """
-        Deletes the OpenSearch mapping associated with this document type.
+        Deletes the Elasticsearch/OpenSearch mapping associated with this document type.
         """
         using = using or cls._index._using or 'default'
         index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
@@ -131,7 +129,7 @@ class ModelIndex(Indexable):
 
     class Index:
         """
-            Define in subclass. No two ModelIndex's should share the same index. Name needs to be set as a unique string per OpenSearch instance.
+            Define in subclass. No two ModelIndex's should share the same index. Name needs to be set as a unique string per Elasticsearch/OpenSearch instance.
             Most subclasses can use ``seeker.index_factory`` for creation: 
                 ``
                 class Index(index_factory(model)):
@@ -168,7 +166,7 @@ class ModelIndex(Indexable):
     @classmethod
     def get_id(cls, obj):
         """
-        Returns the OpenSearch ``_id`` to use for the specified model instance. Defaults to ``str(obj.pk)``.
+        Returns the Elasticsearch/OpenSearch ``_id`` to use for the specified model instance. Defaults to ``str(obj.pk)``.
         """
         return str(obj.pk)
 
@@ -207,7 +205,7 @@ RawString = dsl.Text(analyzer=DEFAULT_ANALYZER, fields={
     'raw': dsl.Keyword(),
 })
 """
-An ``opensearch_dsl.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
+An ``dsl.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
 not analyzed, suitable for aggregations, sorting, etc.
 """
 
@@ -221,7 +219,7 @@ The same as ``RawString``, but with ``multi=True`` specified, so lists are retur
 
 def document_field(field):
     """
-    The default ``field_factory`` method for converting Django field instances to ``opensearch_dsl.Field`` instances.
+    The default ``field_factory`` method for converting Django field instances to ``dsl.Field`` instances.
     Auto-created fields (primary keys, for example) and one-to-many fields (reverse FK relationships) are skipped.
     """
     if field.auto_created or field.one_to_many:
@@ -261,15 +259,15 @@ def deep_field_factory(field):
 
 def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
-    Defines OpenSearch fields for Django model fields. By default, this method will create a new
-    ``opensearch_dsl.Mapping`` object with fields corresponding to the ``model_class``.
+    Defines Elasticsearch/OpenSearch fields for Django model fields. By default, this method will create a new
+    ``dsl.Mapping`` object with fields corresponding to the ``model_class``.
 
     :param model_class: The Django model class to build a mapping for
-    :param mapping: An ``opensearch_dsl.Mapping`` or ``opensearch_dsl.Object`` instance to define fields on
+    :param mapping: A ``dsl.Mapping`` or ``dsl`` instance to define fields on
     :param fields: A list of Django model field names to include
     :param exclude: A list of Django model field names to exclude
-    :param field_factory: A function that takes a Django model field instance, and returns a ``opensearch_dsl.Field``
-    :param extra: A dictionary (field_name -> ``opensearch_dsl.Field``) of extra fields to include in the mapping
+    :param field_factory: A function that takes a Django model field instance, and returns a ``dsl.Field``
+    :param extra: A dictionary (field_name -> ``dsl``) of extra fields to include in the mapping
     """
     if mapping is None:
         mapping = dsl.Mapping()

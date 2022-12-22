@@ -2,9 +2,10 @@ import json
 from optparse import make_option
 
 from django.apps import apps
+from django.conf import settings
 from django.core.management.base import BaseCommand
-from opensearchpy.helpers import scan
-from opensearch_dsl.connections import connections
+
+from seeker.dsl import bulk, connections, scan
 
 
 class Command(BaseCommand):

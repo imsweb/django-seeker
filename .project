@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
     <name>seeker</name>
-    <comment>A python package for mapping data (usually from Django models) into OpenSearch.</comment>
+    <comment>A python package for mapping data (usually from Django models) into Elasticsearch/OpenSearch.</comment>
     <projects>
     </projects>
     <buildSpec>

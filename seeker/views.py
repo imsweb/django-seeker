@@ -8,8 +8,6 @@ import re
 import warnings
 from datetime import datetime
 
-import opensearch_dsl as dsl
-
 from django.conf import settings
 from django.contrib import messages
 from django.forms.forms import Form
@@ -23,13 +21,12 @@ from django.utils.html import escape, format_html
 from django.utils.http import urlencode
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
-from opensearch_dsl import Q
-from opensearch_dsl.utils import AttrList
 
-from .facets import TermsFacet, RangeFilter, TextFacet
-from .mapping import DEFAULT_ANALYZER
-from .signals import advanced_search_performed, search_complete
-from .templatetags.seeker import seeker_format
+from seeker.dsl import AttrList, Q, dsl
+from seeker.facets import RangeFilter, TermsFacet, TextFacet
+from seeker.mapping import DEFAULT_ANALYZER
+from seeker.signals import advanced_search_performed, search_complete
+from seeker.templatetags.seeker import seeker_format
 from seeker.utils import is_ajax, update_timestamp_index
 
 seekerview_field_templates = {}
@@ -139,7 +136,7 @@ class Column(object):
             # We are going to modify this copy with the appropriate highlights
             modified_values = copy.deepcopy(value)
             for highlighted_value in highlight:
-                # Remove the <em> tags OpenSearch added
+                # Remove the <em> tags Elasticsearch/OpenSearch added
                 stripped_value = highlighted_value.replace('<em>', '').replace('</em>', '')
                 index_to_replace = None
                 # Iterate over all of the values and try to find the item that caused the "hit"
@@ -186,7 +183,7 @@ class Column(object):
 class SeekerView(View):
     document = None
     """
-    A :class:`opensearch_dsl.DocType` class to present a view for.
+    A :class:`dsl.DocType` class to present a view for.
     """
 
     using = None
@@ -445,7 +442,7 @@ class SeekerView(View):
 
     paginator_cap = 10000
     """
-    OpenSearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
+    Elasticsearch/OpenSearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
     "paginator_cap" documents.
     """
 
@@ -495,7 +492,7 @@ class SeekerView(View):
         NOTE: This will only be used if 'use_save_form' is set to True and with AJAX requests.
         NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
         """
-        from .forms import SavedSearchForm
+        from seeker.forms import SavedSearchForm
         return SavedSearchForm
 
     def get_view_name(self):
@@ -749,7 +746,7 @@ class SeekerView(View):
         return facets
 
     def get_saved_search_model(self):
-        from .models import SavedSearch
+        from seeker.models import SavedSearch
         return SavedSearch
 
     def get_saved_searches(self):
@@ -1235,7 +1232,7 @@ class AdvancedSeekerView(SeekerView):
         'OR': 'should'
     }
     """
-    This dictionary translates the boolean operators passed from the frontend into their OpenSearch equivalents.
+    This dictionary translates the boolean operators passed from the frontend into their Elasticsearch/OpenSearch equivalents.
     """
 
     footer_template = 'advanced_seeker/footer.html'
@@ -1714,7 +1711,7 @@ class AdvancedSeekerView(SeekerView):
             "condition": "<boolean operator>",
             "rules": [
                 {
-                    "id": "<OpenSearch field id>",
+                    "id": "<Elasticsearch/OpenSearch field id>",
                     "operator": "<comparison operator>",
                     "value": "<search value>"
                 },
@@ -1722,7 +1719,7 @@ class AdvancedSeekerView(SeekerView):
                     "condition": "<boolean operator>",
                     "rules": [
                         {
-                            "id": "<OpenSearch field id>",
+                            "id": "<Elasticsearch/OpenSearch field id>",
                             "operator": "<comparison operator>",
                             "value": "<search value>"
                         }, ...
@@ -1735,7 +1732,7 @@ class AdvancedSeekerView(SeekerView):
 
         NOTES:
         Each 'rule' is a dictionary containing single rules and groups of rules. The value for each rule field are as follows:
-            - id:     The name of the field in the OpenSearch document being searched.
+            - id:     The name of the field in the Elasticsearch/OpenSearch document being searched.
             - operator:  A key in COMPARISON_CONVERSION dictionary. It is up to you to ensure the operator will work with the given field.
             - value:     The value to be used in the comparison for this rule
         Each group of rules will have:
@@ -1983,7 +1980,7 @@ class AdvancedSavedSearchView(View):
         return sorted(all_searches, key=lambda search: search.get('name'))
 
     def get_saved_search_model(self):
-        from .models import SavedSearch
+        from seeker.models import SavedSearch
         return SavedSearch
 
     def get_saved_search_form(self):
@@ -1991,7 +1988,7 @@ class AdvancedSavedSearchView(View):
         Get the form used to save searches.
         NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
         """
-        from .forms import AdvancedSavedSearchForm
+        from seeker.forms import AdvancedSavedSearchForm
         return AdvancedSavedSearchForm
 
     def get_saved_searches(self, url, SavedSearchModel):

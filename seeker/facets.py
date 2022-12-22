@@ -6,10 +6,9 @@ import warnings
 
 from django.conf import settings
 from django.utils.encoding import smart_str
-from opensearch_dsl import A, Q
-from opensearch_dsl.aggs import Terms
 
-from .utils import validate_date_format
+from seeker.dsl import A, Q
+from seeker.utils import validate_date_format
 
 
 class Facet(object):
@@ -63,7 +62,7 @@ class Facet(object):
 
     def es_query(self, operator, value):
         """
-        This function returns the opensearch_dsl query object for this facet. It only accepts a single value, multiple values
+        This function returns the dsl query object for this facet. It only accepts a single value, multiple values
         will need to be combined together outside of this function.
         """
         if operator not in self.valid_operators:
@@ -108,7 +107,7 @@ class Facet(object):
 class TermsFacet(Facet):
 
     def __init__(self, field, size=2147483647, sorted_by_key=False, **kwargs):
-        # OpenSearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
+        # Elasticsearch/OpenSearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
         self.size = size
         self.filter_operator = kwargs.pop('filter_operator', 'or')
         # option to override default sort by doc_count, can be set to other values by adding the desired values in kwargs
@@ -129,7 +128,7 @@ class TermsFacet(Facet):
 
     def es_query(self, operator, value):
         """
-        This function returns the opensearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         if operator not in self.valid_operators:
@@ -197,7 +196,7 @@ class TextFacet(Facet):
 
     def es_query(self, operator, value):
         """
-        This function returns the opensearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         values = value.split(self.delimiter)
@@ -333,13 +332,13 @@ class RangeFilter(Facet):
 
     def _get_range_key(self, _range):
         """
-        This helper function takes a range dictionary and returns the aggregation key.  Key is an optional argument in OpenSearch.
-        If the range in self.ranges does not specify a key, the default key OpenSearch uses is "from-to", where from and to are either floats or *.
+        This helper function takes a range dictionary and returns the aggregation key.  Key is an optional argument in Elasticsearch/OpenSearch.
+        If the range in self.ranges does not specify a key, the default key Elasticsearch/OpenSearch uses is "from-to", where from and to are either floats or *.
         """
         default_from_key = _range.get("from", "*")
         default_to_key = _range.get("to", "*")
 
-        # If a from value was found, we need to cast it as a float since that's how OpenSearch formats the default key.
+        # If a from value was found, we need to cast it as a float since that's how Elasticsearch/OpenSearch formats the default key.
         if default_from_key != "*":
             default_from_key = float(default_from_key)
         # Same as above, if a to value is defined, cast the value as a float.
@@ -384,14 +383,14 @@ class RangeFilter(Facet):
                 if (isinstance(key, str) and range_key == key) or (isinstance(key, list) and range_key in key):
                     valid_ranges.append(_range)
             for _range in valid_ranges:
-                # From and To are optional in OpenSearch.  The translated_range dictionary stores the parameters we
+                # From and To are optional in Elasticsearch/OpenSearch.  The translated_range dictionary stores the parameters we
                 # intend to use in our query base on what is defined in range.
                 translated_range = {}
                 if 'from' in _range:
-                    # We do greater-than or equal to because in OpenSearch, a range aggregation includes the from value.
+                    # We do greater-than or equal to because in Elasticsearch/OpenSearch, a range aggregation includes the from value.
                     translated_range['gte'] = _range['from']
                 if 'to' in _range:
-                    # We do less-than because in OpenSearch, a range aggregation exclude the to value.
+                    # We do less-than because in Elasticsearch/OpenSearch, a range aggregation exclude the to value.
                     # Doing less-than or equal to could cause the bucket count to be different than the result counts.
                     translated_range['lt'] = _range['to']
                 # We check that the range, defined in self.ranges, had a 'from' and/or a 'to' value.
@@ -422,7 +421,7 @@ class RangeFilter(Facet):
 
     def es_query(self, query_operator, value):
         """
-        This function returns the opensearch_dsl query object for the RangeFilter Facet.
+        This function returns the dsl query object for the RangeFilter Facet.
         
         The "value" parameter will be 1 of three options:
             - list: value will be a list of two numbers. The first number represents the lower bound of the range and the second represents the upper bound of the range.

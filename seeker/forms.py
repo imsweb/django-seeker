@@ -1,6 +1,6 @@
 from django.forms import ModelForm
 
-from .models import AdvancedSavedSearch, SavedSearch
+from seeker.models import AdvancedSavedSearch, SavedSearch
 
 
 class BaseSavedSearchForm(ModelForm):

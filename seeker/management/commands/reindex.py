@@ -2,16 +2,15 @@ import argparse
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from opensearchpy.helpers import bulk
-from opensearch_dsl.connections import connections
 
+from seeker.dsl import bulk, connections
 from seeker.registry import app_documents, documents
 from seeker.utils import progress, update_timestamp_index
 
 
 def reindex(es, doc_class, index, options):
     """
-    Index all the things, using OpenSearch's bulk API for speed.
+    Index all the things, using Elasticsearch/OpenSearch's bulk API for speed.
     """
 
     def get_actions():

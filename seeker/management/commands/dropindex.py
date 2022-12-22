@@ -1,8 +1,9 @@
 from django.conf import settings
-from django.core.management.base import BaseCommand
-from opensearch_dsl.connections import connections
-from opensearchpy.exceptions import AuthorizationException, NotFoundError
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management.base import BaseCommand
+
+from seeker.dsl import AuthorizationException, connections, scan
+
 
 class Command (BaseCommand):
     help = 'Drops all ES indexes on project with SEEKER_INDEX_PREFIX from settings, or one that you specify. To drop indexes with prefix add wildcard * after prefix of indexes you want deleted'

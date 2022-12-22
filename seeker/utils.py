@@ -1,22 +1,19 @@
-from datetime import datetime
 import importlib
 import logging
 import sys
 import time
+from datetime import datetime
 
 from django.conf import settings
 from django.http import QueryDict
 from django.utils import timezone
 from django.utils.encoding import force_str
-from opensearchpy import NotFoundError
-from opensearch_dsl.connections import connections
 
-import opensearch_dsl as dsl
-
-from .registry import model_documents
-
+from seeker.dsl import NotFoundError, connections, dsl
+from seeker.registry import model_documents
 
 logger = logging.getLogger(__name__)
+
 
 def import_class(fq_name):
     module_name, class_name = fq_name.rsplit('.', 1)

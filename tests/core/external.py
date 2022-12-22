@@ -1,6 +1,5 @@
-import opensearch_dsl as dsl
-
 import seeker
+from seeker.dsl import dsl
 
 
 class BaseDocument(seeker.Indexable):
