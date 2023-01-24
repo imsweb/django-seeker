@@ -1,7 +1,7 @@
 from django.conf import settings
 
 
-if getattr(settings, 'SEEKER_OPENSEARCH_DSL', False):
+if getattr(settings, 'SEEKER_OPENSEARCH', False):
     import opensearch_dsl as dsl
     from opensearch_dsl import A, Q, Search
     from opensearch_dsl.aggs import Terms

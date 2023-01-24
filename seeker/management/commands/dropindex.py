@@ -27,16 +27,16 @@ class Command (BaseCommand):
                 index_prefix = '{}*'.format(seeker_index_prefix)
             else:
                 raise ImproperlyConfigured('An index or index prefix must be supplied (either through --index or SEEKER_INDEX_PREFIX setting)')
-        connection = options['using'] or 'default'
-        search = connections.get_connection(connection)
-        print('Using connection: "{}"'.format(connection))
+        using = options['using'] or 'default'
+        connection = connections.get_connection(using)
+        print('Using connection: "{}"'.format(using))
         print('Attempting to drop index(es) using the pattern: {}'.format(index_prefix))
-        for index in search.indices.get(index_prefix):
+        for index in connection.indices.get(index_prefix):
             try:
                 print('Attempting to drop index "{}"...'.format(index))
-                if search.indices.exists(index=index):
-                    search.indices.delete(index=index)
-                    if search.indices.exists(index=index):
+                if connection.indices.exists(index=index):
+                    connection.indices.delete(index=index)
+                    if connection.indices.exists(index=index):
                         print('...The index was NOT dropped.')
                     else:
                         print('...The index was dropped.')

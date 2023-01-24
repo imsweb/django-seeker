@@ -34,8 +34,8 @@ class Command(BaseCommand):
                 refresh_indices.add(data['_index'])
                 yield data
 
-        search = connections.get_connection()
-        bulk(search, get_actions())
+        connection = connections.get_connection()
+        bulk(connection, get_actions())
 
         for index in refresh_indices:
-            search.indices.refresh(index=index)
+            connection.indices.refresh(index=index)

@@ -8,7 +8,7 @@ from seeker.registry import app_documents, documents
 from seeker.utils import progress, update_timestamp_index
 
 
-def reindex(search, doc_class, index, options):
+def reindex(connection, doc_class, index, options):
     """
     Index all the things, using Elasticsearch/OpenSearch's bulk API for speed.
     """
@@ -24,8 +24,8 @@ def reindex(search, doc_class, index, options):
     actions = (
         get_actions() if options['quiet'] else progress(get_actions(), count=doc_class.count(), label=f"{doc_class.__name__} ({index})")
     )
-    bulk(search, actions)
-    search.indices.refresh(index=index)
+    bulk(connection, actions)
+    connection.indices.refresh(index=index)
 
 
 class Command(BaseCommand):
@@ -87,16 +87,16 @@ class Command(BaseCommand):
         for doc_class in doc_classes:
             using = options['using'] or doc_class._index._using or 'default'
             index = doc_class._index._name
-            search = connections.get_connection(using)
+            connection = connections.get_connection(using)
 
             update_timestamp_index(index)
 
             if options['drop'] and index not in deleted_indexes:
-                if search.indices.exists(index=index):
-                    search.indices.delete(index=index)
+                if connection.indices.exists(index=index):
+                    connection.indices.delete(index=index)
                     deleted_indexes.append(index)
             elif options['clear']:
                 doc_class.clear(index=index, using=using)
             doc_class.init(index=index, using=using)
             if options['data']:
-                reindex(search, doc_class, index, options)
+                reindex(connection, doc_class, index, options)
