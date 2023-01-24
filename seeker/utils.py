@@ -32,9 +32,9 @@ def update_timestamp_index(index):
             # If the index comes in as a Index object, transform it to its string name
             if not isinstance(index, str):
                 index = index._name
-            timestamp_search = connections.get_connection(timestamp_connection_alias)
+            timestamp_connection = connections.get_connection(timestamp_connection_alias)
             body = {'index_name': index, 'last_access': timezone.now()}
-            timestamp_search.index(
+            timestamp_connection.index(
                 index=timestamp_index,
                 body=body,
                 id=index,
