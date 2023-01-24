@@ -60,7 +60,7 @@ class Facet(object):
     def filter(self, search, values):
         return search
 
-    def es_query(self, operator, value):
+    def query(self, operator, value):
         """
         This function returns the dsl query object for this facet. It only accepts a single value, multiple values
         will need to be combined together outside of this function.
@@ -71,6 +71,10 @@ class Facet(object):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('match', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'match'), **{self.field: value})
+
+    def es_query(self, operator, value):
+        warnings.warn('seeker.facets.Facet.es_query is deprecated. Please use seeker.facets.Facet.query instead.')
+        return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
         """
@@ -126,7 +130,7 @@ class TermsFacet(Facet):
         search.aggs[self.name] = self._get_aggregation(**extra)
         return search
 
-    def es_query(self, operator, value):
+    def query(self, operator, value):
         """
         This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
@@ -137,6 +141,10 @@ class TermsFacet(Facet):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
+
+    def es_query(self, operator, value):
+        warnings.warn('seeker.facets.TermsFacet.es_query is deprecated. Please use seeker.facets.TermsFacet.query instead.')
+        return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
@@ -194,7 +202,7 @@ class TextFacet(Facet):
         """There are no aggregations to apply so we just return the search object."""
         return search
 
-    def es_query(self, operator, value):
+    def query(self, operator, value):
         """
         This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
@@ -208,6 +216,10 @@ class TextFacet(Facet):
             if term:
                 queries.append(Q('prefix', **{self.field: term}))
         return Q('bool', should=queries)
+
+    def es_query(self, operator, value):
+        warnings.warn('seeker.facets.TextFacet.es_query is deprecated. Please use seeker.facets.TextFacet.query instead.')
+        return self.query(operator=operator, value=value)
 
     def filter(self, search, value):
         values = value.split(self.delimiter)
@@ -419,15 +431,15 @@ class RangeFilter(Facet):
 
         return self._build_query(r)
 
-    def es_query(self, query_operator, value):
+    def query(self, query_operator, value):
         """
         This function returns the dsl query object for the RangeFilter Facet.
-        
+
         The "value" parameter will be 1 of three options:
             - list: value will be a list of two numbers. The first number represents the lower bound of the range and the second represents the upper bound of the range.
             - number: value can be single number.  Single numbers are used in complex queries when the operator is equal or not equal. (TODO: Update this comment once other operators are supported)
             - range key: value can represent a range key that defined in self.ranges
-        
+
         """
         # We first check if the query operator is valid.
         if query_operator not in self.valid_operators:
@@ -460,6 +472,10 @@ class RangeFilter(Facet):
                     return Q('bool', filter=functools.reduce(operator.or_, filters))
         else:
             raise ValueError("Received invalid range value. Value must be a list of two numbers, a number, or a key defined in self.ranges")
+
+    def es_query(self, query_operator, value):
+        warnings.warn('seeker.facets.RangeFilter.es_query is deprecated. Please use seeker.facets.RangeFilter.query instead.')
+        return self.query(query_operator=query_operator, value=value)
 
     def build_filter_dict(self, results):
         filter_dict = super(RangeFilter, self).build_filter_dict(results)

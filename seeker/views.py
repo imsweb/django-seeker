@@ -1745,7 +1745,7 @@ class AdvancedSeekerView(SeekerView):
         if all(k in advanced_query for k in ('id', 'operator', 'value')):
             if advanced_query['id'] not in excluded_facets:
                 facet = facet_lookup.get(advanced_query['id'])
-                return facet.es_query(advanced_query['operator'], advanced_query['value']), [facet.field]
+                return facet.query(advanced_query['operator'], advanced_query['value']), [facet.field]
             return None, None
 
         # Check if all required keys are present for a group

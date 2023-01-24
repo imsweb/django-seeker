@@ -1,4 +1,5 @@
 import argparse
+import warnings
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -8,10 +9,12 @@ from seeker.registry import app_documents, documents
 from seeker.utils import progress, update_timestamp_index
 
 
-def reindex(connection, doc_class, index, options):
+def reindex(es, doc_class, index, options):
     """
     Index all the things, using Elasticsearch/OpenSearch's bulk API for speed.
     """
+    warnings.warn("The es parameter of seeker.management.commands.reindex.reindex is deprecated. It will be renamed to connection in seeker 8.")
+    connection = es
 
     def get_actions():
         for doc in doc_class.documents():
