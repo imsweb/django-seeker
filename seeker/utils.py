@@ -58,10 +58,10 @@ def index(obj, index=None, using=None):
             continue
         doc_using = using or doc_class._index._using or 'default'
         doc_index = index or doc_class._index._name
-        search = connections.get_connection(doc_using)
+        connection = connections.get_connection(doc_using)
         body = doc_class.serialize(obj)
         doc_id = body.pop('_id', None)
-        search.index(
+        connection.index(
             index=doc_index,
             body=body,
             id=doc_id,
@@ -79,9 +79,9 @@ def delete(obj, index=None, using=None):
     for doc_class in model_documents.get(model_class, []):
         doc_using = using or doc_class._index._using or 'default'
         doc_index = index or doc_class._index._name
-        search = connections.get_connection(doc_using)
+        connection = connections.get_connection(doc_using)
         try:
-            search.delete(
+            connection.delete(
                 index=doc_index,
                 id=doc_class.get_id(obj),
                 refresh=True
