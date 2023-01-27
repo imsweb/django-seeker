@@ -13,7 +13,7 @@ def reindex(es, doc_class, index, options):
     """
     Index all the things, using Elasticsearch/OpenSearch's bulk API for speed.
     """
-    warnings.warn("The es parameter of seeker.management.commands.reindex.reindex is deprecated. It will be renamed to connection in seeker 8.")
+    warnings.warn("The es parameter of seeker.management.commands.reindex.reindex will be removed in seeker 8. It will be renamed to connection.", DeprecationWarning)
     connection = es
 
     def get_actions():

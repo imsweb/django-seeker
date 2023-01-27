@@ -73,7 +73,7 @@ class Facet(object):
         return Q(self.special_operators.get(operator, 'match'), **{self.field: value})
 
     def es_query(self, operator, value):
-        warnings.warn('seeker.facets.Facet.es_query is deprecated. Please use seeker.facets.Facet.query instead.')
+        warnings.warn('seeker.facets.Facet.es_query will be removed in seeker 8. Please use seeker.facets.Facet.query instead.', DeprecationWarning)
         return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
@@ -143,7 +143,7 @@ class TermsFacet(Facet):
         return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
 
     def es_query(self, operator, value):
-        warnings.warn('seeker.facets.TermsFacet.es_query is deprecated. Please use seeker.facets.TermsFacet.query instead.')
+        warnings.warn('seeker.facets.TermsFacet.es_query will be removed in seeker 8. Please use seeker.facets.TermsFacet.query instead.', DeprecationWarning)
         return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
@@ -218,7 +218,7 @@ class TextFacet(Facet):
         return Q('bool', should=queries)
 
     def es_query(self, operator, value):
-        warnings.warn('seeker.facets.TextFacet.es_query is deprecated. Please use seeker.facets.TextFacet.query instead.')
+        warnings.warn('seeker.facets.TextFacet.es_query will be removed in seeker 8. Please use seeker.facets.TextFacet.query instead.', DeprecationWarning)
         return self.query(operator=operator, value=value)
 
     def filter(self, search, value):
@@ -474,7 +474,7 @@ class RangeFilter(Facet):
             raise ValueError("Received invalid range value. Value must be a list of two numbers, a number, or a key defined in self.ranges")
 
     def es_query(self, query_operator, value):
-        warnings.warn('seeker.facets.RangeFilter.es_query is deprecated. Please use seeker.facets.RangeFilter.query instead.')
+        warnings.warn('seeker.facets.RangeFilter.es_query will be removed in seeker 8. Please use seeker.facets.RangeFilter.query instead.', DeprecationWarning)
         return self.query(query_operator=query_operator, value=value)
 
     def build_filter_dict(self, results):
