@@ -1,4 +1,4 @@
-import opensearch_dsl as dsl
+from seeker.dsl import dsl
 
 import seeker
 

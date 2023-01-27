@@ -12,13 +12,14 @@ def get_version():
 setup(
     name='django-seeker',
     version=get_version(),
-    description='A python package for mapping and querying Django models in Elasticsearch.',
+    description='A python package for mapping and querying Django models in Elasticsearch/OpenSearch.',
     author='Dan Watson',
     author_email='watsond@imsweb.com',
     url='https://github.com/imsweb/django-seeker',
     license='BSD',
     packages=find_packages(),
     install_requires=[
+        'elasticsearch-dsl~=2.0.0',
         'opensearch-dsl~=2.0.0',
         'snowballstemmer',
         'bleach',

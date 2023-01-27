@@ -3,8 +3,7 @@ from optparse import make_option
 
 from django.apps import apps
 from django.core.management.base import BaseCommand
-from opensearchpy.helpers import scan
-from opensearch_dsl.connections import connections
+from seeker.dsl import connections, scan
 
 
 class Command(BaseCommand):
@@ -28,8 +27,8 @@ class Command(BaseCommand):
         doc_types = ','.join(args) or None
         output = self.stdout
         output.write('[')
-        es = connections.get_connection()
-        for idx, doc in enumerate(scan(es, index=options['index'], doc_type=doc_types)):
+        connection = connections.get_connection()
+        for idx, doc in enumerate(scan(connection, index=options['index'], doc_type=doc_types)):
             if idx > 0:
                 output.write(',')
             output.write(json.dumps(doc, indent=options['indent']), ending='')

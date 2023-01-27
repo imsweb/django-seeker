@@ -1,4 +1,4 @@
-from opensearchpy_dsl.connections import connections
+from seeker.dsl import connections
 
 import os
 import sys

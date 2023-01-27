@@ -8,7 +8,7 @@ import re
 import warnings
 from datetime import datetime
 
-import opensearch_dsl as dsl
+from seeker.dsl import AttrList, Q, dsl
 
 from django.conf import settings
 from django.contrib import messages
@@ -23,8 +23,6 @@ from django.utils.html import escape, format_html
 from django.utils.http import urlencode
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
-from opensearch_dsl import Q
-from opensearch_dsl.utils import AttrList
 
 from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
@@ -139,7 +137,7 @@ class Column(object):
             # We are going to modify this copy with the appropriate highlights
             modified_values = copy.deepcopy(value)
             for highlighted_value in highlight:
-                # Remove the <em> tags elasticsearch added
+                # Remove the <em> tags Elasticsearch/OpenSearch added
                 stripped_value = highlighted_value.replace('<em>', '').replace('</em>', '')
                 index_to_replace = None
                 # Iterate over all of the values and try to find the item that caused the "hit"
@@ -186,17 +184,17 @@ class Column(object):
 class SeekerView(View):
     document = None
     """
-    A :class:`opensearch_dsl.DocType` class to present a view for.
+    A :class:`dsl.DocType` class to present a view for.
     """
 
     using = None
     """
-    The ES connection alias to use.
+    The ES/OS connection alias to use.
     """
 
     index = None
     """
-    The ES index to use. Will use the index set on the mapping if this is not set.
+    The ES/OS index to use. Will use the index set on the mapping if this is not set.
     """
 
     template_name = 'seeker/seeker.html'
@@ -423,7 +421,7 @@ class SeekerView(View):
 
     analyzer = DEFAULT_ANALYZER
     """
-    The ES analyzer used for keyword searching.
+    The ES/OS analyzer used for keyword searching.
     """
 
     missing_sort = None
@@ -445,7 +443,7 @@ class SeekerView(View):
 
     paginator_cap = 10000
     """
-    Elasticsearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
+    Elasticsearch/OpenSearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
     "paginator_cap" documents.
     """
 
@@ -1178,7 +1176,7 @@ class AdvancedColumn(Column):
     def get_data_max_length(self, results):
         """
         Determines maximum length of data populating the column of field_name
-        :param results: search results from elastic search
+        :param results: search results from ElasticSearch/OpenSearch
         :return: maximum length of data, or 0 if the field_name does not exist or the is no data
         """
         max_length = 0
@@ -1235,7 +1233,7 @@ class AdvancedSeekerView(SeekerView):
         'OR': 'should'
     }
     """
-    This dictionary translates the boolean operators passed from the frontend into their elasticsearch equivalents.
+    This dictionary translates the boolean operators passed from the frontend into their Elasticsearch/OpenSearch equivalents.
     """
 
     footer_template = 'advanced_seeker/footer.html'
@@ -1706,7 +1704,7 @@ class AdvancedSeekerView(SeekerView):
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
         Returns two values:
-        1) The ES DSL Q object representing the 'advanced_query' dictionary passed in
+        1) The ES/OS DSL Q object representing the 'advanced_query' dictionary passed in
         2) A list of the selected fields for this query
 
         The advanced_query is a dictionary representation of the advanced query. The following is an example of the accepted format:
@@ -1714,7 +1712,7 @@ class AdvancedSeekerView(SeekerView):
             "condition": "<boolean operator>",
             "rules": [
                 {
-                    "id": "<elasticsearch field id>",
+                    "id": "<Elasticsearch/OpenSearch field id>",
                     "operator": "<comparison operator>",
                     "value": "<search value>"
                 },
@@ -1722,7 +1720,7 @@ class AdvancedSeekerView(SeekerView):
                     "condition": "<boolean operator>",
                     "rules": [
                         {
-                            "id": "<elasticsearch field id>",
+                            "id": "<Elasticsearch/OpenSearch field id>",
                             "operator": "<comparison operator>",
                             "value": "<search value>"
                         }, ...
@@ -1735,7 +1733,7 @@ class AdvancedSeekerView(SeekerView):
 
         NOTES:
         Each 'rule' is a dictionary containing single rules and groups of rules. The value for each rule field are as follows:
-            - id:     The name of the field in the elasticsearch document being searched.
+            - id:     The name of the field in the Elasticsearch/OpenSearch document being searched.
             - operator:  A key in COMPARISON_CONVERSION dictionary. It is up to you to ensure the operator will work with the given field.
             - value:     The value to be used in the comparison for this rule
         Each group of rules will have:
@@ -1747,7 +1745,7 @@ class AdvancedSeekerView(SeekerView):
         if all(k in advanced_query for k in ('id', 'operator', 'value')):
             if advanced_query['id'] not in excluded_facets:
                 facet = facet_lookup.get(advanced_query['id'])
-                return facet.es_query(advanced_query['operator'], advanced_query['value']), [facet.field]
+                return facet.query(advanced_query['operator'], advanced_query['value']), [facet.field]
             return None, None
 
         # Check if all required keys are present for a group

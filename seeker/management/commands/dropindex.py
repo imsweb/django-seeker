@@ -1,22 +1,21 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from opensearch_dsl.connections import connections
-from opensearchpy.exceptions import AuthorizationException, NotFoundError
+from seeker.dsl import AuthorizationException, NotFoundError, connections
 from django.core.exceptions import ImproperlyConfigured
 
 class Command (BaseCommand):
-    help = 'Drops all ES indexes on project with SEEKER_INDEX_PREFIX from settings, or one that you specify. To drop indexes with prefix add wildcard * after prefix of indexes you want deleted'
+    help = 'Drops all ES/OS indexes on project with SEEKER_INDEX_PREFIX from settings, or one that you specify. To drop indexes with prefix add wildcard * after prefix of indexes you want deleted'
 
     def add_arguments(self, parser):
         parser.add_argument('--index',
             dest='index',
             default=None,
-            help='The ES index(es) to drop'
+            help='The ES/OS index(es) to drop'
         )
         parser.add_argument('--using',
             dest='using',
             default=None,
-            help='The ES connection alias to use'
+            help='The ES/OS connection alias to use'
         )
 
     def handle(self, *args, **options):
@@ -28,16 +27,16 @@ class Command (BaseCommand):
                 index_prefix = '{}*'.format(seeker_index_prefix)
             else:
                 raise ImproperlyConfigured('An index or index prefix must be supplied (either through --index or SEEKER_INDEX_PREFIX setting)')
-        connection = options['using'] or 'default'
-        es = connections.get_connection(connection)
-        print('Using connection: "{}"'.format(connection))
+        using = options['using'] or 'default'
+        connection = connections.get_connection(using)
+        print('Using connection: "{}"'.format(using))
         print('Attempting to drop index(es) using the pattern: {}'.format(index_prefix))
-        for index in es.indices.get(index_prefix):
+        for index in connection.indices.get(index_prefix):
             try:
                 print('Attempting to drop index "{}"...'.format(index))
-                if es.indices.exists(index=index):
-                    es.indices.delete(index=index)
-                    if es.indices.exists(index=index):
+                if connection.indices.exists(index=index):
+                    connection.indices.delete(index=index)
+                    if connection.indices.exists(index=index):
                         print('...The index was NOT dropped.')
                     else:
                         print('...The index was dropped.')
