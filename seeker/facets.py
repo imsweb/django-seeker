@@ -6,8 +6,7 @@ import warnings
 
 from django.conf import settings
 from django.utils.encoding import smart_str
-from elasticsearch_dsl import A, Q
-from elasticsearch_dsl.aggs import Terms
+from seeker.dsl import A, Q, Terms
 
 from .utils import validate_date_format
 
@@ -61,9 +60,9 @@ class Facet(object):
     def filter(self, search, values):
         return search
 
-    def es_query(self, operator, value):
+    def query(self, operator, value):
         """
-        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value, multiple values
+        This function returns the dsl query object for this facet. It only accepts a single value, multiple values
         will need to be combined together outside of this function.
         """
         if operator not in self.valid_operators:
@@ -72,6 +71,10 @@ class Facet(object):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('match', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'match'), **{self.field: value})
+
+    def es_query(self, operator, value):
+        warnings.warn('seeker.facets.Facet.es_query will be removed in seeker 8. Please use seeker.facets.Facet.query instead.', DeprecationWarning)
+        return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
         """
@@ -108,7 +111,7 @@ class Facet(object):
 class TermsFacet(Facet):
 
     def __init__(self, field, size=2147483647, sorted_by_key=False, **kwargs):
-        # Elasticsearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
+        # Elasticsearch/OpenSearch default size to 10, so we set the default to 2147483647 in order to get all the buckets for the field.
         self.size = size
         self.filter_operator = kwargs.pop('filter_operator', 'or')
         # option to override default sort by doc_count, can be set to other values by adding the desired values in kwargs
@@ -127,9 +130,9 @@ class TermsFacet(Facet):
         search.aggs[self.name] = self._get_aggregation(**extra)
         return search
 
-    def es_query(self, operator, value):
+    def query(self, operator, value):
         """
-        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         if operator not in self.valid_operators:
@@ -138,6 +141,10 @@ class TermsFacet(Facet):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
+
+    def es_query(self, operator, value):
+        warnings.warn('seeker.facets.TermsFacet.es_query will be removed in seeker 8. Please use seeker.facets.TermsFacet.query instead.', DeprecationWarning)
+        return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
@@ -195,9 +202,9 @@ class TextFacet(Facet):
         """There are no aggregations to apply so we just return the search object."""
         return search
 
-    def es_query(self, operator, value):
+    def query(self, operator, value):
         """
-        This function returns the elasticsearch_dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         values = value.split(self.delimiter)
@@ -209,6 +216,10 @@ class TextFacet(Facet):
             if term:
                 queries.append(Q('prefix', **{self.field: term}))
         return Q('bool', should=queries)
+
+    def es_query(self, operator, value):
+        warnings.warn('seeker.facets.TextFacet.es_query will be removed in seeker 8. Please use seeker.facets.TextFacet.query instead.', DeprecationWarning)
+        return self.query(operator=operator, value=value)
 
     def filter(self, search, value):
         values = value.split(self.delimiter)
@@ -333,13 +344,13 @@ class RangeFilter(Facet):
 
     def _get_range_key(self, _range):
         """
-        This helper function takes a range dictionary and returns the aggregation key.  Key is an optional argument in elasticsearch.
-        If the range in self.ranges does not specify a key, the default key elasticsearch uses is "from-to", where from and to are either floats or *.
+        This helper function takes a range dictionary and returns the aggregation key.  Key is an optional argument in Elasticsearch/OpenSearch.
+        If the range in self.ranges does not specify a key, the default key Elasticsearch/OpenSearch uses is "from-to", where from and to are either floats or *.
         """
         default_from_key = _range.get("from", "*")
         default_to_key = _range.get("to", "*")
 
-        # If a from value was found, we need to cast it as a float since that's how elasticsearch formats the default key.
+        # If a from value was found, we need to cast it as a float since that's how Elasticsearch/OpenSearch formats the default key.
         if default_from_key != "*":
             default_from_key = float(default_from_key)
         # Same as above, if a to value is defined, cast the value as a float.
@@ -384,14 +395,14 @@ class RangeFilter(Facet):
                 if (isinstance(key, str) and range_key == key) or (isinstance(key, list) and range_key in key):
                     valid_ranges.append(_range)
             for _range in valid_ranges:
-                # From and To are optional in elasticsearch.  The translated_range dictionary stores the parameters we
+                # From and To are optional in Elasticsearch/OpenSearch.  The translated_range dictionary stores the parameters we
                 # intend to use in our query base on what is defined in range.
                 translated_range = {}
                 if 'from' in _range:
-                    # We do greater-than or equal to because in Elasticsearch, a range aggregation includes the from value.
+                    # We do greater-than or equal to because in Elasticsearch/OpenSearch, a range aggregation includes the from value.
                     translated_range['gte'] = _range['from']
                 if 'to' in _range:
-                    # We do less-than because in Elasticsearch, a range aggregation exclude the to value.
+                    # We do less-than because in Elasticsearch/OpenSearch, a range aggregation exclude the to value.
                     # Doing less-than or equal to could cause the bucket count to be different than the result counts.
                     translated_range['lt'] = _range['to']
                 # We check that the range, defined in self.ranges, had a 'from' and/or a 'to' value.
@@ -420,15 +431,15 @@ class RangeFilter(Facet):
 
         return self._build_query(r)
 
-    def es_query(self, query_operator, value):
+    def query(self, query_operator, value):
         """
-        This function returns the elasticsearch_dsl query object for the RangeFilter Facet.
-        
+        This function returns the dsl query object for the RangeFilter Facet.
+
         The "value" parameter will be 1 of three options:
             - list: value will be a list of two numbers. The first number represents the lower bound of the range and the second represents the upper bound of the range.
             - number: value can be single number.  Single numbers are used in complex queries when the operator is equal or not equal. (TODO: Update this comment once other operators are supported)
             - range key: value can represent a range key that defined in self.ranges
-        
+
         """
         # We first check if the query operator is valid.
         if query_operator not in self.valid_operators:
@@ -461,6 +472,10 @@ class RangeFilter(Facet):
                     return Q('bool', filter=functools.reduce(operator.or_, filters))
         else:
             raise ValueError("Received invalid range value. Value must be a list of two numbers, a number, or a key defined in self.ranges")
+
+    def es_query(self, query_operator, value):
+        warnings.warn('seeker.facets.RangeFilter.es_query will be removed in seeker 8. Please use seeker.facets.RangeFilter.query instead.', DeprecationWarning)
+        return self.query(query_operator=query_operator, value=value)
 
     def build_filter_dict(self, results):
         filter_dict = super(RangeFilter, self).build_filter_dict(results)

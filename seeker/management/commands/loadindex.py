@@ -3,9 +3,7 @@ from optparse import make_option
 
 from django.apps import apps
 from django.core.management.base import BaseCommand, CommandError
-from elasticsearch.helpers import bulk
-from elasticsearch_dsl.connections import connections
-
+from seeker.dsl import bulk, connections
 
 
 class Command(BaseCommand):
@@ -36,8 +34,8 @@ class Command(BaseCommand):
                 refresh_indices.add(data['_index'])
                 yield data
 
-        es = connections.get_connection()
-        bulk(es, get_actions())
+        connection = connections.get_connection()
+        bulk(connection, get_actions())
 
         for index in refresh_indices:
-            es.indices.refresh(index=index)
+            connection.indices.refresh(index=index)

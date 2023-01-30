@@ -8,10 +8,7 @@ from django.conf import settings
 from django.http import QueryDict
 from django.utils import timezone
 from django.utils.encoding import force_str
-from elasticsearch import NotFoundError
-from elasticsearch_dsl.connections import connections
-
-import elasticsearch_dsl as dsl
+from seeker.dsl import NotFoundError, connections, dsl
 
 from .registry import model_documents
 
@@ -35,9 +32,9 @@ def update_timestamp_index(index):
             # If the index comes in as a Index object, transform it to its string name
             if not isinstance(index, str):
                 index = index._name
-            timestamp_es = connections.get_connection(timestamp_connection_alias)
+            timestamp_connection = connections.get_connection(timestamp_connection_alias)
             body = {'index_name': index, 'last_access': timezone.now()}
-            timestamp_es.index(
+            timestamp_connection.index(
                 index=timestamp_index,
                 body=body,
                 id=index,
@@ -61,10 +58,10 @@ def index(obj, index=None, using=None):
             continue
         doc_using = using or doc_class._index._using or 'default'
         doc_index = index or doc_class._index._name
-        es = connections.get_connection(doc_using)
+        connection = connections.get_connection(doc_using)
         body = doc_class.serialize(obj)
         doc_id = body.pop('_id', None)
-        es.index(
+        connection.index(
             index=doc_index,
             body=body,
             id=doc_id,
@@ -75,16 +72,16 @@ def index(obj, index=None, using=None):
 
 def delete(obj, index=None, using=None):
     """
-    Shortcut to delete a Django object from the ES index based on it's model class.
+    Shortcut to delete a Django object from the ES/OS index based on it's model class.
     """
     from django.contrib.contenttypes.models import ContentType
     model_class = ContentType.objects.get_for_model(obj).model_class()
     for doc_class in model_documents.get(model_class, []):
         doc_using = using or doc_class._index._using or 'default'
         doc_index = index or doc_class._index._name
-        es = connections.get_connection(doc_using)
+        connection = connections.get_connection(doc_using)
         try:
-            es.delete(
+            connection.delete(
                 index=doc_index,
                 id=doc_class.get_id(obj),
                 refresh=True
