@@ -9,11 +9,11 @@ if getattr(settings, 'SEEKER_OPENSEARCH', False):
     from opensearch_dsl.field import Object
     from opensearch_dsl.response import Response
     from opensearch_dsl.utils import AttrList
-    from opensearchpy.exceptions import AuthorizationException, NotFoundError
+    from opensearchpy.exceptions import AuthorizationException, NotFoundError, TransportError
     from opensearchpy.helpers import bulk, scan
 else:
     import elasticsearch_dsl as dsl
-    from elasticsearch.exceptions import AuthorizationException, NotFoundError
+    from elasticsearch.exceptions import AuthorizationException, NotFoundError, TransportError
     from elasticsearch.helpers import bulk, scan
     from elasticsearch_dsl import A, Q, Search
     from elasticsearch_dsl.aggs import Terms
