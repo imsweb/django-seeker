@@ -27,7 +27,7 @@ For the purposes of this document, take the following models::
 Basic Documents
 ---------------
 
-Documents are analogous to Django models, but for Elasticsearch instead of a database. For the simplest cases, you can
+Documents are analogous to Django models, but for Elasticsearch/OpenSearch instead of a database. For the simplest cases, you can
 let seeker define the document for you, indexing any field it can::
 
     import seeker
@@ -51,7 +51,7 @@ Customizing Field Mappings
 
 You can specify how seeker builds the mapping for your model class in several ways::
 
-    import elasticsearch_dsl as dsl
+    from seeker.dsl import dsl
 
     class PostDoc(seeker.ModelIndex):
         # Custom field definition for existing field
@@ -73,10 +73,10 @@ Think of ``Meta.mapping`` as the "base" set of fields, which you can then custom
 Any field defined on your document class will take precedence over those built in ``Meta.mapping`` with the same name, and any new fields
 will be added to the mapping.
 
-Notice in the example above that ``author`` is overridden to use `Elasticsearch object type`_, and ``word_count`` is an extra field not
+Notice in the example above that ``author`` is overridden to use `Elasticsearch/OpenSearch object type`_, and ``word_count`` is an extra field not
 defined by the ``Post`` model.
 
-.. _`Elasticsearch object type`: https://www.elastic.co/guide/en/elasticsearch/reference/1.7/mapping-object-type.html
+.. _`Elasticsearch/OpenSearch object type`: https://www.elastic.co/guide/en/elasticsearch/reference/1.7/mapping-object-type.html
 
 
 Indexing Data
@@ -123,7 +123,7 @@ When re-indexing a mapping, the process is as follows:
     2. :meth:`seeker.mapping.ModelIndex.queryset` is called to get the queryset of Django objects to index.
     3. The resulting queryset is sliced into groups of ``batch_size`` (ordered by PK), to avoid a single large query.
     4. For each object, :meth:`seeker.mapping.ModelIndex.should_index` is called to determine if the object should be indexed. By default, all objects are indexed.
-    5. :meth:`seeker.mapping.ModelIndex.get_id` and :meth:`seeker.mapping.ModelIndex.serialize` are called to generate the ID and data sent to Elasticsearch for each object.
+    5. :meth:`seeker.mapping.ModelIndex.get_id` and :meth:`seeker.mapping.ModelIndex.serialize` are called to generate the ID and data sent to Elasticsearch/OpenSearch for each object.
 
 
 Non-Django Documents

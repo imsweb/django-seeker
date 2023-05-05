@@ -9,7 +9,7 @@ SEEKER_INDEX
 
 Default: ``seeker``
 
-The name of the ES index that should be used by default. This can be overridden per mapping.
+The name of the ES/OS index that should be used by default. This can be overridden per mapping.
 
 
 SEEKER_INDEX_PREFIX
@@ -17,7 +17,7 @@ SEEKER_INDEX_PREFIX
 
 Default: ``seeker``
 
-The PREFIX used for each ES index created.
+The PREFIX used for each ES/OS index created.
 
 
 SEEKER_INDEX_SETTINGS
@@ -65,7 +65,7 @@ SEEKER_DEFAULT_ANALYZER
 
 Default: ``snowball``
 
-The analyzer to use by default when creating ``elasticsearch_dsl.String`` fields. Also used by default in ``SeekerView``
+The analyzer to use by default when creating ``dsl.String`` fields. Also used by default in ``SeekerView``
 to determine how query strings should be analyzed (it's important that queries are analyzed the same way as your data).
 
 

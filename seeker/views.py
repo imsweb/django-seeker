@@ -8,7 +8,7 @@ import re
 import warnings
 from datetime import datetime
 
-import elasticsearch_dsl as dsl
+from seeker.dsl import AttrList, Q, dsl
 
 from django.conf import settings
 from django.contrib import messages
@@ -19,20 +19,18 @@ from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, TemplateDoesNotExist, loader
 from django.template.defaultfilters import truncatewords_html, truncatechars_html
 from django.utils import timezone
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.html import escape, format_html
 from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
-from elasticsearch_dsl import Q
-from elasticsearch_dsl.utils import AttrList
 
 from .facets import TermsFacet, RangeFilter, TextFacet
 from .mapping import DEFAULT_ANALYZER
 from .signals import advanced_search_performed, search_complete
 from .templatetags.seeker import seeker_format
-from seeker.utils import update_timestamp_index
+from seeker.utils import is_ajax, update_timestamp_index
 
 seekerview_field_templates = {}
 
@@ -110,7 +108,8 @@ class Column(object):
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
         sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -146,7 +145,7 @@ class Column(object):
             # We are going to modify this copy with the appropriate highlights
             modified_values = copy.deepcopy(value)
             for highlighted_value in highlight:
-                # Remove the <em> tags elasticsearch added
+                # Remove the <em> tags Elasticsearch/OpenSearch added
                 stripped_value = highlighted_value.replace('<em>', '').replace('</em>', '')
                 index_to_replace = None
                 # Iterate over all of the values and try to find the item that caused the "hit"
@@ -201,7 +200,7 @@ class Column(object):
             value = getattr(result, export_field, '')
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
-            export_val = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+            export_val = ', '.join(force_str(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
         else:
             export_val = ''
         return export_val
@@ -210,17 +209,17 @@ class Column(object):
 class SeekerView(View):
     document = None
     """
-    A :class:`elasticsearch_dsl.DocType` class to present a view for.
+    A :class:`dsl.DocType` class to present a view for.
     """
 
     using = None
     """
-    The ES connection alias to use.
+    The ES/OS connection alias to use.
     """
 
     index = None
     """
-    The ES index to use. Will use the index set on the mapping if this is not set.
+    The ES/OS index to use. Will use the index set on the mapping if this is not set.
     """
 
     template_name = 'seeker/seeker.html'
@@ -447,7 +446,7 @@ class SeekerView(View):
 
     analyzer = DEFAULT_ANALYZER
     """
-    The ES analyzer used for keyword searching.
+    The ES/OS analyzer used for keyword searching.
     """
 
     missing_sort = None
@@ -467,6 +466,18 @@ class SeekerView(View):
     For example: search_params = {'routing': '42}
     """
 
+    paginator_cap = 10000
+    """
+    Elasticsearch/OpenSearch, by default, cannot paginate past 10,000 documents. This will be used to limit the paginator to
+    "paginator_cap" documents.
+    """
+
+    field_definition_data_attrs = {}
+    """
+    A dictionary in which the keys are names of HTML data attributes and the values are the respective HTML values.
+    The resulting HTML will be placed in the span displaying the field_defintion.
+    """
+
     def modify_context(self, context, request):
         """
         This function allows modifications to the context that will be used to render the initial seeker page.
@@ -480,6 +491,14 @@ class SeekerView(View):
             return int(ps) if int(ps) > 0 and int(ps) in self.available_page_sizes else self.page_size
         except ValueError:
             return self.page_size
+
+    def calculate_page_and_offset(self, page, page_size, search):
+        offset = (page - 1) * page_size
+        results_count = search[0:0].execute().hits.total.value
+        if results_count <= offset:
+            page = 1
+            offset = 0
+        return page, offset
 
     def modify_results_context(self, context):
         """
@@ -716,7 +735,7 @@ class SeekerView(View):
         facets = []
         for facet in self.facets:
             if self.request.user.is_authenticated or not facet.related_column_name in self.login_required_columns:
-                facets.append(facet) 
+                facets.append(facet)
         return facets
 
     def get_sorts(self):
@@ -844,7 +863,7 @@ class SeekerView(View):
         Can be overridden in case of non initial get requests that aren't ajax (submitted form)
         This will depend on the seeker form html and the info coming in on the get request
         """
-        return not self.request.is_ajax()
+        return not is_ajax(self.request)
 
     def apply_highlight(self, search, columns):
         highlight_fields = self.highlight if isinstance(self.highlight, (list, tuple)) else [c.highlight for c in columns if c.highlight]
@@ -857,7 +876,7 @@ class SeekerView(View):
 
         querystring = self.normalized_querystring(ignore=['p', 'saved_search'])
 
-        if self.request.user and self.request.user.is_authenticated and not querystring and not self.request.is_ajax():
+        if self.request.user and self.request.user.is_authenticated and not querystring and not is_ajax(self.request):
             default = self.request.user.seeker_searches.filter(url=self.request.path, default=True).first()
             if default and default.querystring:
                 return redirect(default)
@@ -913,14 +932,11 @@ class SeekerView(View):
         page_size = self.get_page_size()
         page = self.request.GET.get('p', '').strip()
         page = int(page) if page.isdigit() else 1
-        offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total.value
-        if results_count <= offset:
-            page = 1
-            offset = 0
+        page, offset = self.calculate_page_and_offset(page, page_size, search)
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
 
         # Finally, grab the results.
-        results = search.sort(*sort_fields)[offset:offset + page_size].execute()
+        results = search.sort(*sort_fields)[offset:upper_paging_limit].execute()
         context_querystring = self.normalized_querystring(ignore=['p'])
         sort = sorts[0] if sorts else None
         context = {
@@ -953,6 +969,7 @@ class SeekerView(View):
             'saved_search': saved_search,
             'saved_searches': list(saved_searches),
             'use_save_form': self.use_save_form,
+            'paginator_cap': self.paginator_cap,
         }
         if self.use_save_form:
             SavedSearchForm = self.get_saved_search_form()
@@ -968,7 +985,7 @@ class SeekerView(View):
         self.modify_context(context, self.request)
 
         search_complete.send(sender=self, context=context)
-        if self.request.is_ajax():
+        if is_ajax(self.request):
             ajax_data = {
                 'querystring': context_querystring,
                 'page': page,
@@ -1001,7 +1018,7 @@ class SeekerView(View):
         facets = self.get_facet_data(self.request.GET, exclude=facet)
         search = self.get_search(keywords, facets, aggregate=False)
         fq = '.*' + self.request.GET.get('_query', '').strip() + '.*'
-        facet.apply(search, include={'pattern': fq, 'flags': 'CASE_INSENSITIVE'})
+        facet.apply(search, include=fq)
         return JsonResponse(facet.data(search.execute()))
 
     def filter_initial_facets(self):
@@ -1012,7 +1029,7 @@ class SeekerView(View):
             if self.request.user.is_authenticated or related_column_name not in self.login_required_columns:
                 filtered_initial_facets[field] = self.initial_facets[field]
         return filtered_initial_facets
-       
+
     def modify_initial_facets(self):
         warnings.warn(
             "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
@@ -1032,8 +1049,8 @@ class SeekerView(View):
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(force_text(v) for v in value)
-            return '"%s"' % force_text(value).replace('"', '""')
+                value = '; '.join(force_str(v) for v in value)
+            return '"%s"' % force_str(value).replace('"', '""')
 
         def csv_generator():
             yield ','.join('"%s"' % c.label for c in columns if c.visible and c.export) + '\n'
@@ -1064,7 +1081,7 @@ class SeekerView(View):
             saved_search_pk = None
         if '_save' in request.POST:
             # A "sub" method that handles ajax save submissions (and returns JSON, not a redirect)
-            if request.is_ajax() and self.use_save_form:
+            if is_ajax(request) and self.use_save_form:
 
                 response_data = {}  # All data must be able to flatten to JSON
 
@@ -1171,7 +1188,8 @@ class AdvancedColumn(Column):
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
-            span = format_html('<span title="{}" class ="fa fa-question-circle"></span>', self.field_definition)
+            data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
+            span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
         else:
             span = ''
         html = format_html(
@@ -1183,7 +1201,7 @@ class AdvancedColumn(Column):
     def get_data_max_length(self, results):
         """
         Determines maximum length of data populating the column of field_name
-        :param results: search results from elastic search
+        :param results: search results from ElasticSearch/OpenSearch
         :return: maximum length of data, or 0 if the field_name does not exist or the is no data
         """
         max_length = 0
@@ -1219,7 +1237,7 @@ class AdvancedColumn(Column):
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
             elif isinstance(value, AttrList):
-                value = ', '.join(force_text(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value)
+                value = ', '.join(force_str(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value)
             if self.value_format:
                 value = self.value_format(value)
             export_val = seeker_format(value)
@@ -1240,7 +1258,7 @@ class AdvancedSeekerView(SeekerView):
         'OR': 'should'
     }
     """
-    This dictionary translates the boolean operators passed from the frontend into their elasticsearch equivalents.
+    This dictionary translates the boolean operators passed from the frontend into their Elasticsearch/OpenSearch equivalents.
     """
 
     footer_template = 'advanced_seeker/footer.html'
@@ -1311,7 +1329,7 @@ class AdvancedSeekerView(SeekerView):
     value_formats = {}
     """
     key: field_name, value: value_format function
-    A dictionary of custom formats used for extracting values from mappings. 
+    A dictionary of custom formats used for extracting values from mappings.
     value_formats are used for creating columns and exporting values in csv files.
     """
 
@@ -1483,7 +1501,7 @@ class AdvancedSeekerView(SeekerView):
               Since it will be passed back in the response extra values can be added to give the site context as to what search is being loaded.
         """
         export = request.POST.get('_export', False)
-        if request.is_ajax() or export:
+        if is_ajax(request) or export:
             try:
                 string_search_object = request.POST.get('search_object')
                 # We attach this to self so AdvancedColumn can have access to it
@@ -1609,6 +1627,7 @@ class AdvancedSeekerView(SeekerView):
 
         page_size = int(self.search_object.get('page_size', self.page_size))
         page, offset = self.calculate_page_and_offset(self.search_object['page'], page_size, search)
+        upper_paging_limit = min(offset + page_size, self.paginator_cap)
 
         display = self.get_display(self.search_object['display'], facets_searched)
         sort = bool(export) or not self.always_display_highlighted_columns
@@ -1627,11 +1646,11 @@ class AdvancedSeekerView(SeekerView):
         sort = self.get_sort_field(columns, self.search_object['sort'], display)
         if sort:
             if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
-                results = search.sort(*self.sort_descriptor(sort))[offset:offset + page_size].execute()
+                results = search.sort(*self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
             else:
-                results = search.sort(self.sort_descriptor(sort))[offset:offset + page_size].execute()
+                results = search.sort(self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
         else:
-            results = search[offset:offset + page_size].execute()
+            results = search[offset:upper_paging_limit].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
@@ -1661,7 +1680,8 @@ class AdvancedSeekerView(SeekerView):
             'sort': sort,
             'export_name': self.export_name,
             'use_wordwrap_header': self.use_wordwrap_header,
-            'search': search
+            'search': search,
+            'paginator_cap': self.paginator_cap,
         }
         self.modify_results_context(context)
 
@@ -1674,14 +1694,6 @@ class AdvancedSeekerView(SeekerView):
         self.modify_json_response(json_response, context)
         advanced_search_performed.send(sender=self.__class__, request=self.request, context=context, json_response=json_response)
         return JsonResponse(json_response)
-
-    def calculate_page_and_offset(self, page, page_size, search):
-        offset = (page - 1) * page_size
-        results_count = search[0:0].execute().hits.total.value
-        if results_count <= offset:
-            page = 1
-            offset = 0
-        return page, offset
 
     def apply_aggregations(self, search, query, facet_lookup):
         """
@@ -1717,7 +1729,7 @@ class AdvancedSeekerView(SeekerView):
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
         Returns two values:
-        1) The ES DSL Q object representing the 'advanced_query' dictionary passed in
+        1) The ES/OS DSL Q object representing the 'advanced_query' dictionary passed in
         2) A list of the selected fields for this query
 
         The advanced_query is a dictionary representation of the advanced query. The following is an example of the accepted format:
@@ -1725,7 +1737,7 @@ class AdvancedSeekerView(SeekerView):
             "condition": "<boolean operator>",
             "rules": [
                 {
-                    "id": "<elasticsearch field id>",
+                    "id": "<Elasticsearch/OpenSearch field id>",
                     "operator": "<comparison operator>",
                     "value": "<search value>"
                 },
@@ -1733,7 +1745,7 @@ class AdvancedSeekerView(SeekerView):
                     "condition": "<boolean operator>",
                     "rules": [
                         {
-                            "id": "<elasticsearch field id>",
+                            "id": "<Elasticsearch/OpenSearch field id>",
                             "operator": "<comparison operator>",
                             "value": "<search value>"
                         }, ...
@@ -1746,7 +1758,7 @@ class AdvancedSeekerView(SeekerView):
 
         NOTES:
         Each 'rule' is a dictionary containing single rules and groups of rules. The value for each rule field are as follows:
-            - id:     The name of the field in the elasticsearch document being searched.
+            - id:     The name of the field in the Elasticsearch/OpenSearch document being searched.
             - operator:  A key in COMPARISON_CONVERSION dictionary. It is up to you to ensure the operator will work with the given field.
             - value:     The value to be used in the comparison for this rule
         Each group of rules will have:
@@ -1758,7 +1770,7 @@ class AdvancedSeekerView(SeekerView):
         if all(k in advanced_query for k in ('id', 'operator', 'value')):
             if advanced_query['id'] not in excluded_facets:
                 facet = facet_lookup.get(advanced_query['id'])
-                return facet.es_query(advanced_query['operator'], advanced_query['value']), [facet.field]
+                return facet.query(advanced_query['operator'], advanced_query['value']), [facet.field]
             return None, None
 
         # Check if all required keys are present for a group
@@ -1794,8 +1806,8 @@ class AdvancedSeekerView(SeekerView):
 
         def csv_escape(value):
             if isinstance(value, (list, tuple)):
-                value = '; '.join(force_text(v) for v in value)
-            return '"%s"' % force_text(value).replace('"', '""')
+                value = '; '.join(force_str(v) for v in value)
+            return '"%s"' % force_str(value).replace('"', '""')
 
         def csv_generator():
             yield ','.join('"%s"' % c.label for c in columns if c.visible and c.export) + '\n'
@@ -1847,7 +1859,7 @@ class AdvancedSavedSearchView(View):
     """
 
     def get(self, request, *args, **kwargs):
-        if self.request.is_ajax():
+        if is_ajax(self.request):
             try:
                 url = request.GET.get(self.url_parameter)
             except KeyError:
@@ -1885,7 +1897,7 @@ class AdvancedSavedSearchView(View):
             return HttpResponseBadRequest("This endpoint only accepts AJAX requests.")
 
     def post(self, request, *args, **kwargs):
-        if self.request.is_ajax():
+        if is_ajax(self.request):
             try:
                 url = request.POST.get(self.url_parameter)
             except KeyError:
