@@ -40,11 +40,19 @@ class Column(object):
     """
 
     """
-    If set, truncate_results should be a dictionary with two keys: type, amount.
-    type can be either 'words' or 'chars'.
-    amount is the desired number of words/chars to be truncated.
+    If enabled, large fields will be truncated in a "..." format
     """
-    truncate_results = getattr(settings, 'TRUNCATE_RESULTS', {})
+    SEEKER_ENABLE_TRUNCATION = getattr(settings, 'SEEKER_ENABLE_TRUNCATION', False)
+
+    """
+    The value of SEEKER_TRUNCATION_TYPE can be either "words" or 'chars".
+    """
+    SEEKER_TRUNCATION_TYPE = getattr(settings, 'SEEKER_TRUNCATION_TYPE', 'words')
+
+    """
+    The desired number of words/chars to be truncated.
+    """
+    SEEKER_TRUNCATION_AMOUNT = getattr(settings, 'SEEKER_TRUNCATION_AMOUNT', 5)
     view = None
     visible = False
 
@@ -164,19 +172,42 @@ class Column(object):
                 highlight = self.value_format(highlight)
 
         truncated_value = None
-        if isinstance(value, str):
-            truncate_results_type = self.truncate_results.get('type')
-            truncate_results_amount = self.truncate_results.get('amount')
+        if self.SEEKER_ENABLE_TRUNCATION and isinstance(value, str):
             truncate_func = None
-            if truncate_results_type == 'words' and len(value.split(' ')) > truncate_results_amount:
+            if self.SEEKER_TRUNCATION_TYPE == 'words' and len(value.split(' ')) > self.SEEKER_TRUNCATION_AMOUNT:
                 truncate_func = truncatewords_html
-            elif truncate_results_type == 'chars' and len(value) > truncate_results_amount:
+            elif self.SEEKER_TRUNCATION_TYPE == 'chars' and len(value) > self.SEEKER_TRUNCATION_AMOUNT:
                 truncate_func = truncatechars_html
             if truncate_func:
                 if highlight:
-                    truncated_value = mark_safe(f"<em>{self.view.search_object['keywords']}...</em>")
+                    indices = []
+                    keywords = self.view.search_object['keywords']
+                    for re_match in re.finditer(keywords, value):
+                        start = re_match.start()
+                        end = re_match.end()
+                        for idx in [start, end]:
+                            if idx != 0:
+                                indices.append(idx)
+                    indices = [0, *indices, None]
+                    parts = [value[indices[i]:indices[i + 1]] for i in range(len(indices) - 1)]
+                    parts_with_ellipses = [*parts]
+                    indices_marked_for_ellipses_only = []
+                    indicies_marked_for_truncation = []
+                    for idx, part in enumerate(parts):
+                        if part == keywords:
+                            parts_with_ellipses[idx] = f'<em>{part}</em>'
+                            if idx - 1 >= 0:
+                                indices_marked_for_ellipses_only.append(idx - 1)
+                            if idx + 1 < len(parts_with_ellipses):
+                                indicies_marked_for_truncation.append(idx + 1)
+                    indices_marked_for_ellipses_only = [idx for idx in indices_marked_for_ellipses_only if idx not in indicies_marked_for_truncation]
+                    for idx in indices_marked_for_ellipses_only:
+                        parts_with_ellipses[idx] = '...'
+                    for idx in indicies_marked_for_truncation:
+                        parts_with_ellipses[idx] = truncate_func(parts[idx], self.SEEKER_TRUNCATION_AMOUNT)
+                    truncated_value = mark_safe(''.join(parts_with_ellipses))
                 else:
-                    truncated_value = truncate_func(value, truncate_results_amount)
+                    truncated_value = truncate_func(value, self.SEEKER_TRUNCATION_AMOUNT)
 
         params = {
             'result': result,
