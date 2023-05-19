@@ -42,17 +42,17 @@ class Column(object):
     """
     If enabled, large fields will be truncated in a "..." format
     """
-    SEEKER_ENABLE_TRUNCATION = getattr(settings, 'SEEKER_ENABLE_TRUNCATION', False)
+    seeker_enable_truncation = getattr(settings, 'SEEKER_ENABLE_TRUNCATION', False)
 
     """
     The value of SEEKER_TRUNCATION_TYPE can be either "words" or 'chars".
     """
-    SEEKER_TRUNCATION_TYPE = getattr(settings, 'SEEKER_TRUNCATION_TYPE', 'words')
+    seeker_truncation_type = getattr(settings, 'SEEKER_TRUNCATION_TYPE', 'words')
 
     """
     The desired number of words/chars to be truncated.
     """
-    SEEKER_TRUNCATION_AMOUNT = getattr(settings, 'SEEKER_TRUNCATION_AMOUNT', 5)
+    seeker_truncation_amount = getattr(settings, 'SEEKER_TRUNCATION_AMOUNT', 5)
     view = None
     visible = False
 
@@ -172,42 +172,22 @@ class Column(object):
                 highlight = self.value_format(highlight)
 
         truncated_value = None
-        if self.SEEKER_ENABLE_TRUNCATION and isinstance(value, str):
+        if self.seeker_enable_truncation and isinstance(value, str):
             truncate_func = None
-            if self.SEEKER_TRUNCATION_TYPE == 'words' and len(value.split(' ')) > self.SEEKER_TRUNCATION_AMOUNT:
+            if self.seeker_truncation_type == 'words' and len(value.split()) > self.seeker_truncation_amount:
                 truncate_func = truncatewords_html
-            elif self.SEEKER_TRUNCATION_TYPE == 'chars' and len(value) > self.SEEKER_TRUNCATION_AMOUNT:
+            elif self.seeker_truncation_type == 'chars' and len(value) > self.seeker_truncation_amount:
                 truncate_func = truncatechars_html
             if truncate_func:
                 if highlight:
-                    indices = []
                     keywords = self.view.search_object['keywords']
-                    for re_match in re.finditer(keywords, value):
-                        start = re_match.start()
-                        end = re_match.end()
-                        for idx in [start, end]:
-                            if idx != 0:
-                                indices.append(idx)
-                    indices = [0, *indices, None]
-                    parts = [value[indices[i]:indices[i + 1]] for i in range(len(indices) - 1)]
-                    parts_with_ellipses = [*parts]
-                    indices_marked_for_ellipses_only = []
-                    indicies_marked_for_truncation = []
-                    for idx, part in enumerate(parts):
-                        if part == keywords:
-                            parts_with_ellipses[idx] = f'<em>{part}</em>'
-                            if idx - 1 >= 0:
-                                indices_marked_for_ellipses_only.append(idx - 1)
-                            if idx + 1 < len(parts_with_ellipses):
-                                indicies_marked_for_truncation.append(idx + 1)
-                    indices_marked_for_ellipses_only = [idx for idx in indices_marked_for_ellipses_only if idx not in indicies_marked_for_truncation]
-                    for idx in indices_marked_for_ellipses_only:
-                        parts_with_ellipses[idx] = '...'
-                    for idx in indicies_marked_for_truncation:
-                        parts_with_ellipses[idx] = truncate_func(parts[idx], self.SEEKER_TRUNCATION_AMOUNT)
-                    truncated_value = mark_safe(''.join(parts_with_ellipses))
+                    first_index_of_highlight = value.index(keywords)
+                    last_index_of_highlight = first_index_of_highlight + len(keywords)
+                    truncated_value = mark_safe(
+                        f"{'...' if first_index_of_highlight else ''}<em>{keywords}</em>{truncate_func(value[last_index_of_highlight:], self.seeker_truncation_amount)}"
+                    )
                 else:
-                    truncated_value = truncate_func(value, self.SEEKER_TRUNCATION_AMOUNT)
+                    truncated_value = truncate_func(value, self.seeker_truncation_amount)
 
         params = {
             'result': result,

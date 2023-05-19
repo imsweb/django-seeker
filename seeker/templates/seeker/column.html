@@ -1,12 +1,12 @@
 {% load seeker %}
 <td class="{{ result.meta.doc_type }}_{{ field }} {% if model_lower %}{{ model_lower }}_{{ field }}{% endif %} {{ doc_class_name }}_{{ field }}">
-    {% if truncated_value %}
-        {{ truncated_value|seeker_format }}
-    {% elif highlight %}
-        {{ highlight|seeker_format|safe }}
-    {% else %}
-        {{ value|seeker_format }}
-    {% endif %}
-    {% block after-value %}
-    {% endblock after-value %}
+    {% block value %}
+        {% if truncated_value %}
+            {{ truncated_value|seeker_format }}
+        {% elif highlight %}
+            {{ highlight|seeker_format|safe }}
+        {% else %}
+            {{ value|seeker_format }}
+        {% endif %}
+    {% endblock value %}
 </td>
