@@ -180,12 +180,13 @@ class Column(object):
                 truncate_func = truncatechars_html
             if truncate_func:
                 if highlight:
-                    keywords = self.view.search_object['keywords']
-                    first_index_of_highlight = value.index(keywords)
-                    last_index_of_highlight = first_index_of_highlight + len(keywords)
-                    truncated_value = mark_safe(
-                        f"{'...' if first_index_of_highlight else ''}<em>{keywords}</em>{truncate_func(value[last_index_of_highlight:], self.seeker_truncation_amount)}"
-                    )
+                    highlight_str = highlight[0] if isinstance(highlight, AttrList) else highlight
+                    start = highlight_str.find('<em>')
+                    end = highlight_str.find('</em>') + 5
+                    prefix = '...' if start > 0 else ''
+                    highlighted_value = highlight_str[start:end]
+                    trunc_value = truncate_func(highlight_str[end:], self.seeker_truncation_amount)
+                    truncated_value = mark_safe(f"{prefix}{highlighted_value}{trunc_value}")
                 else:
                     truncated_value = truncate_func(value, self.seeker_truncation_amount)
 
