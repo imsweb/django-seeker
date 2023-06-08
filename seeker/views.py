@@ -17,10 +17,12 @@ from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
 from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.template import Context, RequestContext, TemplateDoesNotExist, loader
+from django.template.defaultfilters import truncatewords_html, truncatechars_html
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.html import escape, format_html
 from django.utils.http import urlencode
+from django.utils.safestring import mark_safe
 from django.views.generic import View
 from django.views.generic.edit import CreateView, FormView
 
@@ -37,6 +39,20 @@ class Column(object):
     """
     """
 
+    """
+    If enabled, large fields will be truncated in a "..." format
+    """
+    seeker_enable_truncation = getattr(settings, 'SEEKER_ENABLE_TRUNCATION', False)
+
+    """
+    The value of SEEKER_TRUNCATION_TYPE can be either "words" or 'chars".
+    """
+    seeker_truncation_type = getattr(settings, 'SEEKER_TRUNCATION_TYPE', 'words')
+
+    """
+    The desired number of words/chars to be truncated.
+    """
+    seeker_truncation_amount = getattr(settings, 'SEEKER_TRUNCATION_AMOUNT', 5)
     view = None
     visible = False
 
@@ -155,10 +171,31 @@ class Column(object):
             if highlight:
                 highlight = self.value_format(highlight)
 
+        truncated_value = None
+        if self.seeker_enable_truncation and isinstance(value, str):
+            truncate_func = None
+            if self.seeker_truncation_type == 'words' and len(value.split()) > self.seeker_truncation_amount:
+                truncate_func = truncatewords_html
+            elif self.seeker_truncation_type == 'chars' and len(value) > self.seeker_truncation_amount:
+                truncate_func = truncatechars_html
+            if truncate_func:
+                if highlight:
+                    highlight_str = highlight[0] if isinstance(highlight, AttrList) else highlight
+                    start = highlight_str.find('<em>')
+                    end = highlight_str.find('</em>') + 5
+                    prefix = '...' if start > 0 else ''
+                    highlighted_value = highlight_str[start:end]
+                    trunc_value = truncate_func(highlight_str[end:], self.seeker_truncation_amount)
+                    truncated_value = mark_safe(f"{prefix}{highlighted_value}{trunc_value}")
+                else:
+                    truncated_value = truncate_func(value, self.seeker_truncation_amount)
+
         params = {
             'result': result,
             'field': self.field,
+            'label': self.label,
             'value': value,
+            'truncated_value': truncated_value,
             'highlight': highlight,
             'model_lower': self.model_lower,
             'doc_class_name': result.__class__.__name__.lower(),
