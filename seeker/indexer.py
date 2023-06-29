@@ -21,6 +21,7 @@ class ModelIndexer(object):
 
         for model_class, document_classes in model_documents.items():
             signals.post_save.connect(self.handle_save, sender=model_class)
+            signals.m2m_changed.connect(self.handle_m2m_changed, sender=model_class)
             signals.post_delete.connect(self.handle_delete, sender=model_class)
 
             for document_class in document_classes:
@@ -29,6 +30,7 @@ class ModelIndexer(object):
     def disconnect_signal_handlers(self):
         for model_class, document_classes in model_documents.items():
             signals.post_save.disconnect(self.handle_save, sender=model_class)
+            signals.m2m_changed.disconnect(self.handle_m2m_changed, sender=model_class)
             signals.post_delete.disconnect(self.handle_delete, sender=model_class)
 
             for document_class in document_classes:
