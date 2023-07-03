@@ -19,22 +19,32 @@ class ModelIndexer(object):
         Connects save and delete signal handler for mapped models. Also checks each ModelIndex for any additional signal handling that may be needed. 
         """
 
+        through = set()
+
         for model_class, document_classes in model_documents.items():
             signals.post_save.connect(self.handle_save, sender=model_class)
-            signals.m2m_changed.connect(self.handle_m2m_changed, sender=model_class)
+            through.update([m2m.remote_field.through for m2m in model_class._meta.many_to_many])
             signals.post_delete.connect(self.handle_delete, sender=model_class)
 
             for document_class in document_classes:
                 document_class.connect_additional_signal_handlers(self)
+        
+        for model_class in through:
+            signals.m2m_changed.connect(self.handle_m2m_changed, sender=model_class)
 
     def disconnect_signal_handlers(self):
+        through = set()
+
         for model_class, document_classes in model_documents.items():
             signals.post_save.disconnect(self.handle_save, sender=model_class)
-            signals.m2m_changed.disconnect(self.handle_m2m_changed, sender=model_class)
+            through.update([m2m.remote_field.through for m2m in model_class._meta.many_to_many])
             signals.post_delete.disconnect(self.handle_delete, sender=model_class)
 
             for document_class in document_classes:
                 document_class.disconnect_additional_signal_handlers(self)
+        
+        for model_class in through:
+            signals.m2m_changed.disconnect(self.handle_m2m_changed, sender=model_class)
 
     def handle_save(self, sender, instance, **kwargs):
         try:
