@@ -181,14 +181,15 @@ class Column(object):
             if truncate_func:
                 if highlight:
                     highlight_str = highlight[0] if isinstance(highlight, AttrList) else highlight
+                    highlight_str = highlight_str.lstrip("['").rstrip("']")
                     start = highlight_str.find('<em>')
                     end = highlight_str.find('</em>') + 5
-                    prefix = '...' if start > 0 else ''
+                    prefix = '…' if start > 0 else ''
                     highlighted_value = highlight_str[start:end]
                     trunc_value = truncate_func(highlight_str[end:], self.seeker_truncation_amount)
-                    truncated_value = mark_safe(f"{prefix}{highlighted_value}{trunc_value}")
+                    truncated_value = mark_safe(f"{prefix}{highlighted_value}{trunc_value}".replace(' …', '…'))
                 else:
-                    truncated_value = truncate_func(value, self.seeker_truncation_amount)
+                    truncated_value = truncate_func(value, self.seeker_truncation_amount).replace(' …', '…')
 
         params = {
             'result': result,
