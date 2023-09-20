@@ -55,10 +55,12 @@ def index(obj, index=None, using=None):
     model_class = ContentType.objects.get_for_model(obj).model_class()
     for doc_class in model_documents.get(model_class, []):
         instance = doc_class.queryset().filter(pk=obj.pk).first()
-        if not instance:
-            continue
-        doc_using = using or doc_class._index._using or 'default'
         doc_index = index or doc_class._index._name
+        if not instance:
+            doc_using = using or doc_class._index._using or None 
+            delete(obj, doc_index, doc_using)
+            continue 
+        doc_using = using or doc_class._index._using or 'default'
         connection = connections.get_connection(doc_using)
         body = doc_class.serialize(instance)
         doc_id = body.pop('_id', None)
