@@ -55,11 +55,11 @@ def index(obj, index=None, using=None):
     model_class = ContentType.objects.get_for_model(obj).model_class()
     for doc_class in model_documents.get(model_class, []):
         instance = doc_class.queryset().filter(pk=obj.pk).first()
-        doc_index = index or doc_class._index._name
         if not instance:
-            doc_using = using or doc_class._index._using or None 
-            delete(obj, doc_index, doc_using)
-            continue 
+            _delete_from_doc_class(obj, doc_class, index, using)
+            continue         
+        
+        doc_index = index or doc_class._index._name
         doc_using = using or doc_class._index._using or 'default'
         connection = connections.get_connection(doc_using)
         body = doc_class.serialize(instance)
@@ -71,15 +71,8 @@ def index(obj, index=None, using=None):
             refresh=True
         )
         update_timestamp_index(doc_index)
-
-
-def delete(obj, index=None, using=None):
-    """
-    Shortcut to delete a Django object from the ES/OS index based on it's model class.
-    """
-    from django.contrib.contenttypes.models import ContentType
-    model_class = ContentType.objects.get_for_model(obj).model_class()
-    for doc_class in model_documents.get(model_class, []):
+        
+def _delete_from_doc_class(obj, doc_class, index=None, using=None):
         doc_using = using or doc_class._index._using or 'default'
         doc_index = index or doc_class._index._name
         connection = connections.get_connection(doc_using)
@@ -90,10 +83,20 @@ def delete(obj, index=None, using=None):
                 refresh=True
             )
             update_timestamp_index(doc_index)
+            
         except NotFoundError:
             # If this object wasn't indexed for some reason (maybe not in the document's queryset), no big deal.
             pass
 
+
+def delete(obj, index=None, using=None):
+    """
+    Shortcut to delete a Django object from the ES/OS index based on it's model class.
+    """
+    from django.contrib.contenttypes.models import ContentType
+    model_class = ContentType.objects.get_for_model(obj).model_class()
+    for doc_class in model_documents.get(model_class, []):
+        _delete_from_doc_class(doc_class, index, using)
 
 def search(models=None, using='default'):
     """
