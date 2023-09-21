@@ -194,7 +194,7 @@ class ModelIndex(Indexable):
         pass
     
     @classmethod
-    def delete_obj_from_index(cls, obj, index=None, using=None ):
+    def delete_obj_from_index(cls, obj, index=None, using=None):
         using = using or cls._index._using or 'default'
         index = index or cls._index._name 
         connection = connections.get_connection(using)
