@@ -56,11 +56,10 @@ def index(obj, index=None, using=None):
     for doc_class in model_documents.get(model_class, []):
         instance = doc_class.queryset().filter(pk=obj.pk).first()
         if not instance:
-            _delete_from_doc_class(obj, doc_class, index, using)
-            continue         
-        
-        doc_index = index or doc_class._index._name
+            doc_class.delete_obj_from_index(obj, index, using)
+            continue             
         doc_using = using or doc_class._index._using or 'default'
+        doc_index = index or doc_class._index._name
         connection = connections.get_connection(doc_using)
         body = doc_class.serialize(instance)
         doc_id = body.pop('_id', None)
@@ -71,24 +70,8 @@ def index(obj, index=None, using=None):
             refresh=True
         )
         update_timestamp_index(doc_index)
-        
-def _delete_from_doc_class(obj, doc_class, index=None, using=None):
-        doc_using = using or doc_class._index._using or 'default'
-        doc_index = index or doc_class._index._name
-        connection = connections.get_connection(doc_using)
-        try:
-            connection.delete(
-                index=doc_index,
-                id=doc_class.get_id(obj),
-                refresh=True
-            )
-            update_timestamp_index(doc_index)
-            
-        except NotFoundError:
-            # If this object wasn't indexed for some reason (maybe not in the document's queryset), no big deal.
-            pass
-
-
+    
+    
 def delete(obj, index=None, using=None):
     """
     Shortcut to delete a Django object from the ES/OS index based on it's model class.
@@ -96,7 +79,7 @@ def delete(obj, index=None, using=None):
     from django.contrib.contenttypes.models import ContentType
     model_class = ContentType.objects.get_for_model(obj).model_class()
     for doc_class in model_documents.get(model_class, []):
-        _delete_from_doc_class(doc_class, index, using)
+        doc_class.delete_obj_from_index(obj, index, using)
 
 def search(models=None, using='default'):
     """

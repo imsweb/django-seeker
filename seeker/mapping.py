@@ -1,8 +1,9 @@
 import logging
 
-from seeker.dsl import Object, bulk, connections, dsl, scan
+from seeker.dsl import Object, bulk, connections, dsl, scan, NotFoundError
 from django.conf import settings as django_settings
 from django.db import models
+from seeker import utils as seeker_utils
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,22 @@ class ModelIndex(Indexable):
     @classmethod
     def disconnect_additional_signal_handlers(cls, indexer):
         pass
+    
+    @classmethod
+    def delete_obj_from_index(cls, obj, index=None, using=None ):
+        using = using or cls._index._using or 'default'
+        index = index or cls._index._name 
+        connection = connections.get_connection(using)
+        try:
+            connection.delete(
+                index=index,
+                id=cls.get_id(obj),
+                refresh=True
+            )
+            seeker_utils.update_timestamp_index(index)          
+        except NotFoundError:
+            # If this object wasn't indexed for some reason (maybe not in the document's queryset), no big deal.
+            pass
 
     @property
     def instance(self):
