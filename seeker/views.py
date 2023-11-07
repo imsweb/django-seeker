@@ -1066,6 +1066,7 @@ class SeekerView(View):
             return '"%s"' % force_str(value).replace('"', '""')
 
         def csv_generator():
+            yield '\ufeff'  # add utf-8 bom so that Excel reads non ASCII characters correctly
             yield ','.join('"%s"' % c.label for c in columns if c.visible and c.export) + '\n'
             for result in search.scan():
                 yield ','.join(csv_escape(c.export_value(result)) for c in columns if c.visible and c.export) + '\n'
