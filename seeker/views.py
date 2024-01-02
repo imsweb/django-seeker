@@ -66,7 +66,6 @@ class Column(object):
         self.export = export
         self.highlight = highlight
         self.field_definition = field_definition
-        self.sr_class = 'sr-only'
 
     def __str__(self):
         return self.label
@@ -115,7 +114,7 @@ class Column(object):
         else:
             q['s'] = self.field
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(f' <span class="{self.sr_class}">({sort})</span>') if sort else ''
+        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
         if self.field_definition:
             data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
             span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
@@ -1195,7 +1194,7 @@ class AdvancedColumn(Column):
             data_sort = self.field
 
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(f' <span class="{self.sr_class}">({sort})</span>') if sort else ''
+        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.

@@ -79,8 +79,6 @@ class Facet(object):
     def build_filter_dict(self, results):
         """
         This function returns a dictionary that represents this facet.
-        The dictionary this returns is designed to be compatible with the JQuery Querybuilder plugin (http://querybuilder.js.org/index.html#filters).
-        When overwriting this function please pass all applicable values defined in that plugin.
         """
         return {
             'id': self.field,
