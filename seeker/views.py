@@ -135,6 +135,16 @@ class Column(object):
     def context(self, result, **kwargs):
         return kwargs
 
+    def get_truncated_value(self, highlight, truncate_func):
+        highlight_str = highlight[0] if isinstance(highlight, AttrList) else highlight
+        highlight_str = highlight_str.lstrip("['").rstrip("']")
+        start = highlight_str.find('<em>')
+        end = highlight_str.find('</em>') + 5
+        prefix = '…' if start > 0 else ''
+        highlighted_value = highlight_str[start:end]
+        trunc_value = truncate_func(highlight_str[end:], self.seeker_truncation_amount)
+        return mark_safe(f"{prefix}{highlighted_value}{trunc_value}".replace(' …', '…'))
+
     def render(self, result, **kwargs):
         value = getattr(result, self.field, None)
         try:
@@ -180,14 +190,12 @@ class Column(object):
                 truncate_func = truncatechars_html
             if truncate_func:
                 if highlight:
-                    highlight_str = highlight[0] if isinstance(highlight, AttrList) else highlight
-                    highlight_str = highlight_str.lstrip("['").rstrip("']")
-                    start = highlight_str.find('<em>')
-                    end = highlight_str.find('</em>') + 5
-                    prefix = '…' if start > 0 else ''
-                    highlighted_value = highlight_str[start:end]
-                    trunc_value = truncate_func(highlight_str[end:], self.seeker_truncation_amount)
-                    truncated_value = mark_safe(f"{prefix}{highlighted_value}{trunc_value}".replace(' …', '…'))
+                    if isinstance(highlight, dict):
+                        truncated_value = ""
+                        for item in highlight.values():
+                            truncated_value += self.get_truncated_value(highlight=item, truncate_func=truncate_func)
+                    else:
+                        truncated_value = self.get_truncated_value(highlight=highlight, truncate_func=truncate_func)
                 else:
                     truncated_value = truncate_func(value, self.seeker_truncation_amount).replace(' …', '…')
 
