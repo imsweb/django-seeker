@@ -181,7 +181,7 @@ class TermsFacet(Facet):
 
 class TextFacet(Facet):
     """
-        TextFacet is essentially a keyword search on a specific field.  It can handle multiple search terms.
+        TextFacet is essentially a "starts with" search on a specific field.  It can handle multiple search terms.
         Each search term is (by default) comma separated.  That can be customized by setting delimiter in the facet initialization.
         This facet does a prefix query on each of the search terms. Each query is "OR"ed together.
     """
@@ -582,7 +582,10 @@ class KeywordFacet(Facet):
         This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
-        values = value.split(self.delimiter)
+        if not isinstance(value, list):
+            values = value.split(self.delimiter)
+        else:
+            values = value
         terms = []
         for term in values:
             term = term.strip()
@@ -603,9 +606,12 @@ class KeywordFacet(Facet):
         return search.query(query)
 
     def initialize(self, initial_facets):
-        facet_query = {"condition": "OR",
-                   "rules": [{
-                       "id": self.field,
-                       "operator": 'equal',
-                       "value": initial_facets}]}
+        facet_query = {
+            "condition": "OR",
+            "rules": [{
+               "id": self.field,
+               "operator": 'equal',
+               "value": initial_facets
+           }]
+       }
         return facet_query
