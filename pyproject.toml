@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "django-seeker"
 dynamic = ["version"]
-description = "A python package for mapping and querying Django models in Elasticsearch/OpenSearch."
+description = "A python package for mapping and querying Django models in OpenSearch."
 readme = "README.md"
 license = "BSD-2-Clause"
 authors = [
@@ -25,7 +25,6 @@ classifiers = [
 ]
 dependencies = [
     "bleach",
-    "elasticsearch-dsl~=7.0.0",
     "opensearch-dsl~=2.0.1",
     "snowballstemmer",
 ]
