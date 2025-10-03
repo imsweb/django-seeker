@@ -181,7 +181,7 @@ class TermsFacet(Facet):
 
 class TextFacet(Facet):
     """
-        TextFacet is essentially a keyword search on a specific field.  It can handle multiple search terms.
+        TextFacet is essentially a "starts with" search on a specific field.  It can handle multiple search terms.
         Each search term is (by default) comma separated.  That can be customized by setting delimiter in the facet initialization.
         This facet does a prefix query on each of the search terms. Each query is "OR"ed together.
     """
@@ -554,3 +554,64 @@ class DateRangeFacet(RangeFilter):
         _range = self._build_query(r)
         _range._params[self.field]['format'] = self.format
         return _range
+
+
+class KeywordFacet(Facet):
+    """TextFacet is essentially a keyword search on a specific field."""
+    template = 'seeker/facets/text.html'
+    advanced_template = 'advanced_seeker/facets/text.html'
+
+    def __init__(self, field, delimiter=',', placeholder_text='', lowercase_search_terms=False, analyzer='snowball', query_type='simple_query_string', **kwargs):
+        self.delimiter = delimiter
+        self.placeholder_text = placeholder_text
+        self.lowercase_search_terms = lowercase_search_terms
+        self.analyzer = analyzer
+        self.query_type = query_type
+        super().__init__(field, **kwargs)
+
+    def _get_aggregation(self, **extra):
+        """KeywordFacet isn't designed to aggregate as it acts as a keyword search, so we return None."""
+        return None
+
+    def apply(self, search, **extra):
+        """There are no aggregations to apply so we just return the search object."""
+        return search
+
+    def query(self, operator, value):
+        """
+        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
+        'complex query' functionality.
+        """
+        if not isinstance(value, list):
+            values = value.split(self.delimiter)
+        else:
+            values = value
+        terms = []
+        for term in values:
+            term = term.strip()
+            if self.lowercase_search_terms:
+                term = term.lower()
+            if term:
+                terms.append(term)
+        query_string = ' | '.join(terms)
+        kwargs = {
+            'query': query_string,
+            'analyzer': self.analyzer,
+            'fields': [self.field],
+        }
+        return Q(self.query_type, **kwargs)
+
+    def filter(self, search, value):
+        query = self.query(None, value)
+        return search.query(query)
+
+    def initialize(self, initial_facets):
+        facet_query = {
+            "condition": "OR",
+            "rules": [{
+               "id": self.field,
+               "operator": 'equal',
+               "value": initial_facets
+           }]
+       }
+        return facet_query

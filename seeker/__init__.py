@@ -1,6 +1,6 @@
-__version__ = '7.4.4'
+__version__ = '7.5.0'
 
-from .facets import DateRangeFacet, DateTermsFacet, Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram, TextFacet
+from .facets import DateRangeFacet, DateTermsFacet, Facet, GlobalTermsFacet, RangeFilter, TermsFacet, YearHistogram, TextFacet, KeywordFacet
 from .mapping import (
     build_mapping, deep_field_factory, DEFAULT_ANALYZER, document_field, document_from_model, Indexable, index_factory, ModelIndex,
     RawMultiString, RawString)

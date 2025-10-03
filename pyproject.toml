@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "django-seeker"
+dynamic = ["version"]
+description = "A python package for mapping and querying Django models in Elasticsearch/OpenSearch."
+readme = "README.md"
+license = "BSD-2-Clause"
+authors = [
+    { name = "Dan Watson", email = "watsond@imsweb.com" },
+]
+maintainers = [
+  { name = "Brad Rutten", email = "ruttenb@imsweb.com" },
+  { name = "Jacob Tomlinson", email = "tomlinsonj@imsweb.com" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "bleach",
+    "elasticsearch-dsl~=7.0.0",
+    "opensearch-dsl~=2.0.1",
+    "snowballstemmer",
+]
+
+[project.urls]
+Homepage = "https://github.com/imsweb/django-seeker"
+
+[tool.hatch.version]
+path = "seeker/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/seeker",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["seeker"]
