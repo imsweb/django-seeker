@@ -1,7 +1,9 @@
+**Please Note: ElasticSearch will no longer be supported in Seeker 8+.  Seeker will only support OpenSearch.**
+
 Requirements
 ============
 
-  * Django 1.8 or later
+  * Django 4.x or later
 
 
 Documentation

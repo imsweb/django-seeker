@@ -11,7 +11,7 @@ from seeker.utils import progress, update_timestamp_index
 
 def reindex(es, doc_class, index, options):
     """
-    Index all the things, using Elasticsearch/OpenSearch's bulk API for speed.
+    Index all the things, using OpenSearch's bulk API for speed.
     """
     warnings.warn("The es parameter of seeker.management.commands.reindex.reindex will be removed in seeker 8. It will be renamed to connection.", DeprecationWarning)
     connection = es
