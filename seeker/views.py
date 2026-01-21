@@ -1719,7 +1719,7 @@ class AdvancedSeekerView(SeekerView):
               If that doesn't happen then the 'filters' dictionary may not be build appropriately.
         """
         if self.search_object.get('active_facet'):
-            facet = facet_lookup[facet_name]
+            facet = facet_lookup['active_facet']
             facet.apply(search)
         else:
             for facet in facet_lookup.values():
