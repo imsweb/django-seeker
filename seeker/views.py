@@ -4,6 +4,7 @@ import copy
 import inspect
 import itertools
 import json
+import logging
 import re
 import warnings
 from datetime import datetime
@@ -33,6 +34,7 @@ from .templatetags.seeker import seeker_format
 from seeker.utils import is_ajax, update_timestamp_index
 
 seekerview_field_templates = {}
+logger = logging.getLogger(__name__)
 
 
 class Column(object):
@@ -1368,6 +1370,9 @@ class AdvancedSeekerView(SeekerView):
                 "'get_search_query_type' function is deprecated, please use 'get_keyword_query' instead.",
                 DeprecationWarning
             )
+            
+    def get_logger(self):
+        return logger
 
     def modify_json_response(self, json_response, context):
         """
@@ -1518,6 +1523,9 @@ class AdvancedSeekerView(SeekerView):
         if is_ajax(request) or export:
             try:
                 string_search_object = request.POST.get('search_object')
+                if not isinstance(string_search_object, (str, bytes, bytearray)):
+                    self.get_logger().info(f'Invalid POST data type: {type(string_search_object)}')
+                    raise Http404()
                 # We attach this to self so AdvancedColumn can have access to it
                 self.search_object = json.loads(string_search_object)
             except KeyError:
@@ -1665,7 +1673,18 @@ class AdvancedSeekerView(SeekerView):
             search = self.apply_highlight(search, columns)
 
         # Finally, grab the results.
-        results = search[offset:upper_paging_limit].execute()
+        sort = self.get_sort_field(columns, self.search_object['sort'], display)
+        if sort:
+            try: 
+                if (self.missing_sort is None or isinstance(sort, dict)) and isinstance(sort, list):
+                    results = search.sort(*self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
+                else:
+                    results = search.sort(self.sort_descriptor(sort))[offset:upper_paging_limit].execute()
+            except Exception as e:
+                self.get_logger().info(f'Invalid sort: {str(e)}')
+                raise Http404()
+        else:
+            results = search[offset:upper_paging_limit].execute()
 
         if not self.separate_aggregation_search:
             aggregation_results = results
@@ -1785,6 +1804,9 @@ class AdvancedSeekerView(SeekerView):
         if all(k in advanced_query for k in ('id', 'operator', 'value')):
             if advanced_query['id'] not in excluded_facets:
                 facet = facet_lookup.get(advanced_query['id'])
+                if not facet:
+                    self.get_logger().info(f'Invalid facet: {advanced_query["id"]}')
+                    raise Http404()
                 return facet.query(advanced_query['operator'], advanced_query['value']), [facet.field]
             return None, None
 
@@ -1793,7 +1815,8 @@ class AdvancedSeekerView(SeekerView):
             condition = advanced_query.get('condition')
             group_operator = self.boolean_translations.get(condition, None)
             if not group_operator:
-                raise ValueError("'{}' is not a valid boolean operator.".format(condition))
+                self.get_logger().info(f"'{condition}' is not a valid boolean operator.")
+                raise Http404()
 
             queries = []
             selected_facets = []
@@ -1879,7 +1902,7 @@ class AdvancedSavedSearchView(View):
             try:
                 url = request.GET.get(self.url_parameter)
             except KeyError:
-                return JsonResponse({ 'error': 'No URL provided.' }, 400)
+                return JsonResponse({ 'error': 'No URL provided.' }, status=400)
 
             SavedSearchModel = self.get_saved_search_model()
             saved_searches = self.get_saved_searches(url, SavedSearchModel)
@@ -1888,7 +1911,7 @@ class AdvancedSavedSearchView(View):
                 try:
                     saved_search = saved_searches.get(pk=search_pk)
                 except SavedSearchModel.DoesNotExist:
-                    return JsonResponse({ 'error': 'Saved search not found.' }, 400)
+                    return JsonResponse({ 'error': 'Saved search not found.' }, status=400)
             else:
                 # By design this will return None if there are no default searches found
                 saved_search = saved_searches.filter(default=True).first()
@@ -1917,7 +1940,7 @@ class AdvancedSavedSearchView(View):
             try:
                 url = request.POST.get(self.url_parameter)
             except KeyError:
-                return JsonResponse({'error': 'No URL provided.'}, 400)
+                return JsonResponse({'error': 'No URL provided.'}, status=400)
 
             search_pk = kwargs.get(self.pk_parameter, request.POST.get(self.pk_parameter, None))
             SavedSearchModel = self.get_saved_search_model()
@@ -1934,7 +1957,7 @@ class AdvancedSavedSearchView(View):
                 except SavedSearchModel.DoesNotExist:
                     # We only want to throw an error if we cannot find the object AND we are NOT trying to delete it anyway
                     if not delete:
-                        return JsonResponse({'error': 'Saved search not found.'}, 400)
+                        return JsonResponse({'error': 'Saved search not found.'}, status=400)
 
             data = {}
             # We have three paths: delete, modify_default, or save
