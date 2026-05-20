@@ -11,6 +11,7 @@ from datetime import datetime
 
 from seeker.dsl import AttrList, Q, dsl
 
+from collections.abc import Iterable
 from django.conf import settings
 from django.contrib import messages
 from django.forms.forms import Form
@@ -508,7 +509,10 @@ class SeekerView(View):
             return self.page_size
 
     def calculate_page_and_offset(self, page, page_size, search):
-        offset = (page - 1) * page_size
+        try:
+            offset = (page - 1) * page_size
+        except TypeError:
+            raise Http404()
         results_count = search[0:0].execute().hits.total.value
         if results_count <= offset:
             page = 1
@@ -1534,7 +1538,10 @@ class AdvancedSeekerView(SeekerView):
                 return HttpResponseBadRequest("Improperly formatted 'search_object', json.loads failed.")
 
             # Sanity check that the search object has all of it's required components
-            if not all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display')):
+            if not (
+                isinstance(self.search_object, Iterable)
+                and all(k in self.search_object for k in ('query', 'keywords', 'page', 'sort', 'display'))
+            ):
                 return HttpResponseBadRequest("The 'search_object' is not in the proper format.")
 
             # If the search_object has an active_facet, seeker will aggregate and return aggregation results
