@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-import bleach
+import nh3
 
 
 class SavedSearch(models.Model):
@@ -28,7 +28,7 @@ class SavedSearch(models.Model):
             return self.url
 
     def get_details_dict(self):
-        return { 'pk': self.pk, 'name': bleach.clean(self.name, tags=[], strip=True), 'url': self.url, 'default': self.default }
+        return { 'pk': self.pk, 'name': nh3.clean(self.name, tags=set()), 'url': self.url, 'default': self.default }
 
 
 class AdvancedSavedSearch(SavedSearch):
