@@ -1,6 +1,7 @@
 import logging
-
-from seeker.dsl import Object, bulk, connections, dsl, scan, NotFoundError
+import seeker
+from seeker import Document, Text, Keyword
+from seeker import Object, bulk, connections, scan, NotFoundError
 from django.conf import settings as django_settings
 from django.db import models
 from seeker import utils as seeker_utils
@@ -35,7 +36,7 @@ def follow(obj, path, force_string=False):
 
 def serialize_object(obj, mapping, prepare=None):
     """
-    Given a Django model instance and a ``dsl.Mapping`` or ``dsl.Object``, returns a
+    Given a Django model instance and a ``seeker.Mapping`` or ``seeker.Object``, returns a
     dictionary of field data that should be indexed.
     """
     data = {}
@@ -59,9 +60,9 @@ def serialize_object(obj, mapping, prepare=None):
     return data
 
 
-class Indexable (dsl.Document):
+class Indexable(Document):
     """
-    An ``dsl.DocType`` subclass with methods for getting a list (and count) of documents that should be
+    An ``seeker.DocType`` subclass with methods for getting a list (and count) of documents that should be
     indexed.
     """
 
@@ -217,16 +218,16 @@ class ModelIndex(Indexable):
         return self.queryset().get(pk=self.meta.id)
 
 
-RawString = dsl.Text(analyzer=DEFAULT_ANALYZER, fields={
-    'raw': dsl.Keyword(),
+RawString = Text(analyzer=DEFAULT_ANALYZER, fields={
+    'raw': Keyword(),
 })
 """
-An ``dsl.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
+An ``seeker.String`` instance (analyzed using ``SEEKER_DEFAULT_ANALYZER``) with a ``raw`` sub-field that is
 not analyzed, suitable for aggregations, sorting, etc.
 """
 
-RawMultiString = dsl.Text(analyzer=DEFAULT_ANALYZER, multi=True, fields={
-    'raw': dsl.Keyword(),
+RawMultiString = Text(analyzer=DEFAULT_ANALYZER, multi=True, fields={
+    'raw': Keyword(),
 })
 """
 The same as ``RawString``, but with ``multi=True`` specified, so lists are returned.
@@ -235,7 +236,7 @@ The same as ``RawString``, but with ``multi=True`` specified, so lists are retur
 
 def document_field(field):
     """
-    The default ``field_factory`` method for converting Django field instances to ``dsl.Field`` instances.
+    The default ``field_factory`` method for converting Django field instances to ``seeker.Field`` instances.
     Auto-created fields (primary keys, for example) and one-to-many fields (reverse FK relationships) are skipped.
     """
     if field.auto_created or field.one_to_many:
@@ -243,18 +244,18 @@ def document_field(field):
     if field.many_to_many:
         return RawMultiString
     defaults = {
-        models.DateField: dsl.Date(),
-        models.DateTimeField: dsl.Date(),
-        models.IntegerField: dsl.Long(),
-        models.PositiveIntegerField: dsl.Long(),
-        models.BooleanField: dsl.Boolean(),
-        models.SlugField: dsl.Keyword(),
-        models.DecimalField: dsl.Double(),
-        models.FloatField: dsl.Float(),
+        models.DateField: seeker.Date(),
+        models.DateTimeField: seeker.Date(),
+        models.IntegerField: seeker.Long(),
+        models.PositiveIntegerField: seeker.Long(),
+        models.BooleanField: seeker.Boolean(),
+        models.SlugField: seeker.Keyword(),
+        models.DecimalField: seeker.Double(),
+        models.FloatField: seeker.Float(),
     }
     # NullBooleanField was deprecated in Django 3.1 and removed in Django 4.0
     try:
-        defaults[models.NullBooleanField] = dsl.Boolean()
+        defaults[models.NullBooleanField] = seeker.Boolean()
     except AttributeError:
         pass
     defaults.update(DOCUMENT_FIELD_OVERRIDE)
@@ -268,7 +269,7 @@ def deep_field_factory(field):
             nested_field = deep_field_factory(f)
             if nested_field is not None:
                 props[f.name] = nested_field
-        return dsl.Object(properties=props)
+        return seeker.Object(properties=props)
     else:
         return document_field(field)
 
@@ -276,17 +277,17 @@ def deep_field_factory(field):
 def build_mapping(model_class, mapping=None, fields=None, exclude=None, field_factory=None, extra=None):
     """
     Defines OpenSearch fields for Django model fields. By default, this method will create a new
-    ``dsl.Mapping`` object with fields corresponding to the ``model_class``.
+    ``seeker.Mapping`` object with fields corresponding to the ``model_class``.
 
     :param model_class: The Django model class to build a mapping for
-    :param mapping: A ``dsl.Mapping`` or ``dsl`` instance to define fields on
+    :param mapping: A ``seeker.Mapping`` or ``seeker`` instance to define fields on
     :param fields: A list of Django model field names to include
     :param exclude: A list of Django model field names to exclude
-    :param field_factory: A function that takes a Django model field instance, and returns a ``dsl.Field``
-    :param extra: A dictionary (field_name -> ``dsl``) of extra fields to include in the mapping
+    :param field_factory: A function that takes a Django model field instance, and returns a ``seeker.Field``
+    :param extra: A dictionary (field_name -> ``seeker``) of extra fields to include in the mapping
     """
     if mapping is None:
-        mapping = dsl.Mapping()
+        mapping = seeker.Mapping()
     if field_factory is None:
         field_factory = document_field
     for f in model_class._meta.get_fields():

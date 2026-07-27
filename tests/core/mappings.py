@@ -1,9 +1,7 @@
-from seeker.dsl import dsl
-
 import seeker
 
-from .external import BaseDocument
-from .models import Book, Magazine
+from tests.core.external import BaseDocument
+from tests.core.models import Book, Magazine
 
 
 BookDocument = seeker.document_from_model(Book, module=__name__)
@@ -24,7 +22,7 @@ class DjangoBookDocument(seeker.ModelIndex):
 
 
 class DerivedDocument(BaseDocument):
-    derived_field = dsl.Integer()
+    derived_field = seeker.Integer()
 
     class Index:
         name = 'derived'

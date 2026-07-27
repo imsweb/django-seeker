@@ -1,9 +1,8 @@
 import json
 from optparse import make_option
 
-from django.apps import apps
 from django.core.management.base import BaseCommand, CommandError
-from seeker.dsl import bulk, connections
+from seeker import bulk, connections
 
 
 class Command(BaseCommand):

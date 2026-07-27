@@ -51,16 +51,14 @@ Customizing Field Mappings
 
 You can specify how seeker builds the mapping for your model class in several ways::
 
-    from seeker.dsl import dsl
-
     class PostDoc(seeker.ModelIndex):
         # Custom field definition for existing field
-        author = dsl.Object(properties={
+        author = seeker.Object(properties={
             'name': seeker.RawString,
-            'age': dsl.Integer(),
+            'age': seeker.Integer(),
         })
         # New field not defined by the model
-        word_count = dsl.Long()
+        word_count = seeker.Long()
 
         class Meta:
             mapping = seeker.build_mapping(Post, fields=('title', 'body'), exclude=('slug',))

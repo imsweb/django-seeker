@@ -9,7 +9,7 @@ SEEKER_INDEX
 
 Default: ``seeker``
 
-The name of the ES/OS index that should be used by default. This can be overridden per mapping.
+The name of the OS index that should be used by default. This can be overridden per mapping.
 
 
 SEEKER_INDEX_PREFIX
@@ -17,7 +17,7 @@ SEEKER_INDEX_PREFIX
 
 Default: ``seeker``
 
-The PREFIX used for each ES/OS index created.
+The PREFIX used for each OS index created.
 
 
 SEEKER_INDEX_SETTINGS
@@ -65,7 +65,7 @@ SEEKER_DEFAULT_ANALYZER
 
 Default: ``snowball``
 
-The analyzer to use by default when creating ``dsl.String`` fields. Also used by default in ``SeekerView``
+The analyzer to use by default when creating ``seeker.String`` fields. Also used by default in ``SeekerView``
 to determine how query strings should be analyzed (it's important that queries are analyzed the same way as your data).
 
 
@@ -74,27 +74,6 @@ SEEKER_DOCUMENT_FIELD_OVERRIDE
 
 Default: ``{}``
 
-Allows the user to set django models to the desired dsl, instead of using provided defaults. This overrides to update
- the document_field method defaults, and to add keys, for example can be used to add TextField = dsl.Text() to the default
-instead of using RawString, with setting: SEEKER_DOCUMENT_FIELD_OVERRIDE = {models.TextField: dsl.Text()}
-
-
-
-Model Indexing Middleware
--------------------------
-
-For sites that want model instances to be automatically indexed when they are created, updated, or deleted, Seeker
-includes a ``ModelIndexingMiddleware`` that connects to Django's ``post_save`` and ``post_delete`` signals. To use it,
-simply add ``seeker.middleware.ModelIndexingMiddleware`` to your ``MIDDLEWARE_CLASSES`` setting above any middleware
-that might alter model instances you want indexed.
-
-Models are not automatically indexed when outside of a request cycle (with ``ModelIndexingMiddleware`` installed), to
-prevent unwanted or premature indexing during load scripts, bulk updates, etc. Instances may be indexed manually using
-``seeker.index``. If automatic updating is desired outside of the request cycle, it is possible to simply instantiate
-``ModelIndexingMiddleware`` and keep a reference to it. The class connects to ``post_save`` and ``post_delete`` when
-created, so you may do something like::
-
-    from seeker.middleware import ModelIndexingMiddleware
-    middleware = ModelIndexingMiddleware()
-    # Update your model instances as necessary, they will be automatically indexed.
-    del middleware
+Allows the user to set django models to the desired domain specific language, instead of using provided defaults. This overrides to update
+ the document_field method defaults, and to add keys, for example can be used to add TextField = seeker.Text() to the default
+instead of using RawString, with setting: SEEKER_DOCUMENT_FIELD_OVERRIDE = {models.TextField: seeker.Text()}

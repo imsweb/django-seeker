@@ -6,19 +6,16 @@ import itertools
 import json
 import logging
 import re
-import warnings
+import seeker
 from datetime import datetime
-
-from seeker.dsl import AttrList, Q, dsl
 
 from collections.abc import Iterable
 from django.conf import settings
 from django.contrib import messages
-from django.forms.forms import Form
 from django.http import Http404, JsonResponse, QueryDict, StreamingHttpResponse
-from django.http.response import HttpResponseBadRequest, HttpResponseForbidden
+from django.http.response import HttpResponseBadRequest
 from django.shortcuts import redirect, render
-from django.template import Context, RequestContext, TemplateDoesNotExist, loader
+from django.template import loader
 from django.template.defaultfilters import truncatewords_html, truncatechars_html
 from django.utils import timezone
 from django.utils.encoding import force_str
@@ -26,12 +23,10 @@ from django.utils.html import escape, format_html
 from django.utils.http import urlencode
 from django.utils.safestring import mark_safe
 from django.views.generic import View
-from django.views.generic.edit import CreateView, FormView
 
-from .facets import TermsFacet, RangeFilter, TextFacet
-from .mapping import DEFAULT_ANALYZER
-from .signals import advanced_search_performed, search_complete
-from .templatetags.seeker import seeker_format
+from seeker.mapping import DEFAULT_ANALYZER
+from seeker.signals import advanced_search_performed, search_complete
+from seeker.templatetags.seeker import seeker_format
 from seeker.utils import is_ajax, update_timestamp_index
 
 seekerview_field_templates = {}
@@ -139,7 +134,7 @@ class Column(object):
         return kwargs
 
     def get_truncated_value(self, highlight, truncate_func):
-        highlight_str = highlight[0] if isinstance(highlight, AttrList) else highlight
+        highlight_str = highlight[0] if isinstance(highlight, seeker.AttrList) else highlight
         highlight_str = highlight_str.lstrip("['").rstrip("']")
         start = highlight_str.find('<em>')
         end = highlight_str.find('</em>') + 5
@@ -160,9 +155,9 @@ class Column(object):
         except Exception:
             highlight = []
 
-        # If the value is a list (AttrList is DSL's custom list) then highlight won't work properly
+        # If the value is a list (AttrList is opensearch-py's custom list) then highlight won't work properly
         # The "meta.highlight" will only contain the matched item, not the others
-        if highlight and isinstance(value, AttrList):
+        if highlight and isinstance(value, seeker.AttrList):
             # We are going to modify this copy with the appropriate highlights
             modified_values = copy.deepcopy(value)
             for highlighted_value in highlight:
@@ -224,7 +219,7 @@ class Column(object):
             value = getattr(result, export_field, '')
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
-            export_val = ', '.join(force_str(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, AttrList) else seeker_format(value)
+            export_val = ', '.join(force_str(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value) if isinstance(value, seeker.AttrList) else seeker_format(value)
         else:
             export_val = ''
         return export_val
@@ -233,17 +228,17 @@ class Column(object):
 class SeekerView(View):
     document = None
     """
-    A :class:`dsl.DocType` class to present a view for.
+    A :class:`seeker.DocType` class to present a view for.
     """
 
     using = None
     """
-    The ES/OS connection alias to use.
+    The OS connection alias to use.
     """
 
     index = None
     """
-    The ES/OS index to use. Will use the index set on the mapping if this is not set.
+    The OS index to use. Will use the index set on the mapping if this is not set.
     """
 
     template_name = 'seeker/seeker.html'
@@ -418,12 +413,6 @@ class SeekerView(View):
     If specified, a permission to check (using ``request.user.has_perm``) for this view.
     """
 
-    extra_context = {}
-    """
-    This property is slated to be deprecated in the future. Please use "modify_context".
-    Extra context variables to use when rendering. May be passed via as_view(), or overridden as a property.
-    """
-
     field_templates = {}
     """
     A dictionary of field template overrides.
@@ -441,13 +430,12 @@ class SeekerView(View):
     NOTE: The form used is defined in "get_saved_search_form"
     """
 
-    form_template = 'seeker/save_form.html'
+    save_form_template = 'seeker/save_form.html'
     """
     The form template used to display the save search form.
     NOTE: This is only used if the request is AJAX and 'use_save_form' is True.
     NOTE: This template will be used to render the form defined in 'get_saved_search_form"
     TODO: This form does not exist in template and is unknown if this functionality works on SeekerView...
-    TODO: Change name for clarity on next major release (save_form_template)
     """
 
     enforce_unique_name = True
@@ -470,7 +458,7 @@ class SeekerView(View):
 
     analyzer = DEFAULT_ANALYZER
     """
-    The ES/OS analyzer used for keyword searching.
+    The OS analyzer used for keyword searching.
     """
 
     missing_sort = None
@@ -480,13 +468,13 @@ class SeekerView(View):
 
     search_extra = {}
     """
-    A dictionary of "extra" properties to add to the DSL search object.
+    A dictionary of "extra" properties to add to the opensearch-py search object.
     For example: search_extra = {'track_total_hits': True}
     """
 
     search_params = {}
     """
-    A dictionary of "parameters" to add to the DSL search object.
+    A dictionary of "parameters" to add to the opensearch-py search object.
     For example: search_params = {'routing': '42}
     """
 
@@ -545,7 +533,7 @@ class SeekerView(View):
         NOTE: This will only be used if 'use_save_form' is set to True and with AJAX requests.
         NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
         """
-        from .forms import SavedSearchForm
+        from seeker.forms import SavedSearchForm
         return SavedSearchForm
 
     def get_view_name(self):
@@ -608,14 +596,14 @@ class SeekerView(View):
         if field_name in self.sort_fields:
             return self.sort_fields[field_name]
         if field_name in self.document._doc_type.mapping:
-            dsl_field = self.document._doc_type.mapping[field_name]
-            if isinstance(dsl_field, (dsl.Object, dsl.Nested)):
+            opensearch_py_field = self.document._doc_type.mapping[field_name]
+            if isinstance(opensearch_py_field, (seeker.Object, seeker.Nested)):
                 return None
-            if not isinstance(dsl_field, dsl.Text):
+            if not isinstance(opensearch_py_field, seeker.Text):
                 return field_name
-            if 'raw' in dsl_field.fields:
+            if 'raw' in opensearch_py_field.fields:
                 return '%s.raw' % field_name
-            elif getattr(dsl_field, 'index', None) == 'not_analyzed':
+            elif getattr(opensearch_py_field, 'index', None) == 'not_analyzed':
                 return field_name
         return None
 
@@ -646,7 +634,7 @@ class SeekerView(View):
         elif hasattr(self.document, 'queryset'):
             search_templates.append('seeker/{}/{}.html'.format(self.document.queryset().model.__name__.lower(), field_name))
         for _cls in inspect.getmro(self.document):
-            if issubclass(_cls, dsl.Document):
+            if issubclass(_cls, seeker.Document):
                 search_templates.append('seeker/{}/{}.html'.format(_cls.__name__.lower(), field_name))
         search_templates.append('seeker/column.html')
         template = loader.select_template(search_templates)
@@ -663,8 +651,8 @@ class SeekerView(View):
         if field_name in self.highlight_fields:
             return self.highlight_fields[field_name]
         if field_name in self.document._doc_type.mapping:
-            dsl_field = self.document._doc_type.mapping[field_name]
-            if isinstance(dsl_field, (dsl.Object, dsl.Nested)):
+            opensearch_py_field = self.document._doc_type.mapping[field_name]
+            if isinstance(opensearch_py_field, (seeker.Object, seeker.Nested)):
                 return '%s.*' % field_name
             return field_name
         return None
@@ -761,7 +749,7 @@ class SeekerView(View):
     def get_facets(self):
         facets = []
         for facet in self.facets:
-            if self.request.user.is_authenticated or not facet.related_column_name in self.login_required_columns:
+            if self.request.user.is_authenticated or facet.related_column_name not in self.login_required_columns:
                 facets.append(facet)
         return facets
 
@@ -799,7 +787,7 @@ class SeekerView(View):
         return facets
 
     def get_saved_search_model(self):
-        from .models import SavedSearch
+        from seeker.models import SavedSearch
         return SavedSearch
 
     def get_saved_searches(self):
@@ -836,12 +824,7 @@ class SeekerView(View):
     def get_search(self, keywords=None, facets=None, aggregate=True, include_extra=True, include_params=True):
         using = self.using or self.document._index._using or 'default'
         index = self.index or self.document._index
-        # TODO: self.document.search(using=using, index=index) once new version is released
-        s = (
-            self.document.search()
-            .index(index)
-            .using(using)
-        )
+        s = self.document.search(using=using, index=index)
 
         if include_extra:
             s = s.extra(track_scores=True, **self.search_extra)
@@ -1003,11 +986,8 @@ class SeekerView(View):
             form = SavedSearchForm(saved_searches=saved_searches)
             context.update({
                 'save_form': form,
-                'save_form_template': self.form_template
+                'save_form_template': self.save_form_template
             })
-
-        if self.extra_context:
-            context.update(self.extra_context)
 
         self.modify_context(context, self.request)
 
@@ -1023,7 +1003,7 @@ class SeekerView(View):
             }
             if self.use_save_form:
                 ajax_data.update({
-                    'save_form_html': loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+                    'save_form_html': loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
                 })
             if self.post_filter_facets:
                 ajax_data.update({
@@ -1056,13 +1036,6 @@ class SeekerView(View):
             if self.request.user.is_authenticated or related_column_name not in self.login_required_columns:
                 filtered_initial_facets[field] = self.initial_facets[field]
         return filtered_initial_facets
-
-    def modify_initial_facets(self):
-        warnings.warn(
-            "The 'modify_initial_facets' function is deprecated and is slated to be removed in Seeker 8.0 and replaced with filter_initial_facets",
-            DeprecationWarning
-        )
-        self.initial_facets = self.filter_initial_facets()
 
     def export(self):
         """
@@ -1138,7 +1111,7 @@ class SeekerView(View):
                 else:
                     response_data['redirect_url'] = None
 
-                response_data['save_form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=request)
+                response_data['save_form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=request)
 
                 # We came in via ajax so we return via JSON
                 return JsonResponse(response_data)
@@ -1212,7 +1185,7 @@ class AdvancedColumn(Column):
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.
-        if results and ' ' in self.header_html and not '<br' in self.header_html:
+        if results and ' ' in self.header_html and '<br' not in self.header_html:
             if len(self.header_html) > self.get_data_max_length(results):
                 self.wordwrap_header_html()
         if self.field_definition:
@@ -1264,7 +1237,7 @@ class AdvancedColumn(Column):
             value = getattr(result, export_field, '')
             if isinstance(value, datetime) and timezone.is_aware(value):
                 value = timezone.localtime(value)
-            elif isinstance(value, AttrList):
+            elif isinstance(value, seeker.AttrList):
                 value = ', '.join(force_str(v.to_dict() if hasattr(v, 'to_dict') else v) for v in value)
             if self.value_format:
                 value = self.value_format(value)
@@ -1317,7 +1290,7 @@ class AdvancedSeekerView(SeekerView):
 
     search_timeout = 10
     """
-    The number of seconds to allow any DSL search to execute before a timeout error is raised.
+    The number of seconds to allow any opensearch-py search to execute before a timeout error is raised.
     """
 
     always_display_highlighted_columns = False
@@ -1363,7 +1336,7 @@ class AdvancedSeekerView(SeekerView):
 
     separate_aggregation_search = False
     """
-    If True, aggregations will be executed in a separate DSL Search object.  This will allows sites to cache aggregation searches.
+    If True, aggregations will be executed in a separate opensearch-py Search object.  This will allows sites to cache aggregation searches.
     """
 
     default_column_class = AdvancedColumn
@@ -1376,13 +1349,6 @@ class AdvancedSeekerView(SeekerView):
     A dictionary of field_name -> AdvancedColumn class that allows you to easily customize a column class and still utilize the make_column method.
     """
 
-    def __init__(self):
-        if vars(SeekerView).get('get_search_query_type') != getattr(self, 'get_search_query_type').__func__:
-            warnings.warn(
-                "'get_search_query_type' function is deprecated, please use 'get_keyword_query' instead.",
-                DeprecationWarning
-            )
-            
     def get_logger(self):
         return logger
 
@@ -1422,10 +1388,9 @@ class AdvancedSeekerView(SeekerView):
         return display_fields
 
     def get_search(self, keywords=None, facets=None, aggregate=True):
-        s = self.get_dsl_search()
+        s = self.get_opensearchpy_search()
         if keywords:
-            # TODO - Once 'get_search_query_type' is removed this can be cleaned up to:
-            # s.query(self.get_keyword_query(keywords))
+            s = s.query(self.get_keyword_query(keywords))
             s = self.get_search_query_type(s, keywords)
         if facets:
             for facet, values in facets.items():
@@ -1435,11 +1400,10 @@ class AdvancedSeekerView(SeekerView):
                     facet.apply(s)
         return s
 
-    def get_dsl_search(self, include_extra=True, include_params=True):
+    def get_opensearchpy_search(self, include_extra=True, include_params=True):
         using = self.using or self.document._index._using or 'default'
-        index = self.index or self.document._index
-        # TODO: self.document.search(using=using, index=index) once new version is released
-        search = self.document.search().index(index).using(using)
+        index = self.index or self.document._index._name
+        search = self.document.search(using=using, index=index)
 
         if include_extra:
             search = search.extra(track_scores=True, **self.search_extra)
@@ -1509,10 +1473,6 @@ class AdvancedSeekerView(SeekerView):
             'selected_facets': self.filter_initial_facets(),
             'initial_search_object_query': self.initial_facet_query()
         }
-
-        if self.extra_context:
-            context.update(self.extra_context)
-
         self.modify_context(context, request)
         return self.render_to_response(context)
 
@@ -1598,7 +1558,7 @@ class AdvancedSeekerView(SeekerView):
     def get_aggregated_results(self, query, facet_lookup):
         """This function gets the aggregation results for a query.  It does not get the search results"""
         # We build a whole new search because apply_aggregations somehow breaks the search object being "immutable"
-        aggregation_search = self.get_dsl_search()
+        aggregation_search = self.get_opensearchpy_search()
         aggregation_search = self.apply_keywords(aggregation_search)
         aggregation_search = self.additional_query_filters(aggregation_search)
         self.apply_aggregations(aggregation_search, query, facet_lookup)
@@ -1640,7 +1600,7 @@ class AdvancedSeekerView(SeekerView):
     def render_results(self, export):
         facet_lookup, query, advanced_query, facets_searched = self._get_processing_data()
 
-        search = self.get_dsl_search()
+        search = self.get_opensearchpy_search()
 
         # Hook to allow the search to be filtered before seeker begins it's work
         search = self.additional_query_filters(search)
@@ -1778,7 +1738,7 @@ class AdvancedSeekerView(SeekerView):
     def build_query(self, advanced_query, facet_lookup, excluded_facets=[]):
         """
         Returns two values:
-        1) The ES/OS DSL Q object representing the 'advanced_query' dictionary passed in
+        1) The OS opensearch-py Q object representing the 'advanced_query' dictionary passed in
         2) A list of the selected fields for this query
 
         The advanced_query is a dictionary representation of the advanced query. The following is an example of the accepted format:
@@ -1843,9 +1803,9 @@ class AdvancedSeekerView(SeekerView):
                     selected_facets += facet_field
 
             if advanced_query.get('not', False):
-                return ~Q('bool', **{group_operator: queries}), list(set(selected_facets))
+                return ~seeker.Q('bool', **{group_operator: queries}), list(set(selected_facets))
             else:
-                return Q('bool', **{group_operator: queries}), list(set(selected_facets))
+                return seeker.Q('bool', **{group_operator: queries}), list(set(selected_facets))
 
         # The advanced_query must have been missing something, so we cannot create this query
         else:
@@ -1896,7 +1856,7 @@ class AdvancedSavedSearchView(View):
     If users should only be able to view their own saved searches.
     """
 
-    form_template = 'advanced_seeker/save_form.html'
+    save_form_template = 'advanced_seeker/save_form.html'
     """
     The form template used to display the save search form.
     """
@@ -1944,7 +1904,7 @@ class AdvancedSavedSearchView(View):
             self.update_GET_response_data(data, saved_search)
 
             form = SavedSearchForm(saved_searches=saved_searches)
-            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            data['form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
 
             return JsonResponse(data)
         else:
@@ -2022,7 +1982,7 @@ class AdvancedSavedSearchView(View):
                 form = SavedSearchForm(**form_kwargs)
 
             # We add the form here because we want to return the most up-to-date version of the form
-            data['form_html'] = loader.render_to_string(self.form_template, { 'form': form }, request=self.request)
+            data['form_html'] = loader.render_to_string(self.save_form_template, { 'form': form }, request=self.request)
 
             # 'current_search' is included in 'all_searches' but seperated for convenience
             data['current_search'] = saved_search.get_details_dict() if saved_search else None
@@ -2060,7 +2020,7 @@ class AdvancedSavedSearchView(View):
         return sorted(all_searches, key=lambda search: search.get('name'))
 
     def get_saved_search_model(self):
-        from .models import SavedSearch
+        from seeker.models import SavedSearch
         return SavedSearch
 
     def get_saved_search_form(self):
@@ -2068,7 +2028,7 @@ class AdvancedSavedSearchView(View):
         Get the form used to save searches.
         NOTE: This form will be passed the "saved_searches" kwarg when instantiated.
         """
-        from .forms import AdvancedSavedSearchForm
+        from seeker.forms import AdvancedSavedSearchForm
         return AdvancedSavedSearchForm
 
     def get_saved_searches(self, url, SavedSearchModel):

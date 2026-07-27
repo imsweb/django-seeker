@@ -1,21 +1,21 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from seeker.dsl import AuthorizationException, connections
+from seeker import AuthorizationException, connections
 from django.core.exceptions import ImproperlyConfigured
 
 
 class Command(BaseCommand):
-    help = "Drops all ES/OS indexes on project with SEEKER_INDEX_PREFIX from settings, or one that you specify. To drop indexes with prefix add wildcard * after prefix of indexes you want deleted"
+    help = "Drops all OS indexes on project with SEEKER_INDEX_PREFIX from settings, or one that you specify. To drop indexes with prefix add wildcard * after prefix of indexes you want deleted"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--index", dest="index", default=None, help="The ES/OS index(es) to drop"
+            "--index", dest="index", default=None, help="The OS index(es) to drop"
         )
         parser.add_argument(
             "--using",
             dest="using",
             default="default",
-            help="The ES/OS connection alias to use",
+            help="The OS connection alias to use",
         )
 
     def handle(self, *args, **options):

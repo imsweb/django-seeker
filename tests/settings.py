@@ -1,4 +1,4 @@
-from seeker.dsl import connections
+from seeker import connections
 
 import os
 import sys

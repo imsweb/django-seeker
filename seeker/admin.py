@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import SavedSearch, AdvancedSavedSearch
+from seeker.models import SavedSearch, AdvancedSavedSearch
 
 
 class SavedSearchAdmin(admin.ModelAdmin):

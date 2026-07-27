@@ -3,9 +3,9 @@ from django.test import TestCase
 
 import seeker
 
-from .external import BaseDocument
-from .mappings import BookDocument, DerivedDocument, DjangoBookDocument
-from .models import Book, Category
+from tests.core.external import BaseDocument
+from tests.core.mappings import BookDocument, DerivedDocument, DjangoBookDocument
+from tests.core.models import Book
 
 
 class QueryTests(TestCase):

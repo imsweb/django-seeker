@@ -1,6 +1,7 @@
 from datetime import datetime
 import importlib
 import logging
+import seeker
 import sys
 import time
 
@@ -8,9 +9,8 @@ from django.conf import settings
 from django.http import QueryDict
 from django.utils import timezone
 from django.utils.encoding import force_str
-from seeker.dsl import NotFoundError, connections, dsl
 
-from .registry import model_documents
+from seeker.registry import model_documents
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def update_timestamp_index(index):
             # If the index comes in as a Index object, transform it to its string name
             if not isinstance(index, str):
                 index = index._name
-            timestamp_connection = connections.get_connection(timestamp_connection_alias)
+            timestamp_connection = seeker.connections.get_connection(timestamp_connection_alias)
             body = {'index_name': index, 'last_access': timezone.now()}
             timestamp_connection.index(
                 index=timestamp_index,
@@ -57,10 +57,10 @@ def index(obj, index=None, using=None):
         instance = doc_class.queryset().filter(pk=obj.pk).first()
         if not instance:
             doc_class.delete_obj_from_index(obj, index, using)
-            continue             
+            continue
         doc_using = using or doc_class._index._using or 'default'
         doc_index = index or doc_class._index._name
-        connection = connections.get_connection(doc_using)
+        connection = seeker.connections.get_connection(doc_using)
         body = doc_class.serialize(instance)
         doc_id = body.pop('_id', None)
         connection.index(
@@ -70,11 +70,10 @@ def index(obj, index=None, using=None):
             refresh=True
         )
         update_timestamp_index(doc_index)
-    
-    
+
 def delete(obj, index=None, using=None):
     """
-    Shortcut to delete a Django object from the ES/OS index based on it's model class.
+    Shortcut to delete a Django object from the OS index based on its model class.
     """
     from django.contrib.contenttypes.models import ContentType
     model_class = ContentType.objects.get_for_model(obj).model_class()
@@ -94,7 +93,7 @@ def search(models=None, using='default'):
             indices.append(doc_class._index._name)
             types.append(doc_class)
             update_timestamp_index(doc_class._index._name)
-    return dsl.Search(using=using).index(*indices)
+    return seeker.Search(using=using).index(*indices)
 
 
 def progress(iterator, count=None, label='', size=40, chars='# ', output=sys.stdout, frequency=1.0):
@@ -180,4 +179,4 @@ def validate_date_format(date_text, date_format):
 
 def is_ajax(request):
     """Replacement for Django's HttpRequest.is_ajax() method, which was removed in Django 4.0."""
-    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    return request.headers.get("x-requested-with") == "XMLHttpRequest"

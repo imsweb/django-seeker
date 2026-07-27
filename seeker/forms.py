@@ -1,6 +1,6 @@
 from django.forms import ModelForm
 
-from .models import AdvancedSavedSearch, SavedSearch
+from seeker.models import AdvancedSavedSearch, SavedSearch
 
 
 class BaseSavedSearchForm(ModelForm):
@@ -17,11 +17,12 @@ class BaseSavedSearchForm(ModelForm):
         # This queryset does not include the saved_search about to be saved
         if saved_search.default:
             self.saved_searches.update(default=False)
-        
+
         # We enforce the naming restrictions here (depending on the 'unique_name_enforcement' setting)
         if self.enforce_unique_name:
-            same_name_searches = self.saved_searches.filter(name=saved_search.name).delete()
-            
+            # same name searches
+            self.saved_searches.filter(name=saved_search.name).delete()
+
         if commit:
             saved_search.save()
         return saved_search
