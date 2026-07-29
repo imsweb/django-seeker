@@ -6,19 +6,19 @@ from seeker import bulk, connections
 
 
 class Command(BaseCommand):
-    args = '<app1 app2 ...>'
-    option_list = BaseCommand.option_list + (
-        make_option('--filename', '-f',
-                    dest='filename',
-                    default=None,
-                    help='The file to load index data from',
-        ),
-        make_option('--index',
-                    dest='index',
-                    default=None,
-                    help='Index to load data into',
-        ),
-    )
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--filename',
+            dest='filename',
+            default=None,
+            help='The file to load index data from',
+        )
+        parser.add_argument(
+            '--index',
+            dest='index',
+            default=None,
+            help='Index to load data into',
+        )
 
     def handle(self, *args, **options):
         if not options['filename']:

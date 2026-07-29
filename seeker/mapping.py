@@ -92,7 +92,7 @@ class Indexable(Document):
         using = using or cls._index._using or 'default'
         index = index or cls._index._name or getattr(django_settings, 'SEEKER_INDEX', 'seeker')
         connection = connections.get_connection(using)
-        if connection.indices.exists_type(index=index):
+        if connection.indices.exists(index=index):
 
             def get_actions():
                 for hit in scan(connection, index=index, query={'query': {'match_all': {}}}):

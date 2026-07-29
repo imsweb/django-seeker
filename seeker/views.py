@@ -112,7 +112,7 @@ class Column(object):
         else:
             q['s'] = self.field
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
+        sr_label = format_html(' <span class="visually-hidden">({})</span>', sort) if sort else ''
         if self.field_definition:
             data_attributes_html = ' '.join(f'data-{name}="{value}"' for name, value in self.view.field_definition_data_attrs.items())
             span = format_html('<span {} title="{{}}" class="fa fa-question-circle"></span>'.format(data_attributes_html), self.field_definition)
@@ -810,13 +810,15 @@ class SeekerView(View):
         else:
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
-    def get_search_query_type(self, search, keywords, analyzer=None):
+    def get_keyword_query(self, search, keywords, analyzer=None):
         if not analyzer:
             analyzer = self.analyzer
-        kwargs = {'query': keywords,
-                 'analyzer': analyzer,
-                 'fields': self.get_search_fields(),
-                 'default_operator': self.operator}
+        kwargs = {
+            'query': keywords,
+            'analyzer': analyzer,
+            'fields': self.get_search_fields(),
+            'default_operator': self.operator,
+        }
         if self.query_type == 'simple_query':
             kwargs['auto_generate_phrase_queries'] = True
         return search.query(self.query_type, **kwargs)
@@ -832,7 +834,7 @@ class SeekerView(View):
             s = s.params(**self.search_params)
 
         if keywords:
-            s = self.get_search_query_type(s, keywords)
+            s = self.get_keyword_query(search=s, keywords=keywords)
         if facets:
             for facet, values in facets.items():
                 if values:
@@ -1181,7 +1183,7 @@ class AdvancedColumn(Column):
             data_sort = self.field
 
         next_sort = 'descending' if sort == 'Ascending' else 'ascending'
-        sr_label = format_html(' <span class="sr-only">({})</span>', sort) if sort else ''
+        sr_label = format_html(' <span class="visually-hidden">({})</span>', sort) if sort else ''
 
         # If results provided, we check to see if header has space to allow for wordwrapping. If it already wordwrapped
         # (i.e. has <br> in header) we skip it.
@@ -1390,8 +1392,7 @@ class AdvancedSeekerView(SeekerView):
     def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.get_opensearchpy_search()
         if keywords:
-            s = s.query(self.get_keyword_query(keywords))
-            s = self.get_search_query_type(s, keywords)
+            s = self.get_keyword_query(search=s, keywords=keywords)
         if facets:
             for facet, values in facets.items():
                 if values:
@@ -1539,7 +1540,7 @@ class AdvancedSeekerView(SeekerView):
         """Applies keywords to the search if they exist in the search_object"""
         keywords = self.search_object['keywords'].strip()
         if keywords:
-            search = self.get_search_query_type(search, keywords)
+            search = self.get_keyword_query(search=search, keywords=keywords)
         return search
 
     def display_highlighted_columns(self, columns, display, results):
