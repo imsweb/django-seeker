@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "bleach",
+    "nh3",
     "opensearch-py>=3.2.0,<4",
     "snowballstemmer>=3.1.1,<4",
 ]
