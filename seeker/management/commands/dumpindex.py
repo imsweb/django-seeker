@@ -1,7 +1,7 @@
 import json
 
 from django.core.management.base import BaseCommand
-from seeker.dsl import connections, AuthorizationException
+from seeker import connections, AuthorizationException
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
@@ -20,7 +20,7 @@ class Command(BaseCommand):
             "--using",
             dest="using",
             default="default",
-            help="The ES/OS connection alias to use",
+            help="The OS connection alias to use",
         )
 
     def handle(self, *args, **options):

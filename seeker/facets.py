@@ -2,13 +2,12 @@ import copy
 import functools
 import numbers
 import operator
-import warnings
 
 from django.conf import settings
 from django.utils.encoding import smart_str
-from seeker.dsl import A, Q, Terms
+from seeker import A, Q
 
-from .utils import validate_date_format
+from seeker.utils import validate_date_format
 
 
 class Facet(object):
@@ -31,16 +30,7 @@ class Facet(object):
         self.template = template or self.template
         self.advanced_template = advanced_template or self.advanced_template
         self.description = description
-        self.login_required = kwargs.pop('login_required', False)
-
-        if self.login_required:
-            warnings.warn(
-                    "The 'login_required' facet attribute will be deprecated in Seeker 8.0. Please add the facet field to 'login_required_columns' instead.",
-                    DeprecationWarning
-                )
-
         self.related_column_name = kwargs.pop('related_column_name', self.field.split('.')[0])
-
         self.kwargs = kwargs
 
     @property
@@ -62,7 +52,7 @@ class Facet(object):
 
     def query(self, operator, value):
         """
-        This function returns the dsl query object for this facet. It only accepts a single value, multiple values
+        This function returns the opensearch-py query object for this facet. It only accepts a single value, multiple values
         will need to be combined together outside of this function.
         """
         if operator not in self.valid_operators:
@@ -71,10 +61,6 @@ class Facet(object):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('match', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'match'), **{self.field: value})
-
-    def es_query(self, operator, value):
-        warnings.warn('seeker.facets.Facet.es_query will be removed in seeker 8. Please use seeker.facets.Facet.query instead.', DeprecationWarning)
-        return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
         """
@@ -132,7 +118,7 @@ class TermsFacet(Facet):
 
     def query(self, operator, value):
         """
-        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the opensearch-py query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         if operator not in self.valid_operators:
@@ -141,10 +127,6 @@ class TermsFacet(Facet):
         if operator in self.bool_operators:
             return Q('bool', **{self.bool_operators[operator]: [Q('term', **{self.field: value})]})
         return Q(self.special_operators.get(operator, 'term'), **{self.field: value})
-
-    def es_query(self, operator, value):
-        warnings.warn('seeker.facets.TermsFacet.es_query will be removed in seeker 8. Please use seeker.facets.TermsFacet.query instead.', DeprecationWarning)
-        return self.query(operator=operator, value=value)
 
     def build_filter_dict(self, results):
         filter_dict = super(TermsFacet, self).build_filter_dict(results)
@@ -204,7 +186,7 @@ class TextFacet(Facet):
 
     def query(self, operator, value):
         """
-        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the opensearch-py query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         values = value.split(self.delimiter)
@@ -216,10 +198,6 @@ class TextFacet(Facet):
             if term:
                 queries.append(Q('prefix', **{self.field: term}))
         return Q('bool', should=queries)
-
-    def es_query(self, operator, value):
-        warnings.warn('seeker.facets.TextFacet.es_query will be removed in seeker 8. Please use seeker.facets.TextFacet.query instead.', DeprecationWarning)
-        return self.query(operator=operator, value=value)
 
     def filter(self, search, value):
         values = value.split(self.delimiter)
@@ -433,7 +411,7 @@ class RangeFilter(Facet):
 
     def query(self, query_operator, value):
         """
-        This function returns the dsl query object for the RangeFilter Facet.
+        This function returns the opensearch-py query object for the RangeFilter Facet.
 
         The "value" parameter will be 1 of three options:
             - list: value will be a list of two numbers. The first number represents the lower bound of the range and the second represents the upper bound of the range.
@@ -446,7 +424,7 @@ class RangeFilter(Facet):
             raise ValueError(u"'{}' is not a valid operator for a RangeFilter object.".format(query_operator))
 
         if isinstance(value, (list, dict)):
-            # If value is a list defining the lower and upper bounds of the range, we call _get_filter_from_range_list that returns the DSL Filter object.
+            # If value is a list defining the lower and upper bounds of the range, we call _get_filter_from_range_list that returns the opensearch-py Filter object.
             filter = self._get_filter_from_range_list(value)
             query = Q('bool', filter=filter)
             # A check to see if the query should be wrapped in a parent query defined in self.bool_operators. If not, we return the query as-is.
@@ -472,10 +450,6 @@ class RangeFilter(Facet):
                     return Q('bool', filter=functools.reduce(operator.or_, filters))
         else:
             raise ValueError("Received invalid range value. Value must be a list of two numbers, a number, or a key defined in self.ranges")
-
-    def es_query(self, query_operator, value):
-        warnings.warn('seeker.facets.RangeFilter.es_query will be removed in seeker 8. Please use seeker.facets.RangeFilter.query instead.', DeprecationWarning)
-        return self.query(query_operator=query_operator, value=value)
 
     def build_filter_dict(self, results):
         filter_dict = super(RangeFilter, self).build_filter_dict(results)
@@ -579,7 +553,7 @@ class KeywordFacet(Facet):
 
     def query(self, operator, value):
         """
-        This function returns the dsl query object for this facet. It only accepts a single value and is designed for use with the
+        This function returns the opensearch-py query object for this facet. It only accepts a single value and is designed for use with the
         'complex query' functionality.
         """
         if not isinstance(value, list):

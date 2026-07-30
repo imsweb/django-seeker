@@ -1,15 +1,15 @@
 import importlib
 import inspect
 import logging
-logging.basicConfig()
+
 from django.apps import AppConfig, apps
 from django.conf import settings
 
-from .mapping import Indexable
-from .registry import register
-from .utils import import_class
+from seeker.mapping import Indexable
+from seeker.registry import register
+from seeker.utils import import_class
 
-
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 

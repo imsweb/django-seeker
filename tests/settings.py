@@ -1,4 +1,4 @@
-from seeker.dsl import connections
+from seeker import connections
 
 import os
 import sys
@@ -34,7 +34,6 @@ DATABASES = {
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
-USE_L10N = True
 USE_TZ = True
 
 SEEKER_INDEX = 'seeker-tests'

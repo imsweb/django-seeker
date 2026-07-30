@@ -25,8 +25,8 @@ classifiers = [
 ]
 dependencies = [
     "nh3",
-    "opensearch-dsl~=2.0.1",
-    "snowballstemmer",
+    "opensearch-py>=3.2.0,<4",
+    "snowballstemmer>=3.1.1,<4",
 ]
 
 [project.urls]

@@ -1,21 +1,16 @@
 import argparse
-import warnings
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
-from seeker.dsl import bulk, connections
+from seeker import bulk, connections
 
 from seeker.registry import app_documents, documents
 from seeker.utils import progress, update_timestamp_index
 
 
-def reindex(es, doc_class, index, options):
+def reindex(connection, doc_class, index, options):
     """
     Index all the things, using OpenSearch's bulk API for speed.
     """
-    warnings.warn("The es parameter of seeker.management.commands.reindex.reindex will be removed in seeker 8. It will be renamed to connection.", DeprecationWarning)
-    connection = es
-
     def get_actions():
         for doc in doc_class.documents():
             action = {
@@ -39,12 +34,12 @@ class Command(BaseCommand):
         parser.add_argument('--using',
                             dest='using',
                             default=None,
-                            help='The ES/OS connection alias to use',
+                            help='The OS connection alias to use',
         )
         parser.add_argument('--index',
                             dest='index',
                             default=None,
-                            help='The ES/OS index to store data in',
+                            help='The OS index to store data in',
         )
         parser.add_argument('--quiet',
                             action='store_true',
