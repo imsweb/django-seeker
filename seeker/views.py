@@ -825,7 +825,7 @@ class SeekerView(View):
 
     def get_search(self, keywords=None, facets=None, aggregate=True, include_extra=True, include_params=True):
         using = self.using or self.document._index._using or 'default'
-        index = self.index or self.document._index
+        index = self.index or self.document._index._name
         s = self.document.search(using=using, index=index)
 
         if include_extra:
