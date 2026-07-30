@@ -810,7 +810,7 @@ class SeekerView(View):
         else:
             return self.get_search_fields(mapping=self.document._doc_type.mapping)
 
-    def get_keyword_query(self, search, keywords, analyzer=None):
+    def get_search_query_type(self, search, keywords, analyzer=None):
         if not analyzer:
             analyzer = self.analyzer
         kwargs = {
@@ -834,7 +834,7 @@ class SeekerView(View):
             s = s.params(**self.search_params)
 
         if keywords:
-            s = self.get_keyword_query(search=s, keywords=keywords)
+            s = self.get_search_query_type(search=s, keywords=keywords)
         if facets:
             for facet, values in facets.items():
                 if values:
@@ -1392,7 +1392,7 @@ class AdvancedSeekerView(SeekerView):
     def get_search(self, keywords=None, facets=None, aggregate=True):
         s = self.get_opensearchpy_search()
         if keywords:
-            s = self.get_keyword_query(search=s, keywords=keywords)
+            s = self.get_search_query_type(search=s, keywords=keywords)
         if facets:
             for facet, values in facets.items():
                 if values:
@@ -1540,7 +1540,7 @@ class AdvancedSeekerView(SeekerView):
         """Applies keywords to the search if they exist in the search_object"""
         keywords = self.search_object['keywords'].strip()
         if keywords:
-            search = self.get_keyword_query(search=search, keywords=keywords)
+            search = self.get_search_query_type(search=search, keywords=keywords)
         return search
 
     def display_highlighted_columns(self, columns, display, results):
